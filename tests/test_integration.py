@@ -70,3 +70,15 @@ def test_engine_honesty_stopping_sidecar_breaks_refuted_memory(sidecar):
     _kill(proc); time.sleep(0.5)
     with pytest.raises(requests.exceptions.RequestException):       # memory visibly breaks without the engine
         L.SidecarLedger(url).refuted_forms("TRAP")
+
+
+def test_world_model_idempotent_and_shared_evidence(sidecar):
+    from inverse_core.clients.world import WorldClient
+    w = WorldClient(sidecar[0])
+    vr = [{"validator": "energy", "passed": False, "evidence": "grows"}, {"validator": "units", "passed": True, "evidence": "ok"}]
+    a = w.record("r1", "E1", "d1", {"form": "F1", "status": "refuted"}, vr)
+    b = w.record("r1", "E1", "d1", {"form": "F1", "status": "refuted"}, vr)       # re-sync must not duplicate
+    assert a["hypothesis_id"] == b["hypothesis_id"] and a["entities"] == b["entities"] == 5
+    s = w.summary("E1")["hypotheses"][0]
+    assert s["status"] == "refuted" and {r["validator"] for r in s["results"]} == {"energy", "units"}
+    assert [r for r in s["results"] if not r["passed"]][0]["validator"] == "energy"

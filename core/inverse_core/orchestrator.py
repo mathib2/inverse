@@ -13,8 +13,8 @@ from .trace import Trace
 
 
 class Orchestrator:
-    def __init__(self, zetaris, ledger, llm, runs_dir="runs", max_rounds=3, max_llm_calls=10, on_event=None):
-        self.on_event = on_event
+    def __init__(self, zetaris, ledger, llm, runs_dir="runs", max_rounds=3, max_llm_calls=10, on_event=None, world=None):
+        self.on_event, self.world = on_event, world
         self.z, self.ledger, self.llm, self.runs_dir = zetaris, ledger, llm, runs_dir
         self.max_rounds, self.max_llm_calls = max_rounds, max_llm_calls
 
@@ -57,9 +57,12 @@ class Orchestrator:
         if verdict:
             trace.event("refused_before_fitting", reason="identifiability", action=verdict["action"]["detail"])
         else:
-            verdict = self._search(data, eq, notes, stats, trace, budget, note_model)
+            verdict = self._search(data, eq, notes, stats, trace, budget, note_model, run_id=trace.dir)
         text, bad, m = reporter.report(self.llm, trace, budget, verdict, question)
         note_model(m)
+        if verdict.get("prior_refutations"):                   # deterministic, not LLM-written: shared memory is the demo's proof
+            text += "\n\n**Recalled from shared memory (World Model + H-MEM), not re-fitted:** " + "; ".join(
+                f"`{p['form'][:48]}` was refuted in an earlier run by " + ", ".join(f['validator'] for f in p['failed']) for p in verdict["prior_refutations"]) + "."
         stats["llm_calls"] = budget.llm_calls
         verdict.update({"question": question, "equipment": eq, "narrative": text, "narrative_unverified_numbers": bad,
                         "models_used": models_used, "injection_blocked": blocked, "run_dir": trace.dir,
@@ -68,9 +71,10 @@ class Orchestrator:
         trace.event("verdict", verdict=verdict["verdict"], action=verdict["action"]["type"], stats=stats)
         return verdict
 
-    def _search(self, data, eq, notes, stats, trace, budget, note_model):
+    def _search(self, data, eq, notes, stats, trace, budget, note_model, run_id=""):
         from .validators.validity import regime
         tried, fitted, vetoed, feedback = set(), [], [], ""
+        prior = set(self.ledger.refuted_forms(eq))                   # refuted in EARLIER runs (recalled from H-MEM)
         for r in range(1, self.max_rounds + 1):
             stats["rounds"] = r
             budget.rounds = r
@@ -82,6 +86,8 @@ class Orchestrator:
             f, v = A.evaluate(data, eq, self.ledger, cands, stats, tried)
             fitted += f
             vetoed += v
+            for e in f + v:
+                self._world(trace, run_id, eq, data, e["model"].form(), "refuted" if e["failed"] else "supported", e["validators"])
             for e in v:
                 trace.event("veto", form=e["model"].form(), rmse=e["fit"]["rmse"], failed=[x["validator"] for x in e["failed"]])
             for e in f:
@@ -105,4 +111,16 @@ class Orchestrator:
             fitted.remove(best)
             self.ledger.record(eq, {"form": best["model"].form(), "status": "refuted", "tests_failed": [res["validator"]], "evidence": [res["evidence"]]}, "validator", 0.95)
             trace.event("veto", form=best["model"].form(), failed=[res["validator"]], by="critic_test")
-        return A.finalize(data, eq, self.ledger, fitted, vetoed, stats, extra_evidence=extra)
+            self._world(trace, run_id, eq, data, best["model"].form(), "refuted", best["validators"] + [res])
+        verdict = A.finalize(data, eq, self.ledger, fitted, vetoed, stats, extra_evidence=extra)
+        if self.world:                                               # shared evidence for the Reporter: forms refuted in earlier runs
+            w = self.world.summary(eq)
+            verdict["world_model"] = {"entities": w["entities"], "hypotheses": len(w["hypotheses"])}
+            verdict["prior_refutations"] = [{"form": h["form"], "failed": [{"validator": r["validator"], "evidence": r["evidence"]} for r in h["results"] if not r["passed"]]}
+                                            for h in w["hypotheses"] if h["status"] == "refuted" and h["form"] in prior]
+        return verdict
+
+    def _world(self, trace, run_id, eq, data, form, status, validators):
+        if self.world:
+            out = self.world.record(run_id, eq, data["dataset"], {"form": form, "status": status}, validators)
+            trace.event("world_model", hypothesis=out["hypothesis_id"], status=status, entities=out["entities"])

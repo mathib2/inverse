@@ -40,8 +40,9 @@ def report(llm, trace, budget, verdict, question):
         slim["wear_assessable"], slim["wear_note"] = True, "assessed against the stored baseline"
     else:
         slim["wear_assessable"], slim["wear_note"] = False, "not possible: no baseline exists for this equipment"
+    slim["prior_refutations"] = verdict.get("prior_refutations", [])
     slim["vetoed"] = [{"form": v["form"], "rmse": v["rmse"], "theta": v["theta"], "failed": [f["validator"] for f in v["failed"]]} for v in verdict.get("vetoed", [])]
-    msgs = [{"role": "system", "content": "You explain a physics-checked verdict to a maintenance engineer in under 120 words. Use only numbers present in the JSON. Say what was vetoed and why, and what is NOT checked. Do not change the verdict. If wear_assessable is false, say plainly that wear CANNOT be assessed and give wear_note as the reason; never say 'no wear detected'. Do not mention internal falsifier tests as wear evidence."},
+    msgs = [{"role": "system", "content": "You explain a physics-checked verdict to a maintenance engineer in under 120 words. Use only numbers present in the JSON. Say what was vetoed and why, and what is NOT checked. Do not change the verdict. If wear_assessable is false, say plainly that wear CANNOT be assessed and give wear_note as the reason; never say 'no wear detected'. Do not mention internal falsifier tests as wear evidence. If prior_refutations is non-empty, say those forms were refuted in an earlier run and recalled from shared memory (World Model), with the failed validators."},
             {"role": "user", "content": f"Question: {question}\nVerdict JSON: {json.dumps(slim, default=str)[:6000]}"}]
     r = llm.chat(msgs, max_tokens=2500)
     text = r["text"].strip()

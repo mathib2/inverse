@@ -28,7 +28,7 @@ Laptop (Windows)                                OptiPlex (Ubuntu, Docker)
 ┌─────────────────────────┐  SSH tunnel     ┌────────────────────────────────────────────┐
 │ Meterless Nightshift    │◄─ -R 8088 ──────│ Zetaris platform (UI :3000, REST :8888)    │
 │  Runtime :8088          │                 │ obs-service (FastAPI) on zetaris_default   │
-│  NVIDIA key → Nemotron  │── -L 3000/8888/ │ Node sidecar: Meterless H-MEM  :8100       │
+│  NVIDIA key → Nemotron  │── -L 3000/8888/ │ Node sidecar: H-MEM + World Model :8100       │
 │ Browser: Streamlit UI   │       8501 ────►│ Python core: orchestrator, math, validators│
 └─────────────────────────┘                 │ Streamlit UI :8501                         │
                                             └────────────────────────────────────────────┘
@@ -44,12 +44,13 @@ Every step: JSONL trace in runs/<ts>/ · every veto: H-MEM ledger, source=valida
 | Sponsor | Role in INVERSE |
 |---|---|
 | **Zetaris** | Federates four fragments with one SQL join: sensor samples, sensor specs (σ and units feed the likelihood and the units validator), equipment registry (mass), maintenance history. REST tables over `obs-service`, `CACHE TABLE`d, exploded by schemastore views (`zetaris/sql/`). |
+| **Meterless World Model** | Shared state between agents and runs: equipment, dataset, hypothesis and validator-result entities with content-addressed stable IDs (idempotent re-sync, tested). On a warm run the Reporter's "recalled from memory" evidence is read from it. Passes conformance 8/8 (`docs/evidence/world-model-conformance.txt`). |
 | **Meterless H-MEM** | The hypothesis ledger across runs (Node sidecar over the real reference implementation). Refutations persist; trust is by source, so a validator's veto cannot be overwritten by an LLM claim. Passes its conformance suite (`docs/evidence/hmem-conformance.txt`, 13/13). |
 | **Meterless Nightshift** | The only LLM provider. All calls go through its OpenAI-compatible Runtime (`core/inverse_core/clients/meterless.py`), with the required headers, retry and a fail-fast health indicator. |
 | **NVIDIA Nemotron** | Proposer, Critic and Reporter run on Nemotron lanes through Nightshift. The serving model reported by each response is stored in every trace (`docs/evidence/traces/`, `models_used` in the verdict). |
 | Dev tooling | Claude Code on the team's OptiPlex. The Cursor requirement was waived by the organizers (**TODO: add announcement date before submitting**). |
 
-Also validated but **not used at runtime**: the World Model reference (conformance 8/8, `docs/evidence/world-model-conformance.txt`). The injection guard (`agents/guard.py`) is a **heuristic stand-in**; the Scout Intent engine is not integrated.
+Not integrated: Markovian and Scout Intent. The injection guard (`agents/guard.py`) is a **heuristic stand-in**; the Scout Intent engine is not integrated.
 
 ## Math (nothing more than needed)
 
@@ -77,7 +78,7 @@ From the laptop, open **one** tunnel (PowerShell on the laptop, never on the ser
 ```bash
 scripts/run_demo.sh                       # starts the sidecar and the UI (http://localhost:8501 through the tunnel)
 PYTHONPATH=core .venv/bin/python scripts/run_agent.py "Rig T-200 was reassembled. What governs its vibration?" --reset T-200
-PYTHONPATH=core .venv/bin/python -m pytest -q tests     # 24 tests incl. live Zetaris + sidecar integration
+PYTHONPATH=core .venv/bin/python -m pytest -q tests     # 25 tests incl. live Zetaris + sidecar integration
 ```
 
 ## Honest limitations

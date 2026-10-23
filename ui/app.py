@@ -11,6 +11,7 @@ load_dotenv(os.path.join(ROOT, ".env"))
 from inverse_core.clients.meterless import MeterlessClient, NightshiftOffline
 from inverse_core.clients.zetaris import ZetarisClient
 from inverse_core.ledger import SidecarLedger
+from inverse_core.clients.world import WorldClient
 from inverse_core.orchestrator import Orchestrator
 
 st.set_page_config(page_title="INVERSE", layout="wide")
@@ -51,7 +52,7 @@ if go:
 
     def work():
         try:
-            box["v"] = Orchestrator(ZetarisClient(), ledger, llm, runs_dir=os.path.join(ROOT, "runs"), on_event=events.append).run(question)
+            box["v"] = Orchestrator(ZetarisClient(), ledger, llm, runs_dir=os.path.join(ROOT, "runs"), on_event=events.append, world=WorldClient()).run(question)
         except Exception as e:
             box["err"] = e
 
@@ -90,6 +91,8 @@ if v:
         if v["injection_blocked"]:
             st.warning("Injection guard withheld maintenance note(s): " + ", ".join(b["record_id"] for b in v["injection_blocked"]))
         st.caption(f"Models used: {', '.join(v['models_used'])}  ·  trace: {v['run_dir']}")
+        if v.get("world_model"):
+            st.caption(f"World Model (shared state): {v['world_model']['entities']} entities, {v['world_model']['hypotheses']} hypotheses for {v['equipment']}")
     st.markdown("#### Validator results (no LLM authority)")
     rows = [{"validator": e["validator"], "passed": "✅" if e["passed"] else "❌", "evidence": e["detail"]} for e in v["evidence"]]
     for x in v.get("vetoed", []):
