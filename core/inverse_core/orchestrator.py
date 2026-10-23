@@ -13,7 +13,8 @@ from .trace import Trace
 
 
 class Orchestrator:
-    def __init__(self, zetaris, ledger, llm, runs_dir="runs", max_rounds=3, max_llm_calls=10):
+    def __init__(self, zetaris, ledger, llm, runs_dir="runs", max_rounds=3, max_llm_calls=10, on_event=None):
+        self.on_event = on_event
         self.z, self.ledger, self.llm, self.runs_dir = zetaris, ledger, llm, runs_dir
         self.max_rounds, self.max_llm_calls = max_rounds, max_llm_calls
 
@@ -30,7 +31,7 @@ class Orchestrator:
         trace.event("baseline_stored", equipment=eq, baseline=base, dataset=b["dataset"])
 
     def run(self, question):
-        trace, budget = Trace(self.runs_dir), Budget(self.max_rounds, self.max_llm_calls)
+        trace, budget = Trace(self.runs_dir, self.on_event), Budget(self.max_rounds, self.max_llm_calls)
         h = self.llm.health()
         trace.event("nightshift_health", **{k: v for k, v in h.items() if k != "models"})
         if h["status"] != "online":

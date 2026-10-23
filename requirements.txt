@@ -1,0 +1,12 @@
+numpy
+scipy
+pysindy
+pint
+fastapi
+uvicorn
+streamlit
+pandas
+requests
+python-dotenv
+openai
+pytest

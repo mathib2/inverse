@@ -96,3 +96,13 @@ def test_reporter_flags_invented_numbers_and_strips_thinking():
 def test_guard_withholds_only_matching_notes():
     safe, blocked = guard.sanitize([dict(n) for n in NOTES])
     assert len(blocked) == 1 and safe[1]["note"] == "Bolts torqued."
+
+
+@pytest.mark.parametrize("q,known", [
+    ("Pump P-104: we cannot measure the mass. What governs it?", False),
+    ("The mass of P-104 is unknown", False),
+    ("We don't know the mass of the rig", False),
+    ("Pump P-104 vibration changed. What governs it now, and has it worn?", True)])
+def test_planner_detects_unknown_mass(q, known):
+    from inverse_core.agents import planner
+    assert planner.plan(q, ["P-104"])["mass_known"] is known
