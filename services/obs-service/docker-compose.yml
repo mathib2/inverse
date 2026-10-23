@@ -1,0 +1,10 @@
+services:
+  obs-service:
+    build: .
+    container_name: obs-service
+    restart: unless-stopped
+    networks: [zetaris]
+networks:
+  zetaris:
+    external: true
+    name: zetaris_default

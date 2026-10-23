@@ -1,0 +1,10 @@
+{
+  "name": "inverse-meterless-sidecar",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "mkdir -p vendor && cp -r ${METERLESS_REPO:-$HOME/vendor/Meterless}/engines/hmem/reference vendor/hmem && cd vendor/hmem && npm install --no-audit --no-fund",
+    "start": "tsx server.ts"
+  },
+  "devDependencies": { "tsx": "^4.19.0" }
+}

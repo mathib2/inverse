@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+runs/
+node_modules/
+services/meterless-sidecar/vendor/
+services/meterless-sidecar/.state/
