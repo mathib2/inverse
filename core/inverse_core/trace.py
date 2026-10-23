@@ -1,0 +1,18 @@
+"""JSONL trace per run in runs/<timestamp>/trace.jsonl: inputs, prompts, model used, tool calls, validator results, timings."""
+import json, os, time
+
+
+class Trace:
+    def __init__(self, root="runs"):
+        self.dir = os.path.join(root, time.strftime("%Y%m%d-%H%M%S"))
+        os.makedirs(self.dir, exist_ok=True)
+        self.path = os.path.join(self.dir, "trace.jsonl")
+        self.t0 = time.time()
+        self.events = []
+
+    def event(self, kind, **kw):
+        e = {"t": round(time.time() - self.t0, 3), "kind": kind, **kw}
+        self.events.append(e)
+        with open(self.path, "a") as f:
+            f.write(json.dumps(e, default=str) + "\n")
+        return e

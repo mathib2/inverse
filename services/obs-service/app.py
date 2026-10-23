@@ -21,7 +21,7 @@ EQUIPMENT = [
     {"equipment_id": "P-104", "name": "Process pump 104 vibration mount", "mass_kg": 1.0,
      "baseline_dataset": "p104-baseline", "current_dataset": "p104-current"},
     {"equipment_id": "T-200", "name": "Test rig T-200 (weakly damped)", "mass_kg": 1.0,
-     "baseline_dataset": "trap-current", "current_dataset": "trap-current"},
+     "baseline_dataset": "none", "current_dataset": "trap-current"},
 ]
 MAINTENANCE = [
     {"record_id": "M-001", "equipment_id": "P-104", "date": "2026-09-02", "note": "Routine inspection. Mount bolts torqued. Baseline vibration recorded."},
