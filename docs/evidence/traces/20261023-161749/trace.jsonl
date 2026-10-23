@@ -1,0 +1,7 @@
+{"t": 0.164, "kind": "nightshift_health", "status": "online", "route_available": true}
+{"t": 0.435, "kind": "plan", "equipment": "P-104", "mass_known": false, "question": "Pump P-104: we cannot measure the mass. What governs its vibration?"}
+{"t": 1.088, "kind": "zetaris_join", "equipment": "P-104", "dataset": "p104-current", "rows": 400, "sigma_x": 0.01, "mass_kg": 1.0}
+{"t": 1.302, "kind": "injection_guard", "blocked": [{"record_id": "M-002", "matched": "ignore (all |any )?(previous|prior|above) (instructions|prompts?)"}], "notes": 2}
+{"t": 3.213, "kind": "refused_before_fitting", "reason": "identifiability", "action": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it)"}
+{"t": 44.712, "kind": "llm", "agent": "reporter", "model": "nvidia/nemotron-3-ultra-550b-a55b", "latency_s": 41.5, "reply": "Verdict: UNIDENTIFIABLE. Nothing vetoed. Identifiability failed: Jacobian rank 2 of 3; parameters m, c, k co-vary (direction [-0.577, -0.577, -0.577]), only ratios determined. Smallest singular-value ratio 1.4e-08. Not checked: any fit (refused before fitting). Wear CANNOT be assessed: not possible: no identified model for this data. Recommended: forced response with known force 1 N at 1.5 Hz (identifiable, log10_det_F 14.6).", "unverified_numbers": ["1.4", "08.", "10"]}
+{"t": 44.713, "kind": "verdict", "verdict": "UNIDENTIFIABLE", "action": "next_measurement", "stats": {"fits": 0, "rounds": 1, "skipped_refuted": 0, "llm_calls": 1}}
