@@ -63,9 +63,10 @@ Requires Docker (with the Zetaris platform running and healthy), Node 22, Python
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp .env.example .env            # fill ZETARIS_API_KEY (from the Zetaris UI) and MODEL_* (from Nightshift's Console)
-(cd services/meterless-sidecar && npm install && npm run setup)   # vendors the H-MEM reference
+git clone --depth 1 https://github.com/Meterless/Meterless ~/vendor/Meterless      # H-MEM reference source
+(cd services/meterless-sidecar && npm install && npm run setup)                  # copies the H-MEM reference into vendor/ (gitignored)
 (cd services/obs-service && docker compose up -d --build)          # joins the zetaris_default network
-for f in zetaris/sql/0*.sql; do ... done                            # see zetaris/sql/README.md (run one statement at a time)
+PYTHONPATH=core .venv/bin/python scripts/setup_zetaris.py    # creates the Zetaris database, REST tables, caches and views (idempotent)
 ```
 
 From the laptop, open **one** tunnel (PowerShell on the laptop, never on the server):
