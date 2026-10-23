@@ -1,0 +1,15 @@
+CREATE LIGHTNING REST TABLE p104_baseline FROM OBS_REST REQUEST(endpoint "http://obs-service:8000/datasets/p104-baseline/samples", method "get", response_type "json", http_encoding "URLENCODED") HEADER () BODY ();
+CREATE LIGHTNING REST TABLE trap_current FROM OBS_REST REQUEST(endpoint "http://obs-service:8000/datasets/trap-current/samples", method "get", response_type "json", http_encoding "URLENCODED") HEADER () BODY ();
+CREATE LIGHTNING REST TABLE sensors FROM OBS_REST REQUEST(endpoint "http://obs-service:8000/sensors", method "get", response_type "json", http_encoding "URLENCODED") HEADER () BODY ();
+CREATE LIGHTNING REST TABLE equipment FROM OBS_REST REQUEST(endpoint "http://obs-service:8000/equipment", method "get", response_type "json", http_encoding "URLENCODED") HEADER () BODY ();
+CREATE LIGHTNING REST TABLE maintenance FROM OBS_REST REQUEST(endpoint "http://obs-service:8000/maintenance", method "get", response_type "json", http_encoding "URLENCODED") HEADER () BODY ();
+CACHE TABLE obs_rest.p104_baseline;
+CACHE TABLE obs_rest.trap_current;
+CACHE TABLE obs_rest.sensors;
+CACHE TABLE obs_rest.equipment;
+CACHE TABLE obs_rest.maintenance;
+CREATE SCHEMASTORE VIEW p104_baseline_samples WITH CONTAINER obs AS SELECT dataset_id, s.t AS t, s.x AS x, s.v AS v FROM obs_rest.p104_baseline LATERAL VIEW explode(samples) AS s;
+CREATE SCHEMASTORE VIEW trap_current_samples WITH CONTAINER obs AS SELECT dataset_id, s.t AS t, s.x AS x, s.v AS v FROM obs_rest.trap_current LATERAL VIEW explode(samples) AS s;
+CREATE SCHEMASTORE VIEW sensors_table WITH CONTAINER obs AS SELECT r.sensor_id, r.equipment_id, r.quantity, r.unit, r.sigma, r.sampling_hz FROM obs_rest.sensors LATERAL VIEW explode(sensors) AS r;
+CREATE SCHEMASTORE VIEW equipment_table WITH CONTAINER obs AS SELECT r.equipment_id, r.name, r.mass_kg, r.baseline_dataset, r.current_dataset FROM obs_rest.equipment LATERAL VIEW explode(equipment) AS r;
+CREATE SCHEMASTORE VIEW maintenance_table WITH CONTAINER obs AS SELECT r.record_id, r.equipment_id, r.date, r.note FROM obs_rest.maintenance LATERAL VIEW explode(records) AS r;

@@ -1,6 +1,8 @@
 services:
   obs-service:
-    build: .
+    build:
+      context: ../..
+      dockerfile: services/obs-service/Dockerfile
     container_name: obs-service
     restart: unless-stopped
     networks: [zetaris]

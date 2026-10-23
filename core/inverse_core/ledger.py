@@ -53,6 +53,11 @@ class SidecarLedger(InMemoryLedger):
             r.raise_for_status()
         return out
 
+    def reset(self, equipment):
+        r = requests.post(self.url + "/ledger/reset", json={"equipment": equipment}, timeout=self.timeout)
+        r.raise_for_status()
+        return r.json()["deleted"]
+
     def recall(self, equipment):
         r = requests.get(self.url + "/ledger/hypotheses", params={"equipment": equipment}, timeout=self.timeout)
         r.raise_for_status()

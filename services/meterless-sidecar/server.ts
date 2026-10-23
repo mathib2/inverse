@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const { HMEM } = await import(pathToFileURL(path.join(here, "vendor/hmem/src/index.ts")).href);
-const hmem = new HMEM({ persistDir: path.join(here, ".state") });
+const hmem = new HMEM({ persistDir: process.env.SIDECAR_STATE ?? path.join(here, ".state") });
 const PORT = Number(process.env.SIDECAR_PORT ?? 8100);
 
 const body = (req: http.IncomingMessage) =>
@@ -43,6 +43,14 @@ http
           .filter((r: any) => r.tags.includes("hypothesis") && (!eq || r.tags.includes(`equipment:${eq}`)))
           .map((r: any) => ({ id: r.id, source: r.source, confidence: r.confidence, hypothesis: JSON.parse(r.content) }));
         return send(res, 200, { hypotheses: rows });
+      }
+      if (req.method === "POST" && url.pathname === "/ledger/reset") {
+        const b = await body(req);
+        let n = 0;
+        for (const r of hmem.store.all()) {
+          if (r.tags.includes("hypothesis") && r.tags.includes(`equipment:${b.equipment}`)) { hmem.store.delete(r.id, "demo reset"); n++; }
+        }
+        return send(res, 200, { deleted: n });
       }
       send(res, 404, { error: "not found" });
     } catch (e: any) {
