@@ -91,3 +91,25 @@ def test_energy_validator_flags_negative_damping():
     d = D.p104_current()
     out = V.energy.check(M.linear(m=1.0), [-0.5, 100.0], d)
     assert not out["passed"]
+
+
+def test_thermal_rc_recovered_by_sindyc():
+    """Thermal RC with heater input: T' = -(T - Ta)/(R C) + q/C, recovered with SINDYc."""
+    R, C, Ta = 2.0, 5.0, 20.0
+    dt = 0.05
+    t = np.arange(0, 60, dt)
+    u = 10.0 * (np.sin(0.3 * t) > 0)          # on/off heater, persistently exciting
+    T = np.empty_like(t)
+    T[0] = Ta
+    for i in range(1, len(t)):                # exact discretisation of the linear ODE
+        a = np.exp(-dt / (R * C))
+        T[i] = Ta + (T[i - 1] - Ta) * a + R * u[i - 1] * (1 - a)
+    T = T + np.random.default_rng(0).normal(0, 0.002, len(t))
+    m = ps.SINDy(optimizer=ps.STLSQ(threshold=0.02), feature_library=ps.PolynomialLibrary(1),
+                 differentiation_method=ps.SmoothedFiniteDifference())
+    m.fit(T[:, None], t=t, u=u[:, None])
+    names = m.get_feature_names()
+    row = dict(zip(names, m.coefficients()[0]))
+    assert abs(row["x0"] + 1 / (R * C)) < 0.02          # -0.1
+    assert abs(row["u0"] - 1 / C) < 0.03                # 0.2
+    assert abs(row["1"] - Ta / (R * C)) < 0.3           # 2.0
