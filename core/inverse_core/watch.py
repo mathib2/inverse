@@ -275,7 +275,8 @@ class Watcher:
                 machines_txt = "the machines in the registry"
             goal = str(m["goal"]).replace("{machines}", machines_txt)
             out = self.run_team(goal, f"mission:{m['name']}", by="warden")
-            self.state["missions"][m["name"]] = time.time()
+            every = float(m.get("every", 24)) * 3600
+            self.state["missions"][m["name"]] = time.time() if out is not None else time.time() - every + 3600   # failed: try again in an hour
             self._save()
             done.append({"kind": "team", "trigger": f"mission:{m['name']}", "goal": goal, "ok": out is not None})
         try:

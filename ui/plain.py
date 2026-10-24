@@ -285,7 +285,7 @@ def team_step(e: dict) -> str | None:
     k, task, who = e.get("kind"), e.get("task", ""), e.get("expert") or e.get("agent") or "an expert"
     if k == "plan":
         n = len(e.get("tasks") or [])
-        return f"The lead drafted a plan with {n} task{'s' if n != 1 else ''}"
+        return f"The lead drafted a plan with {n} task{'s' if n != 1 else ''}" + (" by the fixed rule, because the model's plans were not usable" if e.get("by") == "rule" else "")
     if k == "expert_created":
         return f"The lead created a new expert, {e.get('name')}: {e.get('role')}"
     if k == "plan_review":

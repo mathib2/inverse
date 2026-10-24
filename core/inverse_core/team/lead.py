@@ -25,7 +25,8 @@ Delegate by what each task needs. Use depends_on when a task needs another task'
 Experts:
 {experts}
 Known equipment IDs: {equipment}
-Return ONLY JSON: {{"tasks":[{{"id":"T1","goal":"a self-contained instruction","expert":"name","depends_on":[]}}]}}
+Return ONLY JSON: {{"tasks":[{{"id":"T1","goal":"<one self-contained instruction, written by you for THIS goal>","expert":"<a name from the list>","depends_on":[]}}]}}
+Write every goal in your own words for the goal you were given; never copy the example text or leave a placeholder.
 A physics task must name the machine by its ID in its goal. Use research to look facts up in the registry, sensor specs and maintenance history (not to dump raw samples; the physics expert reads those itself), reasoning for derivations and calculations.
 If no expert fits a task and an architect is on the team, give the architect a task to design, create and test an expert for that need, assign the dependent task to the expert name the architect should create (lowercase snake_case), and make it depend on the architect's task. Without an architect, define one (at most 2) by adding "new_experts":[{{"name":"snake_case","role":"one sentence","system_prompt":"its instructions","tools":["..."],"model_lane":"fast|deep"}}] to the JSON, using only these tools: {tools}. Prefer an existing expert when one fits."""
 
@@ -44,9 +45,40 @@ def _norm(s):
     return re.sub(r"\W+", " ", s.lower()).strip()
 
 
+CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|vulnerab\w*|exploit\w*)\b", re.I)
+SUMMARY_WORDS = re.compile(r"\b(summari[sz]e|digest|what (do|does) (we|the crew|the team) know|found so far|ruled out|still unchecked)\b", re.I)
+
+
+def rule_plan(goal, names, equipment):
+    """A plan written by rule, for when the model cannot write one (a small local model may copy the schema's example text twice).
+    A machine named in the goal gets Newton's physics check and Scout's look at its history, then Euler answers the goal from both;
+    code words send the goal to Sentinel; summary words to Ada with the shared memory; anything else to Ada. Deterministic and traced."""
+    tasks = []
+
+    def add(expert, text, deps=()):
+        if expert in names:
+            tasks.append(Task(f"T{len(tasks) + 1}", text, expert, list(deps)))
+
+    machines = [e for e in equipment if re.search(rf"(?<![\w-]){re.escape(e)}(?![\w-])", goal, re.I)][:2]
+    if CODE_WORDS.search(goal) and not machines:
+        add("vulnerability", goal)
+    elif machines:
+        for m in machines:
+            add("physics", f"Has {m} worn since its release test? Check it against the baseline.")
+        add("research", f"From the maintenance history and the sensor specifications: what was done to {' and '.join(machines)} and when, "
+                        f"and which sensor measures its displacement (sigma and unit)?")
+        add("reasoning", f"Using the accepted results from the earlier tasks, answer this in plain words: {goal}", deps=[t.id for t in tasks])
+    elif SUMMARY_WORDS.search(goal):
+        add("solver", goal + " Use the shared memory tool first.")
+    if not tasks:
+        add("solver" if "solver" in names else ("reasoning" if "reasoning" in names else next(iter(names))), goal)
+    return Plan(goal, tasks)
+
+
 class Lead:
-    def __init__(self, ctx, registry, memory, critic=None, max_attempts=3, plan_lane="deep", compose_lane="deep"):
+    def __init__(self, ctx, registry, memory, critic=None, max_attempts=3, plan_lane="deep", compose_lane="deep", rule_fallback=True):
         self.ctx, self.registry, self.memory = ctx, registry, memory
+        self.rule_fallback = rule_fallback                                    # a plan by rule when the model cannot write one (small local models)
         self.critic = critic or Critic(ctx)
         self.max_attempts, self.plan_lane, self.compose_lane = max_attempts, plan_lane, compose_lane
         self.bus = getattr(ctx, "bus", None) or Bus()                         # the experts' conversation: results, reviews, questions, answers
@@ -76,6 +108,11 @@ class Lead:
                 err = str(e)
                 msgs += [{"role": "assistant", "content": out["text"]}, {"role": "user", "content": "Invalid plan: " + err + ". Return corrected JSON."}]
         self._prune(before, None)
+        if self.rule_fallback:                                                # the crew must keep working unattended: a plan written by rule
+            plan = rule_plan(goal, self.registry.names(), self.ctx.equipment).validate(self.registry.names(), self.creators())
+            self.ctx.trace.event("plan", goal=goal, tasks=[t.__dict__ | {"result": None} for t in plan.tasks], model=None, by="rule",
+                                 reason="the model's plans were not usable: " + err[:200])
+            return self.review_plan(plan) if collaborate else plan
         raise PlanError("the planner could not produce a valid plan: " + err)
 
     def _prune(self, before, plan):
