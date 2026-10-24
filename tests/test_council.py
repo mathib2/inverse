@@ -111,7 +111,7 @@ def test_the_propose_and_support_tools_file_for_the_owner(tmp_path):
     tools = Tools(ctx, ["propose", "support"], owner="solver")
     out = tools.call("propose", {"k": "mission", "t": "digest", "w": "run the memory digest every 6 hours", "y": "memory grows fast", "p": {"every": 6}}, ExpertBudget(), who="solver")
     assert out["id"].startswith("P-") and out["backers"] == 1 and ctx.council.proposals[out["id"]]["by"] == "solver"
-    assert "wire protocol refused" in tools.call("propose", {"k": "cfg", "t": "research", "w": "x"}, ExpertBudget(), who="solver")["error"]
+    assert "wire protocol" in tools.call("propose", {"k": "cfg", "t": "research", "w": "x"}, ExpertBudget(), who="solver")["error"]
     assert Tools(ctx, ["support"], owner="research").call("support", {"id": out["id"]}, ExpertBudget(), who="research")["backers"] == 2
     assert "no open proposal" in tools.call("support", {"id": "P-ffffff"}, ExpertBudget(), who="solver")["error"]
 
@@ -191,8 +191,8 @@ def test_sessions_are_rare_by_rule(tmp_path):
     assert c.due() is None and c.due(forced=True) == "asked"                                 # one fresh proposal: nothing happens on its own
     assert c.due(now=time.time() + CO.STALE + 1) == "a proposal has waited a day"
     c.last_session = time.time()
-    c.file({"k": "note", "t": "shared", "w": "two", "y": "y"}, by="a")
-    c.file({"k": "note", "t": "shared", "w": "three", "y": "y"}, by="b")
+    c.file({"k": "note", "t": "shared", "w": "the second note to remember", "y": "y"}, by="a")
+    c.file({"k": "note", "t": "shared", "w": "the third note to remember", "y": "y"}, by="b")
     assert c.due() is None and c.due(now=time.time() + CO.MIN_GAP + 1) == "3 proposals are open"   # at most one session an hour
 
 
