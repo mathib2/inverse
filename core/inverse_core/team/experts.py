@@ -22,6 +22,8 @@ class BaseExpert:
         s = f"TASK: {task.goal}"
         if task.context:
             s += f"\nACCEPTED RESULTS FROM EARLIER TASKS (use as given):\n{task.context}"
+        if getattr(task, "lessons", None):
+            s += "\nLESSONS FROM EARLIER REVIEWS (do not repeat these mistakes):\n" + "\n".join(f"- {l}" for l in task.lessons)
         if task.feedback:
             s += f"\nREVIEWER SENT THIS BACK, fix it: {task.feedback}"
         return s

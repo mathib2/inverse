@@ -54,6 +54,7 @@ def wear(seeds, planted_change):
                      "sigmas": round(drift_c["sigmas"], 1) if drift_c else None,
                      "coverage": covers(v, cur["truth"]) if v.get("verdict") == "ACCEPT" else None,
                      "rel_err": rel_err(v, cur["truth"]) if v.get("verdict") == "ACCEPT" else None,
+                     "conformal": (v["model"].get("conformal") or {}).get("coverage") if v.get("verdict") == "ACCEPT" else None,
                      "seconds": round(time.time() - t0, 2)})
     return rows
 
@@ -118,6 +119,7 @@ def summarize(res):
         "95% interval for c contains the planted value": pct(cov_c, len(acc)),
         "95% interval for k contains the planted value": pct(cov_k, len(acc)),
         "95% intervals (c and k) cover truth on accepted trap fits": pct(cov_trap, len(trap_acc)),
+        "90% conformal band: mean coverage of the unseen tail (nominal >=90%)": f"{100 * float(np.mean([r['conformal'] for r in acc if r.get('conformal') is not None])):.0f}%" if any(r.get('conformal') is not None for r in acc) else "n/a",
         "median relative error of c / k on accepted fits": f"{100 * float(np.median([r['rel_err']['c'] for r in acc])):.2f}% / {100 * float(np.median([r['rel_err']['k'] for r in acc])):.3f}%" if acc else "n/a",
         "median seconds per analysis": round(float(np.median([r["seconds"] for r in w + nw + sm + tr + rf])), 2),
     }

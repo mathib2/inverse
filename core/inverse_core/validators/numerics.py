@@ -1,7 +1,7 @@
 """Numerical integrity: result must be stable under tolerance refinement; tolerances are logged."""
 import numpy as np
 
-from ..models import simulate
+from ..models import closed_form, simulate
 from .base import result
 
 COARSE = (1e-6, 1e-9)
@@ -16,4 +16,6 @@ def check(model, theta, data):
         return result("numerics", False, f"integration failed: {e}")
     scale = max(float(np.max(np.abs(b))), 1e-12)
     d = float(np.max(np.abs(a - b))) / scale
+    if closed_form(model.full(theta), data["u"]):
+        return result("numerics", True, "closed-form solution of the linear unforced model: exact, no tolerance dependence")
     return result("numerics", d < 1e-4, f"solve_ivp(LSODA) rtol/atol {COARSE} vs {FINE}: max relative diff {d:.3g}")

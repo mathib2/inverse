@@ -78,7 +78,8 @@ Not integrated: Scout Intent (in progress on a separate branch). The injection g
 
 MAP fit with `scipy.optimize.least_squares` on sensor-σ-whitened residuals, with the initial state (x0, v0) fitted jointly · Laplace uncertainty `Cov ≈ (JᵀΣ⁻¹J)⁻¹`, scaled by `max(1, χ²_red)` so intervals widen when the sensor spec understates the noise · identifiability by Jacobian SVD in log-parameter space (rank threshold 1e-6) and Fisher spectrum · a PySINDy regression initialises the full-library candidate (threshold 0, no sparsification, so the most flexible model always faces the validators) · AIC/BIC + held-out rollouts (refit on the first 70%, predict the unseen last 30%) · drift rule `|Δθ| > 3·√(σ_now²+σ_base²)` · next measurement maximizes `det F` over simulated experiments.
 Validators (`core/inverse_core/validators/`): Pint units · energy and dissipation sign · numerical integrity under tolerance refinement · regime of validity · stability of the linearization · goodness of fit (reduced χ² with residual whiteness: structured misfit is vetoed, white excess noise only widens the intervals).
-Measured, not claimed: `docs/evidence/EVAL.md` (interval coverage, false alarms, trap vetoes, refusals, per-seed rows in `eval_results.json`).
+Plus a split conformal prediction band on the unseen tail of every accepted fit (distribution-free; coverage reported next to the nominal 90%), an exact closed-form solver for the linear unforced case (no integration error, far faster), Reflexion-style lessons from reviewers kept in H-MEM per expert, and optional self-consistency voting for plans. Each with its reference and location: `docs/agent/ALGORITHMS.md`.
+Measured, not claimed: `docs/evidence/EVAL.md` (interval coverage, conformal coverage, false alarms, trap vetoes, refusals, per-seed rows in `eval_results.json`).
 
 ## Setup
 
