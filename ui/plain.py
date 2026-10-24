@@ -219,7 +219,8 @@ def step(e: dict) -> str | None:
                 "reporter": "The AI wrote the summary"}.get(e.get("agent"))
         return f"{what} ({e.get('latency_s')} s)" if what else None
     if k == "proposer_parse_error":
-        return "Couldn't read the AI's suggestions, so INVERSE used its built-in ones"
+        return ("The AI's suggestions were cut off, so INVERSE used its built-in ones" if e.get("truncated")
+                else "Couldn't read the AI's suggestions, so INVERSE used its built-in ones")
     if k == "veto":
         return f"Ruled out: {model_name(e.get('form', ''))}. Failed: {', '.join(check(f)[0] for f in e.get('failed', []))}"
     if k == "survivor":

@@ -10,6 +10,10 @@ import time
 import requests
 
 RETRY_DELAYS = (2, 4, 8)
+# Nightshift may route a request to a reasoning model, which spends part of max_tokens on hidden thinking
+# before it answers. At 900 the Proposer's JSON was cut off mid-reply on live runs, so every agent gets this
+# much room unless it asks for something else.
+REPLY_MAX_TOKENS = 2500
 
 
 class NightshiftOffline(RuntimeError):
@@ -37,7 +41,7 @@ class MeterlessClient:
             return {"status": "online", "models": ids, "route_available": self.model in ids}
         return {"status": "offline", "detail": f"HTTP {r.status_code}"}
 
-    def chat(self, messages, temperature=0.0, max_tokens=900):
+    def chat(self, messages, temperature=0.0, max_tokens=REPLY_MAX_TOKENS):
         body = {"model": self.model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
         for attempt in range(len(RETRY_DELAYS) + 1):
             t0 = time.time()
