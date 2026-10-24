@@ -32,7 +32,8 @@ EXAMPLES = [("Pump P-104: worn, and what the spring force is",
 ICON = {"done": "✅", "rejected": "⛔", "failed": "⚠️", "pending": "⏳", "running": "🔄"}
 KIND_HELP = {"physics": "the physics-checked pipeline, unchanged", "research": "read-only SQL on Zetaris, cites every query",
              "reasoning": "step by step, every calculation recomputed", "custom": "a tool-using agent defined only by this config",
-             "vulnerability": "defensive code review of this repository, findings checked against the files"}
+             "vulnerability": "defensive code review of this repository, findings checked against the files",
+             "architect": "designs, creates and tests a new expert when the team lacks one"}
 NEW = {"name": "", "kind": "custom", "role": "", "tools": ["run_sql", "calc", "memory"], "model_lane": "fast", "budget": {}, "enabled": True}
 TRACE_KINDS = ("llm", "delegate", "tool", "critic", "retry", "stuck", "escalate", "task_failed", "task_rejected", "refused_scope", "plan_review",
                "expert_created", "memory_write", "llm_parse_error")
@@ -264,16 +265,19 @@ def render(ledger, ai_online, sidecar, health=None):
     if reviews:
         st.markdown("The experts reviewed the plan · " + " · ".join(_review_line(r) for r in reviews))
     names = lead.registry.names()
+    pending = plan.pending_experts(names)
+    if pending:
+        st.caption("Experts the architect will create during the run: " + ", ".join(f"`{p}`" for p in pending))
     df = pd.DataFrame([{"id": t.id, "expert": t.expert, "goal": t.goal, "depends_on": ", ".join(t.depends_on)} for t in plan.tasks])
     edited = st.data_editor(df, num_rows="dynamic", width="stretch", key="plan_editor",
-                            column_config={"expert": st.column_config.SelectboxColumn(options=names, required=True),
+                            column_config={"expert": st.column_config.SelectboxColumn(options=names + pending, required=True),
                                            "goal": st.column_config.TextColumn(width="large")})
     if st.button("Approve and run", icon=":material/play_arrow:"):
         try:
             rows = [r for r in edited.to_dict("records") if r.get("id") and r.get("goal")]
             new = Plan.from_dict({"goal": plan.goal, "tasks": [{"id": str(r["id"]).strip(), "goal": r["goal"], "expert": r["expert"],
                                                                  "depends_on": [d.strip() for d in str(r.get("depends_on") or "").split(",") if d.strip()]} for r in rows]})
-            new.validate(names)
+            new.validate(names, lead.creators())
         except (PlanError, KeyError, TypeError) as e:
             st.error(f"**This plan can't run.** {e}")
         else:

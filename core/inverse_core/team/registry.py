@@ -10,13 +10,14 @@ import re
 
 import yaml
 
-from . import custom
+from . import architect, custom
 from .expert import ExpertBudget
 from .experts import KINDS as BUILTIN
 from .tools import Tools
 
-KINDS = {**BUILTIN, **custom.KINDS}
+KINDS = {**BUILTIN, **custom.KINDS, **architect.KINDS}
 TOOL_NAMES = set(Tools.SPECS) | {"physics_pipeline"}             # physics_pipeline names the wrapped single-agent run
+ARCHITECT_TOOLS = set(architect.ArchitectTools.SPECS)              # only an architect may hold these
 BUDGET_KEYS = {"tool_calls", "tokens", "seconds"}
 NAME = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
 
@@ -37,9 +38,10 @@ def validate(c, lanes=None):
     if not str(c.get("role") or "").strip():
         raise ConfigError(f"{name}: role is required")
     tools = list(c.get("tools") or [])
-    bad = [t for t in tools if t not in TOOL_NAMES]
+    allowed = TOOL_NAMES | (ARCHITECT_TOOLS if c.get("kind") == "architect" else set())
+    bad = [t for t in tools if t not in allowed]
     if bad:
-        raise ConfigError(f"{name}: unknown tool(s) {bad} (known: {', '.join(sorted(TOOL_NAMES))})")
+        raise ConfigError(f"{name}: unknown tool(s) {bad} (known: {', '.join(sorted(allowed))})")
     lane = c.get("model_lane") or "fast"
     if lanes is not None and lane not in lanes.mapping:
         raise ConfigError(f"{name}: unknown lane {lane!r} (known: {', '.join(lanes.mapping)})")

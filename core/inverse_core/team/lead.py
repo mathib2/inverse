@@ -26,7 +26,7 @@ Experts:
 Known equipment IDs: {equipment}
 Return ONLY JSON: {{"tasks":[{{"id":"T1","goal":"a self-contained instruction","expert":"name","depends_on":[]}}]}}
 A physics task must name the machine by its ID in its goal. Use research to look facts up in the registry, sensor specs and maintenance history (not to dump raw samples; the physics expert reads those itself), reasoning for derivations and calculations.
-If no expert fits a task, define one (at most 2) by adding "new_experts":[{{"name":"snake_case","role":"one sentence","system_prompt":"its instructions","tools":["..."],"model_lane":"fast|deep"}}] to the JSON, using only these tools: {tools}. A new expert is a general tool-using agent; prefer an existing expert when one fits."""
+If no expert fits a task and an architect is on the team, give the architect a task to design, create and test an expert for that need, assign the dependent task to the expert name the architect should create (lowercase snake_case), and make it depend on the architect's task. Without an architect, define one (at most 2) by adding "new_experts":[{{"name":"snake_case","role":"one sentence","system_prompt":"its instructions","tools":["..."],"model_lane":"fast|deep"}}] to the JSON, using only these tools: {tools}. Prefer an existing expert when one fits."""
 
 COMPOSE_SYSTEM = """Write the final answer for the user from the accepted expert results. Rules: use only facts present in the results; cite every claim as
 [T1.E2] (task id, evidence number); say which expert produced each part; state uncertainty and what was NOT checked. Tasks that did not finish are
@@ -59,13 +59,17 @@ class Lead:
             try:
                 for spec in (out["json"].get("new_experts") or [])[:2]:
                     self._create_expert(spec)
-                plan = Plan.from_dict({"goal": goal, "tasks": out["json"]["tasks"][:5]}).validate(self.registry.names())
+                plan = Plan.from_dict({"goal": goal, "tasks": out["json"]["tasks"][:5]}).validate(self.registry.names(), self.creators())
                 self.ctx.trace.event("plan", goal=goal, tasks=[t.__dict__ | {"result": None} for t in plan.tasks], model=out["model"])
                 return self.review_plan(plan) if collaborate else plan
             except (PlanError, ConfigError, KeyError, TypeError, AttributeError) as e:
                 err = str(e)
                 msgs += [{"role": "assistant", "content": out["text"]}, {"role": "user", "content": "Invalid plan: " + err + ". Return corrected JSON."}]
         raise PlanError("the planner could not produce a valid plan: " + err)
+
+    def creators(self):
+        """Experts that can create experts (the architect kind): a plan may assign a task to a not-yet-existing expert if it depends on them."""
+        return [n for n, c in self.registry.configs.items() if c.get("kind") == "architect" and n in self.registry.experts]
 
     def _create_expert(self, spec):
         """An expert the planner proposed: always a tool-using `custom` expert with a fixed budget; the registry validates the
@@ -84,6 +88,8 @@ class Lead:
         own lane with their own prompt. Only an expert's own tasks may be reworded; the Lead applies the changes and re-validates."""
         tasks = {t.id: t for t in plan.tasks}
         for name in dict.fromkeys(t.expert for t in plan.tasks):
+            if name not in self.registry.experts:                              # an expert the architect will create: nobody to review its task yet
+                continue
             expert, mine = self.registry.experts[name], [t for t in plan.tasks if t.expert == name]
             reviewer = getattr(expert, "review_plan", None)
             if reviewer:
@@ -106,12 +112,12 @@ class Lead:
                     changed.append(t.id)
             self.ctx.trace.event("plan_review", expert=name, ok=bool(review.get("ok", True)), changed=changed,
                                  missing=[str(m) for m in (review.get("missing") or [])][:5], model=review.get("model"))
-        return plan.validate(self.registry.names())
+        return plan.validate(self.registry.names(), self.creators())
 
     def run(self, plan, run_dir=None):
-        plan.validate(self.registry.names())
+        plan.validate(self.registry.names(), self.creators())
         self.ctx.budget.t0 = time.time()                                      # the wall-clock budget starts when the plan is approved, not drafted
-        self.ctx.trace.event("plan_approved", tasks=[t.id for t in plan.tasks])
+        self.ctx.trace.event("plan_approved", tasks=[t.id for t in plan.tasks], pending_experts=plan.pending_experts(self.registry.names()))
         if run_dir:
             plan.save(run_dir)
         done = {}
@@ -120,6 +126,9 @@ class Lead:
             if blocked:
                 task.status, task.feedback = "failed", f"skipped: dependency {blocked} did not produce an accepted result"
                 self.ctx.trace.event("task_skipped", task=task.id, blocked_by=blocked)
+            elif task.expert not in self.registry.experts:                    # planned for an expert the architect was to create
+                task.status, task.feedback = "failed", f"no expert named {task.expert!r} exists: the architect task did not create it"
+                self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
             else:
                 task.context = "\n".join(f"[{d}] {done[d].result['answer']}" for d in task.depends_on)
                 self._execute(task)

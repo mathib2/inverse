@@ -1,4 +1,6 @@
-"""Plan: inspectable data on disk (plan.json), editable before it runs. Tasks form a DAG; delegation is by dependency."""
+"""Plan: inspectable data on disk (plan.json), editable before it runs. Tasks form a DAG; delegation is by dependency.
+A task may be assigned to an expert that does not exist yet, provided it depends on a task given to an expert that can
+create experts (the architect); the Lead checks the expert exists when the task's turn comes."""
 from __future__ import annotations
 
 import json
@@ -24,20 +26,28 @@ class Plan:
     def to_dict(self):
         return {"goal": self.goal, "tasks": [asdict(t) for t in self.tasks]}
 
-    def validate(self, expert_names):
+    def validate(self, expert_names, creators=()):
         ids = [t.id for t in self.tasks]
+        by_id = {t.id: t for t in self.tasks}
         if not self.tasks:
             raise PlanError("plan has no tasks")
         if len(set(ids)) != len(ids):
             raise PlanError("duplicate task ids")
         for t in self.tasks:
-            if t.expert not in expert_names:
-                raise PlanError(f"task {t.id} assigned to unknown or disabled expert {t.expert!r} (known: {', '.join(sorted(expert_names))})")
             missing = [d for d in t.depends_on if d not in ids]
             if missing:
                 raise PlanError(f"task {t.id} depends on unknown task(s) {missing}")
+            if t.expert not in expert_names:
+                made_by = [d for d in t.depends_on if by_id[d].expert in creators]
+                if not made_by:
+                    raise PlanError(f"task {t.id} assigned to unknown or disabled expert {t.expert!r} (known: {', '.join(sorted(expert_names))}"
+                                    + (f"; a new expert must be created first by a task given to {', '.join(creators)})" if creators else ")"))
         self.order()
         return self
+
+    def pending_experts(self, expert_names):
+        """Names used by tasks that no existing expert answers to yet."""
+        return sorted({t.expert for t in self.tasks if t.expert not in expert_names})
 
     def order(self):
         """Dependency order; a cycle is a PlanError."""
