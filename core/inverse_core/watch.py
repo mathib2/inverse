@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 import traceback
 
@@ -59,6 +60,7 @@ class Watcher:
         self.queue_path, self.done_path = os.path.join(self.queue_dir, "goals.jsonl"), os.path.join(self.queue_dir, "done.jsonl")
         self.state = self._load(self.state_path, {"seen": {}, "cycles": 0, "runs": []})
         self.webhook, self.services, self._print = webhook, services, log
+        self._status, self._hb_extra, self._stop = "starting", {}, False
 
     # --- files ------------------------------------------------------------------------------------------------------------
     @staticmethod
@@ -71,7 +73,7 @@ class Watcher:
 
     @staticmethod
     def _dump(path, obj):
-        tmp = path + ".tmp"
+        tmp = f"{path}.{threading.get_ident()}.tmp"                        # the heartbeat thread and the loop may write at once
         with open(tmp, "w") as f:
             json.dump(obj, f, indent=1, default=str)
         os.replace(tmp, path)
@@ -87,9 +89,22 @@ class Watcher:
         if self._print:
             self._print(line)
 
-    def heartbeat(self, status, **kw):
-        self._dump(self.heartbeat_path, {"ts": time.time(), "when": _now(), "pid": os.getpid(), "status": status, "cycle": self.state["cycles"],
-                                         "interval": self.interval, **kw})
+    def heartbeat(self, status=None, **kw):
+        """Written at every change of state and, from a background thread, every `every` seconds while a long run is in progress, so
+        'alive' never depends on how long the physics or the team takes."""
+        if status is not None:
+            self._status, self._hb_extra = status, kw
+        self._dump(self.heartbeat_path, {"ts": time.time(), "when": _now(), "pid": os.getpid(), "status": self._status, "cycle": self.state["cycles"],
+                                         "interval": self.interval, **self._hb_extra})
+
+    def _pulse(self, every=20):
+        while not self._stop:
+            time.sleep(every)
+            if not self._stop:
+                try:
+                    self.heartbeat()
+                except OSError:
+                    pass
 
     def manifest(self, run_dir, **fields):
         """Merge fields into run_dir/manifest.json: what the run was, why it started, how it ended."""
@@ -226,6 +241,7 @@ class Watcher:
         """One pass: queued goals first, then every machine whose data changed (all of them when forced). Returns what happened."""
         self.state["cycles"] += 1
         self._save()
+        self.heartbeat("working")
         done = []
         if self.services:
             try:
@@ -275,8 +291,8 @@ class Watcher:
     def loop(self, once=False, force=False, sleep=time.sleep):
         self.recover()
         self.log(f"watch mode started (every {self.interval}s; machines: {', '.join(self.only) or 'all'})")
+        threading.Thread(target=self._pulse, daemon=True, name="watch-heartbeat").start()
         while True:
-            self.heartbeat("working")
             try:
                 done = self.cycle(force=force)
                 self.log(f"cycle {self.state['cycles']} done: {len(done)} run(s)")
@@ -284,6 +300,7 @@ class Watcher:
                 self.log("cycle failed:\n" + traceback.format_exc()[-1500:])
             force = False
             if once:
+                self._stop = True
                 self.heartbeat("stopped")
                 return
             waited, step = 0, 30

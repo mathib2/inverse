@@ -173,3 +173,18 @@ def test_a_queued_goal_cuts_the_wait_short(tmp_path):
     except KeyboardInterrupt:
         pass
     assert naps[0] == 30 and team.goals == ["urgent: look at P-104"] and w.status()["cycles"] == 2
+
+
+def test_the_heartbeat_keeps_beating_during_a_long_run(tmp_path):
+    import threading
+    import time
+    w = Watcher(FakeZ(), None, None, root=str(tmp_path), interval=60)
+    w.heartbeat("working", what="physics on P-104")
+    first = json.load(open(w.heartbeat_path))
+    th = threading.Thread(target=w._pulse, kwargs={"every": 0.05}, daemon=True)
+    th.start()
+    time.sleep(0.3)
+    w._stop = True
+    th.join(1)
+    again = json.load(open(w.heartbeat_path))
+    assert again["ts"] > first["ts"] and again["status"] == "working" and again["what"] == "physics on P-104"
