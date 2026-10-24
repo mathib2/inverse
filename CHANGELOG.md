@@ -1,5 +1,8 @@
 # Changelog
 
+## Submission documents (2026-10-24)
+- `docs/SPONSORS.md` (sponsor technology explanation), `docs/SUBMISSION.md` (project details and the checklist), `docs/ONBOARDING.md` (adding a machine; what a plant would need); the eval report gains a ten-times-noisier scenario.
+
 ## Demo material (2026-10-24)
 - `docs/DEMO_SCRIPT.md` rewritten to the real UI labels and measured timings, with a replayed team segment and fallbacks; `docs/agent/NIGHTSHIFT_TUNNEL.md` (self-reconnecting tunnel for the laptop that hosts Nightshift); honest progress label on the single-machine page.
 

@@ -22,7 +22,7 @@ After a repair or reassembly, a reliability engineer runs a release test on a ma
 | Innovation | Refusal before fitting with the resolving experiment named; a better-fitting model vetoed on physics grounds (0 of 80 trap seeds accepted a negative-damping model); experts that review the plan; a lead that creates an expert when none fits; code-review findings that must point at a real line or are dropped. |
 | Demo | `docs/DEMO_SCRIPT.md` (three segments: a live single-machine run, the refusal, a replayed team run), saved runs replayable in the UI without a model, traces with the served model per call in `docs/evidence/traces/`. Keeping the AI reachable: `docs/agent/NIGHTSHIFT_TUNNEL.md`. |
 | Product & UX | One wording layer (`ui/plain.py`, tests fail on jargon), three one-click scenarios, live progress in plain sentences, a plan you can edit before it runs, an experts panel to change the team without code. |
-| Sponsor tech | The table below: every sponsor has a code path, a test and an evidence file. |
+| Sponsor tech | The table below and `docs/SPONSORS.md`: every sponsor has a code path, a test and an evidence file. |
 
 ## What it does (three seeded, reproducible scenarios)
 
@@ -124,7 +124,7 @@ In the UI choose **Mode → Team of experts**: make a plan, edit it in the table
 
 - **Data is synthetic** (fixed seeds, documented in `data/README.md`); the trap case is constructed (seed 68 was chosen by search; the full trap occurs in 31 of 80 seeds and the wrong model was accepted in 0 of 80). No real plant data was used.
 - **The method needs a release (bump) test:** free decay from a known initial state, with displacement and velocity channels. Operational (forced) vibration is not supported yet, and the forced-response measurement the agent recommends after a refusal cannot be ingested by this version.
-- **Two machines and three datasets** are configured in the data source, the Zetaris views and the client; onboarding a new machine means adding it in those three places.
+- **Two machines and three datasets** are configured in the data source, the Zetaris views and the client; onboarding a new machine means adding it in those three places (`docs/ONBOARDING.md`).
 - One physical family (1-DOF vibration). The `software` adapter is only an interface stub.
 - The initial state (x0, v0) is estimated jointly with the parameters; the first sample is only the starting guess.
 - The planner is deterministic: a question naming no known equipment is refused rather than mapped to a default.

@@ -38,14 +38,15 @@ def rel_err(verdict, truth):
     return {n: abs(param(verdict, n)["value"] - truth[n]) / abs(truth[n]) for n in ("c", "k")}
 
 
-def wear(seeds, planted_change):
-    """Baseline month, then a current month whose damping changed by `planted_change` (0 = no wear). Expect a flag iff wear."""
+def wear(seeds, planted_change, sx=0.01):
+    """Baseline month, then a current month whose damping changed by `planted_change` (0 = no wear). Expect a flag iff wear.
+    sx is the sensor noise (the demo data uses 0.01 m on a 1 m release; 0.1 m is a realistic, noisy sensor)."""
     rows = []
     for s in seeds:
         led = L.InMemoryLedger()
         t0 = time.time()
-        b = A.analyze(D.oscillator(c=2.0, seed=1000 + s), "E", led)
-        cur = D.oscillator(c=2.0 * (1 + planted_change), seed=2000 + s)
+        b = A.analyze(D.oscillator(c=2.0, seed=1000 + s, sx=sx), "E", led)
+        cur = D.oscillator(c=2.0 * (1 + planted_change), seed=2000 + s, sx=sx)
         v = A.analyze(cur, "E", led, baseline=baseline_of(b)) if b["verdict"] == "ACCEPT" else {"verdict": b["verdict"]}
         flagged = v.get("action", {}).get("type") == "maintenance_flag"
         drift_c = next((d for d in v.get("action", {}).get("drift", []) if d["param"] == "c"), None)
@@ -101,7 +102,9 @@ def pct(n, d):
 
 def summarize(res):
     w, nw, sm, tr, rf = res["wear_40pct"], res["no_wear"], res["small_wear_5pct"], res["trap"], res["refusal"]
+    nz, nzn = res.get("noisy_wear_40pct", []), res.get("noisy_no_wear", [])
     acc = [r for r in w + nw + sm if r["verdict"] == "ACCEPT"]
+    nacc = [r for r in nz + nzn if r["verdict"] == "ACCEPT"]
     cov_c = sum(r["coverage"]["c"] for r in acc)
     cov_k = sum(r["coverage"]["k"] for r in acc)
     trap_acc = [r for r in tr if r["coverage"]]
@@ -110,6 +113,10 @@ def summarize(res):
         "wear flagged when damping rose 40%": pct(sum(r["flagged"] and r["direction"] == "up" for r in w), len(w)),
         "false alarm when nothing changed": pct(sum(r["flagged"] for r in nw), len(nw)),
         "small wear (+5%) flagged": pct(sum(r["flagged"] for r in sm), len(sm)),
+        "10x noisier sensor: wear flagged when damping rose 40%": pct(sum(r["flagged"] and r["direction"] == "up" for r in nz), len(nz)),
+        "10x noisier sensor: false alarm when nothing changed": pct(sum(r["flagged"] for r in nzn), len(nzn)),
+        "10x noisier sensor: median sigmas of the +40% flag (vs clean)": f"{float(np.median([r['sigmas'] for r in nz if r['sigmas'] is not None])):.0f} vs {float(np.median([r['sigmas'] for r in w if r['sigmas'] is not None])):.0f}" if nz and w else "n/a",
+        "10x noisier sensor: 95% interval for c contains the planted value": pct(sum(r["coverage"]["c"] for r in nacc), len(nacc)),
         "wrong (negative-damping) model accepted on trap data": pct(sum(r["wrong_model_accepted"] for r in tr), len(tr)),
         "trap data where the bait fit better and was still vetoed": pct(sum(r["bait_fit_better"] for r in tr), len(tr)),
         "trap data with a negative-damping model vetoed": pct(sum(r["negative_damping_vetoed"] for r in tr), len(tr)),
@@ -139,6 +146,7 @@ def markdown(res, meta):
               "- **Wear (+40%)**: baseline month c=2.0 N·s/m, then a month with c=2.8 (the P-104 story). Expect `maintenance_flag`, direction up, well beyond 3σ.",
               "- **No wear**: a second month with c=2.0 and new noise. Any flag is a false alarm.",
               "- **Small wear (+5%)**: c=2.1. Near the 3σ rule's edge at this noise level; reported, not asserted.",
+              "- **10x noisier sensor**: the same wear and no-wear months with σ=0.1 m instead of 0.01 m. Intervals must widen (fewer sigmas) without false alarms.",
               "- **Trap**: c=0.15, σ=0.04 m, 200 samples, many seeds (the T-200 story). The 4-parameter model may fit better with negative damping; "
               "the stability and energy validators must veto it every time. `bait fit better` counts the seeds where the trap is actually baited.",
               "- **Refusal**: free decay with unknown mass. Only ratios are determined, so the agent must refuse before fitting and name the measurement; "
@@ -159,6 +167,7 @@ def main():
     t0 = time.time()
     seeds = list(range(a.seeds))
     res = {"wear_40pct": wear(seeds, 0.40), "no_wear": wear(seeds, 0.0), "small_wear_5pct": wear(seeds, 0.05),
+           "noisy_wear_40pct": wear(seeds, 0.40, sx=0.1), "noisy_no_wear": wear(seeds, 0.0, sx=0.1),
            "trap": trap(list(range(a.trap_seeds))), "refusal": refusal(seeds)}
     res["summary"] = summarize(res)
     meta = {"date": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "machine": platform.node() + " / " + platform.platform(),
