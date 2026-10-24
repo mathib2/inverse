@@ -54,8 +54,21 @@ class PhysicsExpert(BaseExpert):
         return {"ok": not missing, "changes": changes, "missing": missing}
 
     def run(self, task, memory, budget):
-        budget.charge_tool()
-        v = self.ctx.physics_runner(task.goal)
+        named = [e for e in self.ctx.equipment if planner._mentions(task.goal, e)]
+        if len(named) <= 1:
+            budget.charge_tool()
+            return self._result(self.ctx.physics_runner(task.goal), memory)
+        parts = []                                                            # one check per machine named; the pipeline answers about one machine at a time
+        for m in named[:2]:
+            budget.charge_tool()
+            parts.append(self._result(self.ctx.physics_runner(f"Has {m} worn since its release test? Check it against the baseline."), memory))
+        res = ExpertResult(" ".join(p.answer for p in parts), [e for p in parts for e in p.evidence], min(p.confidence for p in parts),
+                           parts[0].assumptions, sorted({n for p in parts for n in p.not_checked}), sorted({mm for p in parts for mm in p.models_used}),
+                           "; ".join(p.trace_ref for p in parts if p.trace_ref))
+        res.findings = [f for p in parts for f in p.findings]
+        return res
+
+    def _result(self, v, memory):
         ev = [{"type": "tool", "source": "validator:" + e["validator"], "detail": ("PASS " if e["passed"] else "FAIL ") + e["detail"]}
               for e in v.get("evidence", [])]
         m = v.get("model") or {}

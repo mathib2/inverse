@@ -274,3 +274,49 @@ def test_lead_falls_back_to_the_rule_plan_when_the_model_copies_the_example(tmp_
     strict = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()), rule_fallback=False)
     with pytest.raises(PlanError, match="no real goal"):
         strict.plan("Is pump P-104 wearing out?")
+
+
+def _verdict(m, flag=False):
+    return {"verdict": "ACCEPT", "equipment": m, "run_dir": f"runs/{m}", "models_used": ["local"], "not_checked": ["temperature"], "model": None, "vetoed": [],
+            "evidence": [{"validator": "units", "passed": True, "detail": "every term is a force"}],
+            "action": {"type": "maintenance_flag", "detail": "c up +40% vs baseline (53 sigma, threshold 3)", "drift": []} if flag else {"type": "none", "detail": "no baseline available", "drift": []}}
+
+
+def test_newton_checks_every_machine_a_task_names(tmp_path):
+    asked = []
+
+    def runner(question):
+        asked.append(question)
+        return _verdict("P-104" if "P-104" in question else "T-200", flag="P-104" in question)
+
+    ctx = make_ctx(tmp_path, lambda m, msgs: "{}", physics_runner=runner)
+    ctx.equipment = ["P-104", "T-200"]
+    newton = Registry(ctx, os.path.join(ROOT, "experts"), ROOT).experts["physics"]
+    res = newton.run(Task("T1", "Check P-104, T-200 for wear against their baselines", "physics"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=2))
+    assert asked == ["Has P-104 worn since its release test? Check it against the baseline.", "Has T-200 worn since its release test? Check it against the baseline."]
+    assert "P-104: ACCEPT" in res.answer and "T-200: ACCEPT" in res.answer and "maintenance_flag" in res.answer and len(res.evidence) == 2
+    assert len(res.findings) == 2 and res.not_checked == ["temperature"]
+    asked.clear()
+    newton.run(Task("T2", "Has P-104 worn?", "physics"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=2))
+    assert asked == ["Has P-104 worn?"]                                                   # one machine: the task's own wording, as before
+
+
+def test_a_deterministic_result_is_accepted_by_rule_and_nothing_accepted_means_a_code_written_answer(tmp_path):
+    def script(model, messages):
+        system = messages[0]["content"]
+        if system.startswith("You are an adversarial reviewer"):
+            return json.dumps({"verdict": "reject", "reason": "the model is nonlinear"})           # a small model's opinion on physics
+        if system.startswith("Write the final answer"):
+            raise AssertionError("the writer must not be called when nothing was accepted")
+        raise AssertionError(system[:40])
+
+    ctx = make_ctx(tmp_path, script, physics_runner=lambda q: _verdict("P-104", flag=True))
+    lead = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()))
+    t = Task("T1", "Has P-104 worn?", "physics")
+    lead._execute(t)
+    assert t.status == "done" and [e["by"] for e in events(ctx, "critic")] == ["rule"]        # Newton's checks are the review
+    assert not any(e.get("agent") == "critic" for e in events(ctx, "llm"))
+    failed = Plan("g", [Task("T1", "think", "reasoning")])
+    failed.tasks[0].status, failed.tasks[0].feedback = "failed", "escalated"
+    out = lead.compose(failed)
+    assert out["answer"].startswith("No task produced an accepted result.") and "**Not completed**" in out["answer"] and out["models_used"] == []
