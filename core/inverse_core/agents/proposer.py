@@ -43,5 +43,5 @@ def propose(llm, trace, budget, regime, sigma, notes, refuted, feedback, m):
     try:
         return to_models(r["text"], m), r["model"]
     except Exception as e:
-        trace.event("proposer_parse_error", error=str(e))
+        trace.event("proposer_parse_error", error=str(e), truncated=r.get("finish_reason") == "length")
         return [], r["model"]
