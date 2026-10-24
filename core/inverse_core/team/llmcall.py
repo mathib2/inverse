@@ -16,6 +16,7 @@ class Ctx:
         self.zetaris, self.physics_runner, self.guard, self.equipment = zetaris, physics_runner, guard, list(equipment)
         self.root = root                                                      # the repository experts may read (code we own)
         self.markovian = markovian                                            # Meterless Markovian client when the service is up, else None
+        self.sql_cache = {}                                                   # per-run: the same read-only query is sent to Zetaris once
 
 
 def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False, temperature=None):

@@ -302,7 +302,7 @@ def render(ledger, ai_online, sidecar, health=None):
             st.error(f"**This plan can't run.** {e}")
         else:
             ss.team_plan = new
-            th, box = _run_in_thread(lambda: (lead.run(new, ss.team_dir), lead.compose(new, ss.team_dir))[1])
+            th, box = _run_in_thread(lambda: (lead.run(new, ss.team_dir, parallel=2), lead.compose(new, ss.team_dir))[1])
             status = _stream(th, ss.team_events, "Experts are working… delegating, checking, reviewing")
             if "err" in box:
                 _failed(status, "The run stopped", box["err"], lead.ctx.equipment)

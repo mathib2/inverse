@@ -163,7 +163,14 @@ class Tools:
         if self.ctx.zetaris is None:
             raise ToolError("Zetaris is not connected")
         sql = check_sql(str(sql))
-        rows = self.ctx.zetaris.sql(sql, limit=50)
+        cache = getattr(self.ctx, "sql_cache", None)
+        if cache is not None and sql in cache:
+            rows = cache[sql]
+            self.ctx.trace.event("sql_cache_hit", sql=sql[:120])
+        else:
+            rows = self.ctx.zetaris.sql(sql, limit=50)
+            if cache is not None:
+                cache[sql] = rows
         if "maintenance_table" in sql and self.ctx.guard:                        # untrusted text never reaches a model raw
             notes = [r for r in rows if "note" in r and "record_id" in r]
             safe, _ = self.ctx.guard(notes)
