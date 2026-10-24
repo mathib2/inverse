@@ -87,11 +87,15 @@ class Tools:
 
     # --- files: inside the repository only, never secrets -----------------------------------------------------------------
     def _inside(self, rel):
+        """A path inside the repository root that is not a secret and not under a skipped folder (.git, runs, vendor, ...)."""
         p = os.path.realpath(os.path.join(self.root, str(rel)))
         if p != self.root and not p.startswith(self.root + os.sep):
             raise ToolError(f"{rel!r} is outside the repository; experts read only code we own")
         if any(fnmatch.fnmatch(os.path.basename(p), g) for g in SECRET_GLOBS):
             raise ToolError(f"{rel!r} may hold secrets and is never read")
+        parts = os.path.relpath(p, self.root).split(os.sep) if p != self.root else []
+        if any(part in SKIP_DIRS or part.startswith(".") for part in parts):
+            raise ToolError(f"{rel!r} is under a folder experts do not read (" + ", ".join(sorted(SKIP_DIRS)) + " and dot-folders)")
         return p
 
     def _rel(self, p):

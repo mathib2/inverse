@@ -49,6 +49,9 @@ def validate(c, lanes=None):
     bad = [k for k in budget if k not in BUDGET_KEYS] + [k for k, v in budget.items() if k in BUDGET_KEYS and (isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0)]
     if bad:
         raise ConfigError(f"{name}: budget keys must be positive numbers among {sorted(BUDGET_KEYS)}: {bad}")
+    pf = c.get("system_prompt_file")
+    if pf is not None and (os.path.isabs(str(pf)) or ".." in str(pf).replace("\\", "/").split("/")):
+        raise ConfigError(f"{name}: system_prompt_file must be a path inside the repository, not {pf!r}")
     return {**c, "name": name, "role": str(c["role"]).strip(), "tools": tools, "model_lane": lane, "budget": budget, "enabled": bool(c.get("enabled", True))}
 
 
@@ -104,9 +107,22 @@ class Registry:
     def _make(self, c):
         prompt = str(c.get("system_prompt") or "")
         if not prompt and c.get("system_prompt_file"):
-            with open(os.path.join(self.root, c["system_prompt_file"])) as pf:
+            root = os.path.realpath(self.root)
+            p = os.path.realpath(os.path.join(root, c["system_prompt_file"]))
+            if not p.startswith(root + os.sep):
+                raise ConfigError(f"{c['name']}: system_prompt_file {c['system_prompt_file']!r} is outside the repository")
+            with open(p) as pf:
                 prompt = pf.read().strip()
         return KINDS[c["kind"]](self.ctx, c["name"], c["role"], prompt, c["model_lane"], c["tools"])
+
+    def drop(self, name):
+        """Forget an expert registered for this run (a losing or invalid plan sample proposed it). Built-ins are never dropped."""
+        if self.source.get(name) == "run":
+            self.configs.pop(name, None)
+            self.source.pop(name, None)
+            self.experts.pop(name, None)
+            return True
+        return False
 
     def names(self):
         return list(self.experts)

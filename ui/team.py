@@ -17,7 +17,7 @@ from inverse_core.team.build import build
 from inverse_core.team.expert import Task
 from inverse_core.team.lanes import Lanes
 from inverse_core.team.plan import Plan, PlanError
-from inverse_core.team.registry import KINDS, TOOL_NAMES, ConfigError, forget_config, load_configs, save_config
+from inverse_core.team.registry import ARCHITECT_TOOLS, KINDS, TOOL_NAMES, ConfigError, forget_config, load_configs, save_config
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPERTS_DIR, RUNS_DIR = os.path.join(ROOT, "experts"), os.path.join(ROOT, "runs")
@@ -86,7 +86,12 @@ def _prompt_of(c):
 
 def experts_editor(lanes):
     """Add, change, switch off or remove an expert. Writes experts.local/<name>.yaml; the built-in files are never touched."""
-    cfgs = load_configs(EXPERTS_DIR, lanes)
+    try:
+        cfgs = load_configs(EXPERTS_DIR, lanes)
+    except ConfigError as e:
+        title, what = plain.error(e)
+        st.error(f"**{title}** {what} Fix or delete that file under experts.local/.")
+        return
     st.caption("Experts are config, not code. Change what one does, add a new one, or switch one off. Saved on this machine (experts.local/) and used by the next plan.")
     st.dataframe(pd.DataFrame([{"expert": n, "kind": c["kind"], "lane": c["model_lane"], "tools": ", ".join(c["tools"]), "on": c["enabled"],
                                 "changed here": c["_source"] == "local", "role": c["role"]} for n, c in sorted(cfgs.items())]), hide_index=True, width="stretch")
@@ -98,7 +103,8 @@ def experts_editor(lanes):
         kind = st.selectbox("Kind", kinds, index=kinds.index(c["kind"]) if c["kind"] in kinds else 0, format_func=lambda k: f"{k} · {KIND_HELP.get(k, '')}")
         role = st.text_area("Role · what the lead reads when deciding whom to give a task", c["role"], height=70)
         prompt = st.text_area("Instructions · the expert's system prompt", _prompt_of(c), height=130)
-        tools = st.multiselect("Tools it may use", sorted(TOOL_NAMES), default=[t for t in c["tools"] if t in TOOL_NAMES])
+        tool_options = sorted(TOOL_NAMES | (ARCHITECT_TOOLS if c["kind"] == "architect" else set()))
+        tools = st.multiselect("Tools it may use", tool_options, default=[t for t in c["tools"] if t in tool_options])
         lane = st.selectbox("Model lane", lane_names, index=lane_names.index(c["model_lane"]) if c["model_lane"] in lane_names else 0,
                             format_func=lambda n: f"{n} · {lanes.mapping[n]}")
         c1, c2, c3 = st.columns(3)
@@ -150,17 +156,22 @@ def saved_runs(limit=15):
 
 
 def _load_run(d):
-    """Put a saved run into the session exactly as a live run would have left it."""
+    """Put a saved run into the session exactly as a live run would have left it. Returns False (and shows why) if the files are broken."""
     ss = st.session_state
-    with open(os.path.join(d, "plan.json")) as f:
-        p = json.load(f)
-    with open(os.path.join(d, "answer.json")) as f:
-        ss.team_out = json.load(f)
-    with open(os.path.join(d, "trace.jsonl")) as f:
-        ss.team_events = [json.loads(line) for line in f if line.strip()]
-    ss.team_plan = Plan(p["goal"], [Task(**t) for t in p["tasks"]])
-    ss.team_dir, ss.team_replay = d, True
+    try:
+        with open(os.path.join(d, "plan.json")) as f:
+            p = json.load(f)
+        with open(os.path.join(d, "answer.json")) as f:
+            out = json.load(f)
+        with open(os.path.join(d, "trace.jsonl")) as f:
+            events = [json.loads(line) for line in f if line.strip()]
+        plan = Plan(p["goal"], [Task(**t) for t in p["tasks"]])
+    except (OSError, ValueError, TypeError, KeyError) as e:
+        st.error(f"**This saved run can't be replayed.** {type(e).__name__}: {str(e)[:160]}")
+        return False
+    ss.team_out, ss.team_events, ss.team_plan, ss.team_dir, ss.team_replay = out, events, plan, d, True
     ss.pop("team_lead", None)
+    return True
 
 
 def _results(plan, out, events, run_dir):
@@ -212,15 +223,23 @@ def render(ledger, ai_online, sidecar, health=None):
     goal = st.text_area("Your goal", value=ss.get("team_goal", EXAMPLES[0][1]), height=90)
     collaborate = st.toggle("Let the experts review the plan before it runs", value=True, key="team_collab",
                             help="Each expert with a task checks its own tasks and can reword them. The physics expert checks by rule; the others ask their own model lane. One extra AI call per expert.")
+    data_online = not health or health.get("data", {}).get("ok", True)
     if not ai_online:
         st.caption("The AI is offline, so no new plan can be made. You can replay a saved run below.")
+    elif not data_online:
+        st.caption("Zetaris (sensor data) is offline, so no new plan can be made. You can replay a saved run below.")
 
-    if st.button("Make a plan", type="primary", disabled=not ai_online or not goal.strip()):
+    if st.button("Make a plan", type="primary", disabled=not ai_online or not data_online or not goal.strip()):
         for k in ("team_out", "team_replay", "team_plan", "team_lead"):
             ss.pop(k, None)
         events = []
         ss.team_events = events
-        lead, ctx = build(ZetarisClient(), ledger, WorldClient(sidecar), root=ROOT, runs_dir=RUNS_DIR, on_event=events.append, lanes=lanes)
+        try:
+            lead, ctx = build(ZetarisClient(), ledger, WorldClient(sidecar), root=ROOT, runs_dir=RUNS_DIR, on_event=events.append, lanes=lanes)
+        except Exception as e:                                                   # Zetaris down, a broken experts.local file, a missing .env key
+            title, what = plain.error(e)
+            st.error(f"**{title}** {what}")
+            return
         th, box = _run_in_thread(lambda: lead.plan(goal, collaborate=collaborate))
         status = _stream(th, events, "The lead is planning" + (", then the experts review the plan…" if collaborate else "…"))
         if "err" in box:
@@ -235,8 +254,7 @@ def render(ledger, ai_online, sidecar, health=None):
             st.caption("No saved team runs yet. Every completed run is kept under runs/ with its plan, trace and answer.")
         else:
             pick = st.selectbox("Saved runs", runs, format_func=lambda r: f"{r['when']} · {r['goal'][:80]}", key="replay_pick")
-            if st.button("Replay", icon=":material/play_circle:"):
-                _load_run(pick["dir"])
+            if st.button("Replay", icon=":material/play_circle:") and _load_run(pick["dir"]):
                 st.rerun()
 
     plan = ss.get("team_plan")
@@ -272,10 +290,12 @@ def render(ledger, ai_online, sidecar, health=None):
     edited = st.data_editor(df, num_rows="dynamic", width="stretch", key="plan_editor",
                             column_config={"expert": st.column_config.SelectboxColumn(options=names + pending, required=True),
                                            "goal": st.column_config.TextColumn(width="large")})
-    if st.button("Approve and run", icon=":material/play_arrow:"):
+    if ss.get("team_out"):
+        st.caption("This plan has run. Press **Make a plan** to start another run.")
+    elif st.button("Approve and run", icon=":material/play_arrow:"):
         try:
-            rows = [r for r in edited.to_dict("records") if r.get("id") and r.get("goal")]
-            new = Plan.from_dict({"goal": plan.goal, "tasks": [{"id": str(r["id"]).strip(), "goal": r["goal"], "expert": r["expert"],
+            rows = [r for r in edited.fillna("").to_dict("records") if str(r.get("id", "")).strip() and str(r.get("goal", "")).strip()]
+            new = Plan.from_dict({"goal": plan.goal, "tasks": [{"id": str(r["id"]).strip(), "goal": str(r["goal"]).strip(), "expert": str(r["expert"]).strip(),
                                                                  "depends_on": [d.strip() for d in str(r.get("depends_on") or "").split(",") if d.strip()]} for r in rows]})
             new.validate(names, lead.creators())
         except (PlanError, KeyError, TypeError) as e:

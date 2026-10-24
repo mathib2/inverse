@@ -68,12 +68,13 @@ class PhysicsExpert(BaseExpert):
                            for p in (v.get("model") or {}).get("parameters", []))
         answer = f"{v['equipment']}: {v['verdict']}. " + (f"Model {v['model']['form']}: {params}. " if v.get("model") else "") + \
                  f"Action: {v['action']['type']}: {v['action']['detail']}"
-        memory.add_finding(answer, ev[:3], source="validator", confidence=0.9, expert=self.name)
-        for e in v.get("vetoed", []):
+        for e in v.get("vetoed", []):                                            # deterministic vetoes are facts: written at once
             memory.refute(f"{v['equipment']}: {e['form']}", "physics validators: " + ", ".join(f["validator"] for f in e["failed"]),
                           source="validator", confidence=0.95, expert=self.name)
-        return require_evidence(ExpertResult(answer, ev, 0.9 if v["verdict"] == "ACCEPT" else 0.8, ["synthetic or authorized sensor data",
-                                             "initial state known (release test)"], v.get("not_checked", []), v.get("models_used", []), v.get("run_dir", "")))
+        res = require_evidence(ExpertResult(answer, ev, 0.9 if v["verdict"] == "ACCEPT" else 0.8, ["synthetic or authorized sensor data",
+                                            "initial state known (release test)"], v.get("not_checked", []), v.get("models_used", []), v.get("run_dir", "")))
+        res.findings = [{"claim": answer, "evidence": ev[:3], "source": "validator", "confidence": 0.9}]   # written by the Lead on accept
+        return res
 
 
 SCHEMA = """Tables (Zetaris, read-only; use the obs. prefix):
@@ -89,15 +90,34 @@ class UnsafeSQL(ValueError):
     pass
 
 
+def _num(x, default):
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return default
+
+
+_CLAUSE_END = re.compile(r"(?i)\b(where|group\s+by|order\s+by|having|limit|union|on|inner|left|right|full|cross|join)\b")
+
+
 def check_sql(sql):
-    """Read-only, single statement, known tables only (every name after FROM or JOIN, comma lists included; no subqueries).
-    Raises UnsafeSQL otherwise."""
+    """Read-only, single statement, known tables only: every table reference after FROM or JOIN is checked, comma lists and
+    aliases included (the clause runs to the next keyword), and subqueries are refused. Raises UnsafeSQL otherwise."""
     s = sql.strip().rstrip(";").strip()                       # one trailing semicolon is harmless; any other is refused below
     if not re.match(r"(?i)select\b", s) or FORBIDDEN.search(s):
         raise UnsafeSQL("only a single read-only SELECT is allowed")
     tables = []
-    for clause in re.findall(r"(?i)\b(?:from|join)\s+([^\s;(),]+(?:\s*,\s*[^\s;(),]+)*)", s):
-        tables += [re.sub(r"(?i)^obs\.", "", t.strip()) for t in clause.split(",") if t.strip()]
+    for m in re.finditer(r"(?i)\b(?:from|join)\s+", s):
+        rest = s[m.end():]
+        end = _CLAUSE_END.search(rest)
+        clause = rest[:end.start()] if end else rest
+        if "(" in clause or ")" in clause:
+            raise UnsafeSQL("subqueries and expressions are not allowed in FROM or JOIN")
+        for item in clause.split(","):
+            toks = item.strip().split()
+            if not toks:
+                raise UnsafeSQL("empty table reference")
+            tables.append(re.sub(r"(?i)^obs\.", "", toks[0]))   # the first token is the table; what follows is an alias
     bad = [t for t in tables if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", t) or t not in ALLOWED_TABLES]
     if not tables or bad:
         raise UnsafeSQL(f"unknown table(s): {bad or 'none referenced'}")
@@ -136,11 +156,12 @@ class ResearchExpert(BaseExpert):
                 self.name, budget, json_reply=True)
         models.append(a["model"])
         j = a["json"]
-        bad = unverified_numbers(j.get("answer", ""), payload)
+        answer = str(j.get("answer") or "")
+        bad = unverified_numbers(answer, payload)
         not_checked = [f"numbers in the answer not found in the rows: {bad}"] if bad else []
-        conf = max(0.0, float(j.get("confidence", 0.5)) - (0.3 if bad else 0.0))
-        res = require_evidence(ExpertResult(j.get("answer", ""), evidence, conf, j.get("assumptions", []), not_checked, models))
-        res.findings = [{"claim": j.get("answer", ""), "evidence": evidence[:2], "source": "fitter", "confidence": conf}]   # written on accept
+        conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
+        res = require_evidence(ExpertResult(answer, evidence, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))
+        res.findings = [{"claim": answer, "evidence": evidence[:2], "source": "fitter", "confidence": conf}]   # written on accept
         return res
 
     def _sanitize(self, rows):
@@ -189,7 +210,7 @@ class ReasoningExpert(BaseExpert):
         for i, s in enumerate(steps, 1):
             calc = s.get("calc")
             if not calc:
-                ev.append({"type": "step", "source": f"step {i}", "detail": s.get("claim", "")})
+                ev.append({"type": "step", "source": f"step {i}", "detail": str(s.get("claim") or "")})
                 continue
             try:
                 val = safe_eval(str(calc))
@@ -215,11 +236,12 @@ class ReasoningExpert(BaseExpert):
             models.append(r["model"])
             j = r["json"]
             ev, bad = self._check(j.get("steps", []))
-        conf = max(0.0, float(j.get("confidence", 0.5)) - (0.3 if bad else 0.0))
+        answer = str(j.get("answer") or "")
+        conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
         not_checked = [f"unresolved: {b}" for b in bad] + ["steps without arithmetic are the model's reasoning, not machine-verified"]
-        res = require_evidence(ExpertResult(j.get("answer", ""), ev, conf, j.get("assumptions", []), not_checked, models))
+        res = require_evidence(ExpertResult(answer, ev, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))
         if not bad:
-            res.findings = [{"claim": j.get("answer", ""), "evidence": ev[:2], "source": "fitter", "confidence": conf}]      # written on accept
+            res.findings = [{"claim": answer, "evidence": ev[:2], "source": "fitter", "confidence": conf}]      # written on accept
         return res
 
 

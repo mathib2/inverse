@@ -49,6 +49,7 @@ def linear_free_decay(m, c, k, t, y0):
     """x(t), v(t) of m x'' + c x' + k x = 0 from (x0, v0): the characteristic roots of m s^2 + c s + k decide the case.
     Underdamped: e^{at}(A cos wt + B sin wt); overdamped: two real exponentials; critical: (A + B t) e^{st}."""
     t = np.asarray(t, float)
+    t = t - t[0]                                                     # y0 is the state at the first sample, as for the integrator
     x0, v0 = float(y0[0]), float(y0[1])
     disc = c * c - 4.0 * m * k
     eps = 1e-12 * (c * c + 4.0 * m * abs(k) + 1e-300)
