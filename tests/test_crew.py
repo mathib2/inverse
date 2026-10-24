@@ -46,3 +46,10 @@ def test_standing_missions_run_when_due_and_not_again_until_their_interval_passe
     w.state["missions"]["machine health"] = time.time() - 13 * 3600                           # 13 hours later: only the 12-hour one is due
     assert [m["name"] for m in w.due_missions()] == ["machine health"]
     assert w.status()["missions"]["digest"] > 0
+
+
+def test_a_failed_mission_is_retried_in_an_hour_not_after_its_whole_interval(tmp_path):
+    z, physics, team = FakeZ(), FakePhysics(str(tmp_path), {"P-104": CLEAN, "T-200": CLEAN}), FakeTeam(str(tmp_path), fail=True)
+    w = Watcher(z, physics, team, root=str(tmp_path), interval=60, missions=[{"name": "digest", "every": 24, "goal": "Summarize."}])
+    assert [d["ok"] for d in w.cycle() if d["kind"] == "team"] == [False]
+    assert w.due_missions() == [] and w.due_missions(now=time.time() + 3601) and not w.due_missions(now=time.time() + 1800)

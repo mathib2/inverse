@@ -248,3 +248,29 @@ def test_plan_rejects_placeholder_goals_copied_from_the_schema():
         with pytest.raises(PlanError, match="no real goal"):
             Plan("g", [Task("T1", goal, "research")]).validate({"research"})
     Plan("g", [Task("T1", "List the maintenance records of P-104", "research")]).validate({"research"})
+
+
+def test_rule_plan_routes_machines_code_and_summaries_deterministically():
+    from inverse_core.team.lead import rule_plan
+    names, eq = ["physics", "research", "reasoning", "solver", "vulnerability", "architect"], ["P-104", "T-200"]
+    p = rule_plan("Check P-104, T-200 for wear against their baselines and say which ones need maintenance and why.", names, eq)
+    assert [(t.id, t.expert) for t in p.tasks] == [("T1", "physics"), ("T2", "physics"), ("T3", "research"), ("T4", "reasoning")]
+    assert "P-104" in p.tasks[0].goal and "T-200" in p.tasks[1].goal and p.tasks[3].depends_on == ["T1", "T2", "T3"]
+    assert [t.expert for t in rule_plan("Review this repository's own code for security weaknesses.", names, eq).tasks] == ["vulnerability"]
+    assert [t.expert for t in rule_plan("Summarize what the crew has found and ruled out so far.", names, eq).tasks] == ["solver"]
+    assert [t.expert for t in rule_plan("How many sensors are there?", names, eq).tasks] == ["solver"]
+    assert [t.expert for t in rule_plan("How many sensors are there?", ["reasoning"], eq).tasks] == ["reasoning"]
+    p.validate(set(names))
+
+
+def test_lead_falls_back_to_the_rule_plan_when_the_model_copies_the_example(tmp_path):
+    copied = json.dumps({"tasks": [{"id": "T1", "goal": "a self-contained instruction", "expert": "research", "depends_on": []}]})
+    ctx = make_ctx(tmp_path, lambda m, msgs: copied)
+    lead = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()))
+    plan = lead.plan("Is pump P-104 wearing out?")
+    assert [t.expert for t in plan.tasks] == ["physics", "research", "reasoning"] and "P-104" in plan.tasks[0].goal
+    ev = [e for e in events(ctx, "plan") if e.get("by") == "rule"]
+    assert len(ev) == 1 and "not usable" in ev[0]["reason"] and "a self-contained instruction" in ev[0]["reason"]
+    strict = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()), rule_fallback=False)
+    with pytest.raises(PlanError, match="no real goal"):
+        strict.plan("Is pump P-104 wearing out?")
