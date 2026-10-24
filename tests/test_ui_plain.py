@@ -78,3 +78,20 @@ def test_live_progress_lines_are_plain(tmp_path):
                                        ("BudgetExceeded", "The run took too long")])
 def test_errors_say_what_to_do(exc, title):
     assert plain.error(type(exc, (Exception,), {})("x"), ["P-104", "T-200"])[0] == title
+
+
+def test_team_progress_lines_are_plain(tmp_path):
+    from test_team import make_ctx, script
+    from inverse_core.team.lead import Lead
+    from inverse_core.team.memory import TeamMemory
+    from inverse_core.team.registry import Registry
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ctx = make_ctx(tmp_path, script)
+    lead = Lead(ctx, Registry(ctx, os.path.join(root, "experts"), root), TeamMemory(L.InMemoryLedger()))
+    plan = lead.plan("What does P-104 weigh?")
+    lead.run(plan, str(tmp_path))
+    lead.compose(plan)
+    lines = [line for line in map(plain.team_step, ctx.trace.events) if line]
+    assert any(line.startswith("T1 sent back by a fixed rule") for line in lines) and any("will be retried" in line for line in lines)
+    assert lines[-1].startswith("The lead wrote the final answer")
+    assert [line for line in lines if any(r in line for r in RAW)] == []

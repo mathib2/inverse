@@ -7,3 +7,4 @@ node_modules/
 services/meterless-sidecar/vendor/
 services/meterless-sidecar/.state/
 .streamlit/secrets.toml
+experts.local/

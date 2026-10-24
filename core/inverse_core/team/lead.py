@@ -1,26 +1,37 @@
 """Lead: plan -> delegate (by context) -> collect -> Critic (can send back) -> compose. It routes; experts do the work.
-A stuck detector forces a strategy change when a retry repeats the previous answer, and escalates when it repeats twice."""
+A stuck detector forces a strategy change when a retry repeats the previous answer, and escalates when it repeats twice.
+The Lead may define a new expert when no configured one fits a task, and the experts may review the plan before it runs."""
 from __future__ import annotations
 
+import json
 import re
 
 from ..budget import BudgetExceeded
 from .critic import Critic
 from .expert import ExpertBudget, Task
-from .llmcall import ask
+from .llmcall import BadReply, ask
 from .plan import Plan, PlanError
+from .registry import ConfigError
+from .tools import Tools
 
 PLAN_SYSTEM = """You are the lead of a team of experts. Decompose the user's goal into at most 5 tasks and assign each to ONE expert.
-Delegate by what each task needs. Use depends_on when a task needs another task's result. Do not invent experts.
+Delegate by what each task needs. Use depends_on when a task needs another task's result. Do not use an expert you did not list or define.
 Experts:
 {experts}
 Known equipment IDs: {equipment}
 Return ONLY JSON: {{"tasks":[{{"id":"T1","goal":"a self-contained instruction","expert":"name","depends_on":[]}}]}}
-A physics task must name the machine by its ID in its goal. Use research to look facts up in the registry, sensor specs and maintenance history (not to dump raw samples; the physics expert reads those itself), reasoning for derivations and calculations."""
+A physics task must name the machine by its ID in its goal. Use research to look facts up in the registry, sensor specs and maintenance history (not to dump raw samples; the physics expert reads those itself), reasoning for derivations and calculations.
+If no expert fits a task, define one (at most 2) by adding "new_experts":[{{"name":"snake_case","role":"one sentence","system_prompt":"its instructions","tools":["..."],"model_lane":"fast|deep"}}] to the JSON, using only these tools: {tools}. A new expert is a general tool-using agent; prefer an existing expert when one fits."""
 
 COMPOSE_SYSTEM = """Write the final answer for the user from the accepted expert results. Rules: use only facts present in the results; cite every claim as
-[T1.E2] (task id, evidence number); say which expert produced each part; state uncertainty and what was NOT checked; if a task failed or was rejected, say so and do not fill the gap.
+[T1.E2] (task id, evidence number); say which expert produced each part; state uncertainty and what was NOT checked. Tasks that did not finish are
+listed for you under "unfinished": do not describe them or guess why they failed (that is reported separately, verbatim); just do not fill their gap.
 Be concise (under 220 words)."""
+
+REVIEW_TAIL = ("\nYou are reviewing the team plan before work starts. For YOUR tasks only, say whether each is doable as written with "
+               "your tools, and fix the wording if not (keep the same id). Return ONLY JSON: "
+               '{"ok":true|false,"changes":[{"id":"T1","goal":"rewritten self-contained instruction"}],"missing":["what you need that no task provides"]}')
+NEW_EXPERT_BUDGET = {"tool_calls": 6, "tokens": 40000, "seconds": 240}
 
 
 def _norm(s):
@@ -33,21 +44,64 @@ class Lead:
         self.critic = critic or Critic(ctx)
         self.max_attempts, self.plan_lane, self.compose_lane = max_attempts, plan_lane, compose_lane
 
-    def plan(self, goal):
+    def plan(self, goal, collaborate=False):
         prompt = PLAN_SYSTEM.format(experts="\n".join(f"- {n}: {r}" for n, r in self.registry.roles().items()),
-                                    equipment=", ".join(self.ctx.equipment) or "none")
+                                    equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(Tools.SPECS))
         msgs = [{"role": "system", "content": prompt}, {"role": "user", "content": goal}]
         err = ""
         for _ in range(2):
             out = ask(self.ctx, self.plan_lane, msgs, "lead_plan", json_reply=True)
             try:
+                for spec in (out["json"].get("new_experts") or [])[:2]:
+                    self._create_expert(spec)
                 plan = Plan.from_dict({"goal": goal, "tasks": out["json"]["tasks"][:5]}).validate(self.registry.names())
                 self.ctx.trace.event("plan", goal=goal, tasks=[t.__dict__ | {"result": None} for t in plan.tasks], model=out["model"])
-                return plan
-            except (PlanError, KeyError, TypeError) as e:
+                return self.review_plan(plan) if collaborate else plan
+            except (PlanError, ConfigError, KeyError, TypeError, AttributeError) as e:
                 err = str(e)
                 msgs += [{"role": "assistant", "content": out["text"]}, {"role": "user", "content": "Invalid plan: " + err + ". Return corrected JSON."}]
         raise PlanError("the planner could not produce a valid plan: " + err)
+
+    def _create_expert(self, spec):
+        """An expert the planner proposed: always a tool-using `custom` expert with a fixed budget; the registry validates the
+        rest (name, tools, lane) and refuses what it does not know. Registered for this run; the UI can keep it."""
+        if not isinstance(spec, dict):
+            raise ConfigError("new_experts entries must be objects")
+        if str(spec.get("name", "")) in self.registry.configs:
+            return                                                                   # already on the team: just use it
+        c = self.registry.add({"name": spec.get("name"), "kind": "custom", "role": spec.get("role", ""), "tools": list(spec.get("tools") or []),
+                               "system_prompt": str(spec.get("system_prompt") or spec.get("role") or ""), "model_lane": spec.get("model_lane") or "fast",
+                               "budget": dict(NEW_EXPERT_BUDGET)})
+        self.ctx.trace.event("expert_created", name=c["name"], role=c["role"], tools=c["tools"], lane=c["model_lane"], config=c)
+
+    def review_plan(self, plan):
+        """Each expert with a task looks at the plan from its own seat: a deterministic expert checks by rule, the others on their
+        own lane with their own prompt. Only an expert's own tasks may be reworded; the Lead applies the changes and re-validates."""
+        tasks = {t.id: t for t in plan.tasks}
+        for name in dict.fromkeys(t.expert for t in plan.tasks):
+            expert, mine = self.registry.experts[name], [t for t in plan.tasks if t.expert == name]
+            reviewer = getattr(expert, "review_plan", None)
+            if reviewer:
+                review = reviewer(plan, mine)
+            else:
+                payload = {"goal": plan.goal, "all_tasks": [{"id": t.id, "expert": t.expert, "goal": t.goal, "depends_on": t.depends_on} for t in plan.tasks],
+                           "your_tasks": [t.id for t in mine]}
+                try:
+                    out = ask(self.ctx, expert.lane, [{"role": "system", "content": (expert.prompt or expert.role) + REVIEW_TAIL},
+                                                      {"role": "user", "content": json.dumps(payload)}], f"{name}_plan_review", json_reply=True)
+                    review = dict(out["json"]) | {"model": out["model"]}
+                except (ValueError, KeyError, TypeError):
+                    review = {"ok": True, "changes": [], "missing": [], "note": "review reply was not valid JSON; plan kept as drafted"}
+            changed = []
+            for c in review.get("changes") or []:
+                t = tasks.get(str(c.get("id"))) if isinstance(c, dict) else None
+                goal = str(c.get("goal") or "").strip() if isinstance(c, dict) else ""
+                if t and t.expert == name and goal and goal != t.goal:
+                    t.goal = goal
+                    changed.append(t.id)
+            self.ctx.trace.event("plan_review", expert=name, ok=bool(review.get("ok", True)), changed=changed,
+                                 missing=[str(m) for m in (review.get("missing") or [])][:5], model=review.get("model"))
+        return plan.validate(self.registry.names())
 
     def run(self, plan, run_dir=None):
         plan.validate(self.registry.names())
@@ -82,8 +136,9 @@ class Lead:
                 self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
                 return
             except Exception as e:                                            # an expert crash is a failed task, not a crashed run
-                task.feedback = f"{type(e).__name__}: {e}"
-                self.ctx.trace.event("expert_error", task=task.id, error=task.feedback[:300])
+                task.feedback = (f"Your previous reply could not be read as JSON ({e}). Reply with exactly one JSON object and no prose."
+                                 if isinstance(e, BadReply) else f"{type(e).__name__}: {e}")
+                self.ctx.trace.event("expert_error", task=task.id, error=f"{type(e).__name__}: {e}"[:300])
                 if attempt == self.max_attempts:
                     task.status = "failed"
                     return
@@ -128,12 +183,14 @@ class Lead:
                     "assumptions": t.result["assumptions"], "not_checked": t.result["not_checked"],
                     "evidence": {f"{t.id}.E{i}": e["detail"][:160] for i, e in enumerate(t.result["evidence"], 1)}} for t in ok]
         problems = [{"task": t.id, "expert": t.expert, "status": t.status, "why": t.feedback} for t in plan.tasks if t.status != "done"]
-        import json
         out = ask(self.ctx, self.compose_lane, [{"role": "system", "content": COMPOSE_SYSTEM},
                   {"role": "user", "content": json.dumps({"goal": plan.goal, "results": payload, "unfinished": problems}, default=str)}], "lead_compose")
         cited = set(re.findall(r"\[(T\d+\.E\d+)\]", out["text"]))
         bad = sorted(cited - set(index))
         self.ctx.trace.event("compose", cited=len(cited), unknown_citations=bad, unfinished=len(problems), model=out["model"])
-        return {"answer": out["text"], "citations": {c: index[c] for c in sorted(cited & set(index))}, "unknown_citations": bad,
+        answer = out["text"].strip()
+        if problems:                                                          # written by code, verbatim: the model never paraphrases a failure
+            answer += "\n\n**Not completed**\n" + "\n".join(f"- {p['task']} ({p['expert']}) {p['status']}: {p['why']}" for p in problems)
+        return {"answer": answer, "citations": {c: index[c] for c in sorted(cited & set(index))}, "unknown_citations": bad,
                 "unfinished": problems, "not_checked": sorted({n for t in ok for n in t.result["not_checked"]}),
                 "models_used": sorted({e["model"] for e in self.ctx.trace.events if e["kind"] == "llm" and e.get("model")})}
