@@ -1,5 +1,6 @@
 """Expert contract. Every expert, including the wrapped physics agent, takes a Task and returns an ExpertResult
-with at least one evidence item. Experts write findings to TeamMemory, not into a long prompt."""
+with at least one evidence item. Claims an expert wants remembered go in `findings`; the Lead writes them to
+TeamMemory only after the Critic accepts the result, so a rejected claim never becomes shared memory."""
 from __future__ import annotations
 
 import time
@@ -29,12 +30,13 @@ class Task:
 @dataclass
 class ExpertResult:
     answer: str
-    evidence: list                 # [{"type": "sql|tool|calc|step", "source": ..., "detail": ...}]
+    evidence: list                 # [{"type": "sql|tool|calc|step|code", "source": ..., "detail": ...}]
     confidence: float = 0.5
     assumptions: list = field(default_factory=list)
     not_checked: list = field(default_factory=list)
     models_used: list = field(default_factory=list)
     trace_ref: str = ""
+    findings: list = field(default_factory=list)   # [{"claim", "evidence", "source", "confidence"}], written to memory on accept
 
     def to_dict(self):
         return asdict(self)

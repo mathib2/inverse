@@ -85,10 +85,18 @@ class CustomExpert(BaseExpert):
         for i in idx[:-keep] if len(idx) > keep else []:
             msgs[i]["content"] = f"[earlier tool result, {len(msgs[i]['content'])} chars, already recorded as evidence]"
 
+    def _previous(self, task):
+        """What the last attempt produced, so a retry builds on it instead of starting over (the Critic's reason is in task.feedback)."""
+        prev = task.result if task.attempts > 1 and isinstance(task.result, dict) else None
+        if not prev:
+            return ""
+        ev = "; ".join(f"{e.get('source', '')}: {e.get('detail', '')[:120]}" for e in prev.get("evidence", [])[:6])
+        return f"\nPREVIOUS ATTEMPT (keep what still holds, fix what the reviewer named): answer: {prev.get('answer', '')[:600]}\nits evidence: {ev}"
+
     def run(self, task, memory, budget):
         self.toolbox.memory = memory
         evidence = []
-        j, models = self._loop([{"role": "system", "content": self._system()}, {"role": "user", "content": self._task_text(task)}], budget, evidence)
+        j, models = self._loop([{"role": "system", "content": self._system()}, {"role": "user", "content": self._task_text(task) + self._previous(task)}], budget, evidence)
         answer = str(j.get("answer", ""))
         bad = unverified_numbers(answer, {"results": [e.get("result") for e in evidence]})
         not_checked = [str(n) for n in (j.get("not_checked") or [])] + ([f"numbers in the answer not found in any tool result: {bad}"] if bad else [])
@@ -96,9 +104,10 @@ class CustomExpert(BaseExpert):
         if not evidence:
             evidence = [{"type": "step", "source": "no tool used", "detail": "the answer rests on the model alone"}]
             conf, not_checked = min(conf, 0.3), not_checked + ["no tool was called, so nothing was verified"]
-        elif not bad:
-            memory.add_finding(answer[:300], evidence[:2], source="fitter", confidence=conf, expert=self.name)
-        return require_evidence(ExpertResult(answer, evidence, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))
+        res = require_evidence(ExpertResult(answer, evidence, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))
+        if evidence[0]["type"] != "step" and not bad:                          # remembered by the Lead once the Critic accepts
+            res.findings = [{"claim": answer, "evidence": evidence[:2], "source": "fitter", "confidence": conf}]
+        return res
 
 
 class VulnerabilityExpert(CustomExpert):
@@ -125,20 +134,31 @@ class VulnerabilityExpert(CustomExpert):
                      "detail": "ERROR " + scan["error"] if scan.get("error") else f"{scan.get('total', 0)} pattern hits in {scan.get('files_scanned', 0)} files"}]
         msgs = [{"role": "system", "content": self._system()},
                 {"role": "user", "content": self._task_text(task) + "\nSCAN RESULT (fixed rules; triage each hit, read the code to confirm or to find more):\n"
-                 + json.dumps(scan, default=str)[:8000]}]
+                 + json.dumps(scan, default=str)[:8000] + self._previous(task)}]
         j, models = self._loop(msgs, budget, evidence)
         verified, dropped = self._verify(j.get("findings") or [])
+        findings = []
         for f in verified:
             item = {"type": "code", "source": f"{f['file']}:{f['line']}", "detail": f"{f['severity']}: {f['weakness']} Fix: {f['fix']}", "snippet": f["snippet"]}
             evidence.append(item)
-            memory.add_finding(f"{self.name}: {f['file']}:{f['line']} {f['weakness'][:120]}", [item], source="validator", confidence=0.9, expert=self.name)
+            findings.append({"claim": f"{f['file']}:{f['line']} {f['weakness'][:120]}", "evidence": [item], "source": "validator", "confidence": 0.9})
         summary = str(j.get("summary") or "").strip()
         answer = (summary + " " if summary else "") + (f"{len(verified)} verified finding(s): " + "; ".join(f"{f['severity']} {f['file']}:{f['line']} {f['weakness']}" for f in verified)
                                                         if verified else "No verified weakness was found in the reviewed code.")
         not_checked = [str(n) for n in (j.get("not_checked") or [])] + [f"dropped, not found at the cited line: {d}" for d in dropped] + \
                       ["tests/ are skipped by the scan", "only code inside this repository was reviewed"]
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.2 if dropped else 0.0))
-        return require_evidence(ExpertResult(answer, evidence, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))
+        res = require_evidence(ExpertResult(answer, evidence, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))
+        res.findings = findings                                                 # remembered by the Lead once the Critic accepts
+        return res
+
+    def _previous(self, task):
+        prev = task.result if task.attempts > 1 and isinstance(task.result, dict) else None
+        if not prev:
+            return ""
+        kept = [e for e in prev.get("evidence", []) if e.get("type") == "code"]
+        return ("\nPREVIOUS ATTEMPT, findings already verified against the code (keep them; add evidence for anything else you claim; "
+                "fix what the reviewer named):\n" + "\n".join(f"- {e['source']}: {e['detail'][:200]} (snippet: {e.get('snippet', '')[:80]!r})" for e in kept[:12]))
 
     def _scan_path(self, task):
         for tok in re.findall(r"[\w./-]+/[\w./-]+", task.goal):
@@ -151,16 +171,17 @@ class VulnerabilityExpert(CustomExpert):
         return "."
 
     def _verify(self, findings):
-        """Keep a finding only if its file is inside the repo, its line exists and its snippet is on that line (give or take two)."""
+        """Keep a finding only if its file is inside the repo, its line exists and the quoted snippet (6+ characters) appears on
+        that line or one of its neighbours. The model cannot cite a line it did not quote correctly."""
         ok, dropped = [], []
         for f in findings[:20] if isinstance(findings, list) else []:
             try:
-                path, line, snippet = str(f.get("file", "")), int(f.get("line", 0)), str(f.get("snippet", "")).strip()
+                path, line, snippet = str(f.get("file", "")), int(f.get("line", 0)), " ".join(str(f.get("snippet", "")).split())
                 p = self.toolbox._inside(path)
                 with open(p, encoding="utf-8", errors="replace") as fh:
                     lines = fh.read().splitlines()
-                window = [ln.strip() for ln in lines[max(0, line - 3): line + 2]]
-                if not (1 <= line <= len(lines)) or not snippet or not any(snippet in ln or (ln and ln in snippet) for ln in window):
+                window = [" ".join(ln.split()) for ln in lines[max(0, line - 2): line + 1]]
+                if not (1 <= line <= len(lines)) or len(snippet) < 6 or not any(snippet in ln for ln in window):
                     raise ValueError("snippet not at the cited line")
                 sev = str(f.get("severity", "low")).lower()
                 ok.append({"file": self.toolbox._rel(p), "line": line, "snippet": snippet[:160], "severity": sev if sev in ("high", "medium", "low") else "low",

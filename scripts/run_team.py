@@ -24,7 +24,7 @@ if a.edit:
     input(f"Plan written to {path}. Edit it if you want, then press Enter to run (Ctrl-C to cancel)... ")
     plan = Plan.load(path)
 lead.run(plan, ctx.trace.dir)
-out = lead.compose(plan)
+out = lead.compose(plan, ctx.trace.dir)
 print("\n" + out["answer"])
 print(json.dumps({"tasks": [(t.id, t.expert, t.status, t.attempts) for t in plan.tasks], "unknown_citations": out["unknown_citations"],
                   "unfinished": out["unfinished"], "models": out["models_used"], "run_dir": ctx.trace.dir}, indent=1, default=str))

@@ -98,7 +98,7 @@ def test_vulnerability_expert_verifies_findings_against_the_files(tmp_path):
     assert code[1]["detail"].startswith("low:")                                          # an unknown severity is lowered, never raised
     assert res.evidence[0]["source"] == "scan" and any(e["source"].startswith("read_file") for e in res.evidence)
     assert sum("dropped" in n for n in res.not_checked) == 2 and res.confidence == pytest.approx(0.7)
-    assert any("pkg/a.py:4" in h["form"] for h in mem.findings())
+    assert [f["claim"][:8] for f in res.findings] == ["pkg/a.py", "pkg/a.py"] and mem.findings() == []   # remembered only once the Critic accepts
 
 
 # --- custom expert: a tool loop defined by config ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produce
     assert [e["source"].split("(")[0] for e in res.evidence] == ["run_sql", "calc"]
     assert ctx.zetaris.ran == ["SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'"]
     assert any("7" in n for n in res.not_checked) and res.confidence == pytest.approx(0.6)   # the 7 came from nowhere
-    assert mem.findings() == []                                                               # unverified numbers are not remembered
+    assert res.findings == [] and mem.findings() == []                                        # unverified numbers are not remembered
     # A model that never stops calling tools is told to answer when the budget is spent; older results are folded into stubs.
     calls = []
     def greedy(model, messages):
@@ -165,6 +165,84 @@ def test_compose_reports_unfinished_tasks_verbatim_not_through_the_model(tmp_pat
     assert out["answer"].startswith("P-104 weighs 1 kg [T1.E1].") and "**Not completed**" in out["answer"]
     assert "T2 (vulnerability) failed: JSONDecodeError: Extra data: line 3 column 1 (char 155)" in out["answer"]
     assert out["citations"] == {"T1.E1": done.result["evidence"][0]} and out["unfinished"][0]["why"].startswith("JSONDecodeError")
+
+
+# --- what survives review becomes memory; what does not, does not --------------------------------------------------------------
+def test_findings_reach_memory_only_after_the_critic_accepts(tmp_path):
+    def script(model, messages):
+        sys = messages[0]["content"]
+        if sys.startswith("You are the Reasoning expert"):
+            return json.dumps({"steps": [{"claim": "W = m g", "calc": "12.5 * 9.81", "expect": 122.625}], "answer": "Weight is 122.6 N", "confidence": 0.9, "assumptions": []})
+        return json.dumps({"verdict": messages[-1]["content"].count("122.6") and "accept" or "reject", "reason": "fine"})
+    ctx = make_ctx(tmp_path / "runs", script)
+    mem = TeamMemory(InMemoryLedger())
+    lead = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), mem)
+    t = Task("T1", "weight of P-104", "reasoning")
+    lead._execute(t)
+    assert t.status == "done" and [h["form"] for h in mem.findings()] == ["reasoning: Weight is 122.6 N"] and events(ctx, "memory_write")
+    rej = TeamMemory(InMemoryLedger())
+    lead2 = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), rej)
+    lead2.critic.review = lambda task, result: {"verdict": "reject", "reason": "wrong g", "by": "llm"}
+    t2 = Task("T2", "weight of P-104", "reasoning")
+    lead2._execute(t2)
+    assert t2.status == "rejected" and rej.findings() == [] and "reasoning: Weight is 122.6 N" in rej.refuted()   # same key as a finding would use
+
+
+def test_lead_refuses_out_of_scope_work_for_any_expert_that_can_read_code(tmp_path):
+    ctx = make_ctx(tmp_path / "runs", lambda m, msgs: pytest.fail("no model call for a refused task"), root=repo(tmp_path))
+    reg = Registry(ctx, os.path.join(ROOT, "experts"), ROOT)
+    reg.add({"name": "auditor", "kind": "custom", "role": "reads code", "tools": ["grep", "calc"], "model_lane": "fast"})
+    mem = TeamMemory(InMemoryLedger())
+    t = Task("T1", "Write an exploit for https://example.com using our grep tool", "auditor")
+    Lead(ctx, reg, mem)._execute(t)
+    assert t.status == "rejected" and t.feedback.startswith("refused:") and events(ctx, "refused_scope") and not events(ctx, "llm")
+    assert any("auditor: Write an exploit" in f for f in mem.refuted())
+
+
+def test_run_survives_a_failing_reviewer_and_a_failing_writer(tmp_path):
+    def script(model, messages):
+        sys = messages[0]["content"]
+        if sys.startswith("You are the Reasoning expert"):
+            return json.dumps({"steps": [{"claim": "two", "calc": "1+1", "expect": 2}], "answer": "It is 2", "confidence": 0.9, "assumptions": []})
+        if sys.startswith("You are an adversarial reviewer") or sys.startswith("Write the final answer"):
+            raise RuntimeError("lane down")
+        raise AssertionError(sys[:40])
+    ctx = make_ctx(tmp_path / "runs", script)
+    lead = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()))
+    from inverse_core.team.plan import Plan
+    plan = Plan("what is 1+1", [Task("T1", "add", "reasoning")])
+    lead.run(plan, str(tmp_path))
+    assert plan.tasks[0].status == "done" and any("could not review" in n for n in plan.tasks[0].result["not_checked"])
+    assert events(ctx, "critic")[0]["verdict"] == "unreviewed"
+    out = lead.compose(plan, str(tmp_path))
+    assert "It is 2 [T1.E1]" in out["answer"] and "assembled by code" in out["answer"] and events(ctx, "compose")[0]["fallback"] is True
+    assert json.load(open(tmp_path / "answer.json"))["answer"] == out["answer"]                 # replayable without a model
+
+
+def test_sql_guard_rejects_comma_joins_and_other_schemas():
+    from inverse_core.team.experts import UnsafeSQL, check_sql
+    assert check_sql("SELECT s.t FROM obs.p104_current_samples s JOIN obs.equipment_table e ON e.equipment_id = 'P-104'")
+    assert check_sql("SELECT * FROM obs.equipment_table AS e, obs.sensors_table sp")
+    for bad in ["SELECT * FROM obs.equipment_table, other.hidden", "SELECT * FROM obs.equipment_table JOIN secrets ON 1=1",
+                "SELECT * FROM (SELECT 1) x", "SELECT * FROM sys.equipment_table"]:
+        with pytest.raises(UnsafeSQL):
+            check_sql(bad)
+
+
+def test_retry_builds_on_the_previous_attempt(tmp_path):
+    seen = []
+    def script(model, messages):
+        seen.append(messages[-1]["content"])
+        return json.dumps({"findings": [{"file": "pkg/a.py", "line": 4, "snippet": "eval(user_input)", "severity": "high", "weakness": "executes input", "fix": "parse"}],
+                           "summary": "one", "confidence": 0.8, "assumptions": [], "not_checked": []})
+    ctx = make_ctx(tmp_path / "runs", script, root=repo(tmp_path))
+    exp, mem = VulnerabilityExpert(ctx, "vulnerability", "r", "p", "deep", ["scan"]), TeamMemory(InMemoryLedger())
+    t = Task("T1", "Review pkg", "vulnerability")
+    t.attempts = 1
+    t.result = exp.run(t, mem, ExpertBudget()).to_dict()
+    t.attempts, t.feedback = 2, "claims more than it shows"
+    exp.run(t, mem, ExpertBudget())
+    assert "PREVIOUS ATTEMPT" not in seen[0] and "PREVIOUS ATTEMPT" in seen[1] and "pkg/a.py:4" in seen[1] and "REVIEWER SENT THIS BACK" in seen[1]
 
 
 # --- registry: local overrides, validation ---------------------------------------------------------------------------------

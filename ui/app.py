@@ -55,6 +55,8 @@ def health():
 @st.cache_data(ttl=3600, show_spinner=False)
 def ssh_target():
     """user@tailnet-ip for the reconnect command, discovered at runtime so no address is hardcoded in the repo."""
+    if os.environ.get("INVERSE_SHOW_SSH_TARGET") != "1":          # never print an address or user name on a shared or recorded screen
+        return "<user>@<this-server>"
     try:
         ip = subprocess.run(["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=3).stdout.split()[0]
     except Exception:
@@ -88,6 +90,9 @@ ai_online = h["ai"]["status"] == "online"
 parts.css()
 
 with st.sidebar:
+    mode = st.radio("Mode", ["Single machine", "Team of experts"], key="mode", horizontal=True,
+                    help="Single machine: one physics-checked diagnosis. Team of experts: a lead plans, experts work, a Critic checks.")
+    st.divider()
     parts.connections(h, recheck, ssh_target(), ss.get("last_latency"))
     st.divider()
     st.markdown("### Memory")
@@ -96,9 +101,9 @@ with st.sidebar:
         confirm_reset(eq_reset)
     st.caption("Do this before a demo so every run starts fresh.")
 
-if st.sidebar.radio("Mode", ["Single machine", "Team of experts"], key="mode", horizontal=True) == "Team of experts":
+if mode == "Team of experts":
     import team
-    team.render(ledger, ai_online, SIDECAR)
+    team.render(ledger, ai_online, SIDECAR, h)
     st.stop()
 
 parts.hero()
