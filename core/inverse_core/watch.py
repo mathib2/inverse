@@ -224,7 +224,8 @@ class Watcher:
         self.log(f"recovered after an interruption: {cur.get('kind')} run started {cur.get('started')}")
         self.manifest(cur.get("run_dir"), status="interrupted", finished=_now())
         if cur.get("kind") == "team" and not cur.get("requeued"):
-            self.enqueue(cur["goal"], by="watch:recovery", requeued=True)
+            trig = str(cur.get("trigger") or "")
+            self.enqueue(cur["goal"], by="watch:recovery", requeued=True, mission=trig[len("mission:"):] if trig.startswith("mission:") else None)
         self._record(kind=cur.get("kind"), status="interrupted", goal=cur.get("goal"), equipment=cur.get("equipment"), run_dir=cur.get("run_dir"))
         self._clear_current()
         return cur
@@ -237,6 +238,12 @@ class Watcher:
                 requests.post(self.webhook, json={"text": text}, timeout=10)
             except requests.RequestException as e:
                 self.log(f"webhook failed: {e}")
+
+    def _mark_mission(self, name, ok):
+        """Records when a standing mission ran; a failed one is due again in an hour, not after its whole interval."""
+        every = next((float(m.get("every", 24)) for m in self.missions if m["name"] == name), 24.0) * 3600
+        self.state["missions"][name] = time.time() if ok else time.time() - every + 3600
+        self._save()
 
     def due_missions(self, now=None):
         """Standing missions whose interval has passed, or that never ran. `every` is in hours."""
@@ -265,6 +272,8 @@ class Watcher:
             if not item:
                 break
             out = self.run_team(item["goal"], "queue", by=str(item.get("by") or "?"), requeued=bool(item.get("requeued")))
+            if item.get("mission"):                                            # a re-queued standing mission counts as that mission's run
+                self._mark_mission(item["mission"], out is not None)
             with open(self.done_path, "a") as f:
                 f.write(json.dumps({**item, "finished": _now(), "ok": out is not None}) + "\n")
             done.append({"kind": "team", "trigger": "queue", "goal": item["goal"], "ok": out is not None})
@@ -275,9 +284,7 @@ class Watcher:
                 machines_txt = "the machines in the registry"
             goal = str(m["goal"]).replace("{machines}", machines_txt)
             out = self.run_team(goal, f"mission:{m['name']}", by="warden")
-            every = float(m.get("every", 24)) * 3600
-            self.state["missions"][m["name"]] = time.time() if out is not None else time.time() - every + 3600   # failed: try again in an hour
-            self._save()
+            self._mark_mission(m["name"], out is not None)
             done.append({"kind": "team", "trigger": f"mission:{m['name']}", "goal": goal, "ok": out is not None})
         try:
             machines = self.equipment()
