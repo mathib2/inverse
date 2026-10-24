@@ -1,10 +1,10 @@
-# Slide deck content (8 slides)
+# Slides (outline, 8 slides)
 
-1. **Title** – INVERSE: a physics-checked reverse-engineering agent. Track 3. Team + names (TODO).
-2. **Problem & user** – A maintenance/controls engineer must decide whether a machine has worn. LLMs guess; plants can't act on a guess. Need: ACCEPT with uncertainty, REJECT with the failed test, or an honest "can't tell yet".
-3. **Solution** – Every task is an inverse problem y = G(θ) + η. The LLM proposes; solvers, simulators and validators decide. Three verdicts: ACCEPT / REJECT / UNIDENTIFIABLE.
-4. **Agent architecture** – the two flows from the README: single machine (Planner → Zetaris join → identifiability → rounds → validators → Critic → Reporter) and the team (lead plans → experts review the plan → delegate → Critic accept/revise/reject → cited answer), plus traces.
-5. **Stack & sponsor usage** – Zetaris (one join over samples + σ/units + registry, plus maintenance), Meterless H-MEM (hypothesis ledger and team memory, trust by source), Meterless World Model (shared entities, recalled evidence), Nightshift (only provider, JSON replies), Nemotron (Proposer/Critic/Reporter and the team's lead, experts and Critic; served model per call in the trace). Evidence: conformance 13/13 and 8/8, `docs/evidence/`.
-6. **What's unique** – A better-fitting model is vetoed on physics grounds; refusal before fitting with the measurement that fixes it; memory makes reruns faster (tested); injection note withheld.
-7. **Results (visuals)** – P-104 damping 2.00 → 2.80 (+40%) flagged against the recalled baseline; T-200 trap table (the 4-parameter model fits better, c < 0, vetoed by stability and energy); measured robustness from `docs/evidence/EVAL.md`: wear flagged 20/20, false alarms 0/20, wrong trap model accepted 0/80 (bait fit better in 31/80, vetoed every time), refusal 20/20, interval coverage 93% (c) and 100% (k); unidentifiable direction (m,c,k); warm vs cold table; team run: plan review, Critic send-back, cited answer.
-8. **Limitations & future work** – Synthetic data; one physical family; Scout Intent / Markovian not integrated; next: real sensor logs, software adapter, experiment design.
+1. **INVERSE** · a crew of local AI agents that work, check each other, talk, and run on their own. Track 03, Reasoning Architecture.
+2. **The problem** · one model, one prompt, one answer: no plan, no review, no memory, no evidence, and it stops when you stop typing.
+3. **The crew** · Atlas, Vera, Warden, Scout, Euler, Ada, Sentinel, Forge: what each does, and that each is a YAML file.
+4. **A mission** · plan by expertise (plan review, rule fallback) → work with bounded tools → Vera's review (rules, then model) → an answer that cites every claim and lists verbatim what did not finish.
+5. **They talk** · the message bus: results to everyone, notes to one agent, questions and answers; data, never instructions.
+6. **On their own** · Warden: queued goals, standing missions, new-data missions; manifests, recovery, heartbeat.
+7. **Memory and honesty** · H-MEM with a trust order; numbers must appear in evidence; a Critic that sends work back; replay from files.
+8. **Sponsors, honestly** · Zetaris the only data path; Meterless H-MEM, Markovian, World Model, Nightshift; NVIDIA Nemotron locally and through Nightshift; Cursor as declared. Limits and what is next.

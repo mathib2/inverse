@@ -1,4 +1,4 @@
-"""The crew: who the agents are, named by what they do. Identifiers (physics, research, solver, ...) stay stable in configs,
+"""The crew: who the agents are, named by what they do. Identifiers (research, solver, ...) stay stable in configs,
 plans, traces and messages, so nothing that is saved or scripted changes; the names are what people see and say."""
 from __future__ import annotations
 
@@ -8,8 +8,7 @@ CREW = {
     "lead": {"name": "Atlas", "does": "plans the mission, hands out the tasks, and writes the final answer with citations"},
     "critic": {"name": "Vera", "does": "checks every result on its own lane and sends weak work back with a reason"},
     "watch": {"name": "Warden", "does": "keeps watch: new sensor data, standing missions and queued goals start crew runs on their own"},
-    "physics": {"name": "Newton", "does": "reverse-engineers a machine's physics from its sensor data and lets the physics checks decide"},
-    "research": {"name": "Scout", "does": "finds facts in the data platform with read-only queries and cites every one"},
+    "research": {"name": "Scout", "does": "finds facts in the data platform (registry, sensor specs, maintenance history, samples) with read-only queries and cites every one"},
     "reasoning": {"name": "Euler", "does": "works through derivations step by step; every number is recomputed by a calculator"},
     "solver": {"name": "Ada", "does": "solves multi-step problems with tools and asks the others when a step needs them"},
     "vulnerability": {"name": "Sentinel", "does": "reviews our own code for weaknesses; every finding is checked against the file and line"},
@@ -34,7 +33,7 @@ def name(ident, configs=None):
 
 
 def who(ident, configs=None):
-    """'Newton (physics)' for the places that need both."""
+    """'Scout (research)' for the places that need both."""
     n = name(ident, configs)
     return f"{n} ({ident})" if n != ident and ident not in EVERYONE and not ident.startswith("watch") else n
 

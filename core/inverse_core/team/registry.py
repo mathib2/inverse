@@ -1,6 +1,6 @@
 """Experts come from experts/*.yaml; experts.local/*.yaml (gitignored) adds experts or overrides a built-in, so the team is
 changed by editing config or from the UI, never code. The Lead can also register an expert for one run.
-Fields: name, kind (physics|research|reasoning|custom|vulnerability), role, system_prompt or system_prompt_file, tools,
+Fields: name, callsign, kind (research|reasoning|custom|vulnerability|architect), role, system_prompt or system_prompt_file, tools,
 model_lane, budget {tool_calls, tokens, seconds}, enabled."""
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from .experts import KINDS as BUILTIN
 from .tools import Tools
 
 KINDS = {**BUILTIN, **custom.KINDS, **architect.KINDS}
-TOOL_NAMES = set(Tools.SPECS) | {"physics_pipeline"}             # physics_pipeline names the wrapped single-agent run
+TOOL_NAMES = set(Tools.SPECS)
 ARCHITECT_TOOLS = set(architect.ArchitectTools.SPECS)              # only an architect may hold these
 BUDGET_KEYS = {"tool_calls", "tokens", "seconds"}
 NAME = re.compile(r"^[a-z][a-z0-9_]{0,31}$")

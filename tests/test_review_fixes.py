@@ -2,14 +2,11 @@
 import json
 import os
 
-import numpy as np
 import pytest
-from scipy.integrate import solve_ivp
 from test_markovian import FakeMarkovian, repo2
 from test_team import FakeZetaris, events, make_ctx
 from test_team_experts import repo
 
-from inverse_core import models as M
 from inverse_core.budget import BudgetExceeded
 from inverse_core.clients.markovian import ensure_marker
 from inverse_core.ledger import InMemoryLedger
@@ -91,17 +88,6 @@ def test_experts_proposed_but_unused_by_the_chosen_plan_are_dropped(tmp_path):
     assert "spare" not in lead.registry.names() and events(ctx, "expert_dropped")[0]["name"] == "spare"
 
 
-def test_physics_verdict_is_remembered_only_after_review(tmp_path):
-    verdict = {"verdict": "ACCEPT", "equipment": "P-104", "run_dir": "runs/x", "models_used": [], "not_checked": [],
-               "model": {"form": "m*x'' + c*x' + k*x = F(t)", "rmse": 0.01, "heldout_rmse": 0.011, "parameters": [{"name": "c", "value": 2.8, "ci95": [2.78, 2.82], "unit": "N*s/m"}]},
-               "evidence": [{"validator": "stability", "passed": True, "detail": "ok"}], "action": {"type": "none", "detail": "-", "drift": []},
-               "vetoed": [{"form": "cubic", "failed": [{"validator": "energy"}]}]}
-    ctx = make_ctx(tmp_path / "runs", lambda m, msgs: "{}", physics_runner=lambda q: verdict)
-    reg, mem = Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger())
-    res = reg.experts["physics"].run(Task("T1", "P-104 worn?", "physics"), mem, reg.budget_for("physics"))
-    assert mem.findings() == [] and res.findings[0]["source"] == "validator" and any("cubic" in f for f in mem.refuted())
-
-
 def test_sql_guard_sees_every_table_behind_an_alias_and_comma():
     assert check_sql("SELECT * FROM obs.equipment_table AS e, obs.sensors_table sp WHERE e.equipment_id = sp.equipment_id")
     for bad in ["SELECT * FROM obs.equipment_table e, other.hidden", "SELECT pw FROM obs.equipment_table e, users u",
@@ -176,14 +162,6 @@ def test_architect_test_drive_budget_is_a_tool_error_not_a_task_failure(tmp_path
     tools.call("create_expert", {"name": "greedy", "role": "r", "tools": ["calc"]}, budget)
     out = tools.call("test_expert", {"name": "greedy", "task": "x"}, budget)
     assert "test-drive exceeded its own small budget" in out["error"]
-
-
-def test_closed_form_takes_y0_at_the_first_sample():
-    model, y0 = M.linear(m=1.0), [0.8, -0.2]
-    t = np.linspace(1.0, 3.0, 201)
-    p = model.full([2.0, 100.0])
-    num = solve_ivp(lambda tt, y: model.rhs(tt, y, p, None), (t[0], t[-1]), y0, t_eval=t, rtol=1e-12, atol=1e-14, method="LSODA").y
-    assert np.allclose(M.simulate(model, [2.0, 100.0], t, y0), num, rtol=1e-7, atol=1e-9)
 
 
 def test_compose_survives_a_null_evidence_detail(tmp_path):

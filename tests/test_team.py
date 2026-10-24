@@ -75,7 +75,7 @@ def test_plan_round_trips_through_disk(tmp_path):
 def test_registry_loads_yaml_and_disabled_expert_is_absent(tmp_path):
     ctx = make_ctx(tmp_path, lambda m, msgs: "{}")
     reg = Registry(ctx, os.path.join(ROOT, "experts"), ROOT)
-    assert set(reg.names()) == {"physics", "research", "reasoning", "solver", "vulnerability", "architect"}
+    assert set(reg.names()) == {"research", "reasoning", "solver", "vulnerability", "architect"}
     d = tmp_path / "experts"
     d.mkdir()
     (d / "a.yaml").write_text("name: a\nkind: reasoning\nrole: r\nmodel_lane: fast\nenabled: false\n")
@@ -225,24 +225,6 @@ def test_expert_crash_fails_the_task_not_the_run(tmp_path):
     assert t.status == "failed" and "model exploded" in t.feedback
 
 
-def test_physics_expert_wraps_pipeline_and_puts_quoted_numbers_in_evidence(tmp_path):
-    verdict = {"verdict": "ACCEPT", "equipment": "P-104", "run_dir": "runs/x", "models_used": ["m"], "not_checked": ["nonlinear damping"],
-               "model": {"form": "m*x'' + c*x' + k*x = F(t)", "rmse": 0.01, "heldout_rmse": 0.011,
-                         "parameters": [{"name": "c", "value": 2.8, "ci95": [2.78, 2.82], "unit": "N*s/m"}]},
-               "evidence": [{"validator": "stability", "passed": True, "detail": "eigenvalues Re=-1.4"}],
-               "action": {"type": "maintenance_flag", "detail": "c up", "drift": [{"param": "c", "direction": "up", "relative_change": 0.4, "sigmas": 73.0, "flagged": True}]},
-               "vetoed": [{"form": "cubic", "failed": [{"validator": "energy"}]}]}
-    ctx = make_ctx(tmp_path, lambda m, msgs: "{}", physics_runner=lambda q: verdict)
-    reg = Registry(ctx, os.path.join(ROOT, "experts"), ROOT)
-    mem = TeamMemory(InMemoryLedger())
-    exp = reg.experts["physics"]
-    res = exp.run(Task("T1", "Has P-104 worn?", "physics"), mem, reg.budget_for("physics"))
-    assert exp.retryable is False
-    text = " ".join(e["detail"] for e in res.evidence)
-    assert "c=2.8" in text and "73" in text and "stability" in " ".join(e["source"] for e in res.evidence)
-    assert any("cubic" in f for f in mem.refuted())
-
-
 def test_plan_rejects_placeholder_goals_copied_from_the_schema():
     for goal in ("a self-contained instruction", "Instruction", "   ", "..."):
         with pytest.raises(PlanError, match="no real goal"):
@@ -252,10 +234,10 @@ def test_plan_rejects_placeholder_goals_copied_from_the_schema():
 
 def test_rule_plan_routes_machines_code_and_summaries_deterministically():
     from inverse_core.team.lead import rule_plan
-    names, eq = ["physics", "research", "reasoning", "solver", "vulnerability", "architect"], ["P-104", "T-200"]
-    p = rule_plan("Check P-104, T-200 for wear against their baselines and say which ones need maintenance and why.", names, eq)
-    assert [(t.id, t.expert) for t in p.tasks] == [("T1", "physics"), ("T2", "physics"), ("T3", "research"), ("T4", "reasoning")]
-    assert "P-104" in p.tasks[0].goal and "T-200" in p.tasks[1].goal and p.tasks[3].depends_on == ["T1", "T2", "T3"]
+    names, eq = ["research", "reasoning", "solver", "vulnerability", "architect"], ["P-104", "T-200"]
+    p = rule_plan("Check P-104, T-200 and say which ones need maintenance and why.", names, eq)
+    assert [(t.id, t.expert) for t in p.tasks] == [("T1", "research"), ("T2", "reasoning")]
+    assert "P-104" in p.tasks[0].goal and "T-200" in p.tasks[0].goal and p.tasks[1].depends_on == ["T1"]
     assert [t.expert for t in rule_plan("Review this repository's own code for security weaknesses.", names, eq).tasks] == ["vulnerability"]
     assert [t.expert for t in rule_plan("Summarize what the crew has found and ruled out so far.", names, eq).tasks] == ["solver"]
     assert [t.expert for t in rule_plan("How many sensors are there?", names, eq).tasks] == ["solver"]
@@ -268,55 +250,9 @@ def test_lead_falls_back_to_the_rule_plan_when_the_model_copies_the_example(tmp_
     ctx = make_ctx(tmp_path, lambda m, msgs: copied)
     lead = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()))
     plan = lead.plan("Is pump P-104 wearing out?")
-    assert [t.expert for t in plan.tasks] == ["physics", "research", "reasoning"] and "P-104" in plan.tasks[0].goal
+    assert [t.expert for t in plan.tasks] == ["research", "reasoning"] and "P-104" in plan.tasks[0].goal
     ev = [e for e in events(ctx, "plan") if e.get("by") == "rule"]
     assert len(ev) == 1 and "not usable" in ev[0]["reason"] and "a self-contained instruction" in ev[0]["reason"]
     strict = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()), rule_fallback=False)
     with pytest.raises(PlanError, match="no real goal"):
         strict.plan("Is pump P-104 wearing out?")
-
-
-def _verdict(m, flag=False):
-    return {"verdict": "ACCEPT", "equipment": m, "run_dir": f"runs/{m}", "models_used": ["local"], "not_checked": ["temperature"], "model": None, "vetoed": [],
-            "evidence": [{"validator": "units", "passed": True, "detail": "every term is a force"}],
-            "action": {"type": "maintenance_flag", "detail": "c up +40% vs baseline (53 sigma, threshold 3)", "drift": []} if flag else {"type": "none", "detail": "no baseline available", "drift": []}}
-
-
-def test_newton_checks_every_machine_a_task_names(tmp_path):
-    asked = []
-
-    def runner(question):
-        asked.append(question)
-        return _verdict("P-104" if "P-104" in question else "T-200", flag="P-104" in question)
-
-    ctx = make_ctx(tmp_path, lambda m, msgs: "{}", physics_runner=runner)
-    ctx.equipment = ["P-104", "T-200"]
-    newton = Registry(ctx, os.path.join(ROOT, "experts"), ROOT).experts["physics"]
-    res = newton.run(Task("T1", "Check P-104, T-200 for wear against their baselines", "physics"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=2))
-    assert asked == ["Has P-104 worn since its release test? Check it against the baseline.", "Has T-200 worn since its release test? Check it against the baseline."]
-    assert "P-104: ACCEPT" in res.answer and "T-200: ACCEPT" in res.answer and "maintenance_flag" in res.answer and len(res.evidence) == 2
-    assert len(res.findings) == 2 and res.not_checked == ["temperature"]
-    asked.clear()
-    newton.run(Task("T2", "Has P-104 worn?", "physics"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=2))
-    assert asked == ["Has P-104 worn?"]                                                   # one machine: the task's own wording, as before
-
-
-def test_a_deterministic_result_is_accepted_by_rule_and_nothing_accepted_means_a_code_written_answer(tmp_path):
-    def script(model, messages):
-        system = messages[0]["content"]
-        if system.startswith("You are an adversarial reviewer"):
-            return json.dumps({"verdict": "reject", "reason": "the model is nonlinear"})           # a small model's opinion on physics
-        if system.startswith("Write the final answer"):
-            raise AssertionError("the writer must not be called when nothing was accepted")
-        raise AssertionError(system[:40])
-
-    ctx = make_ctx(tmp_path, script, physics_runner=lambda q: _verdict("P-104", flag=True))
-    lead = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()))
-    t = Task("T1", "Has P-104 worn?", "physics")
-    lead._execute(t)
-    assert t.status == "done" and [e["by"] for e in events(ctx, "critic")] == ["rule"]        # Newton's checks are the review
-    assert not any(e.get("agent") == "critic" for e in events(ctx, "llm"))
-    failed = Plan("g", [Task("T1", "think", "reasoning")])
-    failed.tasks[0].status, failed.tasks[0].feedback = "failed", "escalated"
-    out = lead.compose(failed)
-    assert out["answer"].startswith("No task produced an accepted result.") and "**Not completed**" in out["answer"] and out["models_used"] == []

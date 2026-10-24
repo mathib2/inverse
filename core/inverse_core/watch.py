@@ -1,11 +1,11 @@
-"""Watch mode: INVERSE runs on its own.
+"""Watch mode: the crew works on its own.
 
-A loop on the workstation checks Zetaris for new sensor data per machine, runs the physics check when there is some, decides
-BY RULE whether the result needs the team of experts (a wear flag, a rejection, a refusal), gives the team a goal written from
-the verdict, and keeps a manifest per run, a heartbeat, a log and a list of notifications. People and the UI can queue goals
-for the team (queue/goals.jsonl); the watcher takes those first. Nothing here acts on equipment: it reads data, analyses it
-and writes files; if WATCH_WEBHOOK is set it also posts a one-line notification there. Every run keeps the same budgets, scope
-checks and review as a run started by a person."""
+Warden (this loop) runs on the workstation. Each cycle, in this order: goals people queued (queue/goals.jsonl), standing
+missions whose interval has passed (missions.yaml), then every machine in the data platform whose sensor data changed since
+the last look (a new dataset, more rows or a later timestamp starts a crew mission about that machine). Every run leaves a
+manifest; the loop keeps a heartbeat, a log and a list of notifications (and posts to WATCH_WEBHOOK when set). A run
+interrupted by a crash is marked and its goal re-queued once. Nothing here acts on equipment or writes to the data platform;
+every run keeps the same budgets, scope checks and review as a run a person starts."""
 from __future__ import annotations
 
 import json
@@ -18,25 +18,16 @@ import requests
 
 from .clients.zetaris import SAMPLE_VIEWS
 
-PHYSICS_QUESTION = "Has {eq} worn since its release test? Check it against the baseline."
 KEEP_RUNS = 50
 
 
-def goal_for(verdict):
-    """The rule that decides when the team is needed and what it is asked. Deterministic; None means nothing to escalate."""
-    eq, v, action = verdict.get("equipment"), verdict.get("verdict"), verdict.get("action") or {}
-    if v == "ACCEPT" and action.get("type") == "maintenance_flag":
-        return (f"The physics check flagged {eq} for wear: {action.get('detail')}. Find in the maintenance history what was done to {eq} and when, "
-                f"confirm the sensor specification the check used (sigma and unit), and compute how many times the measurement uncertainty "
-                f"the change is. Say what could not be checked.")
-    if v == "REJECT":
-        failed = ", ".join(verdict.get("tests_failed") or []) or "see the run"
-        return (f"The physics check rejected every candidate model for {eq} (tests failed: {failed}). Look up the sensor specifications and "
-                f"the maintenance history of {eq} and say which measurement would help next.")
-    if v == "UNIDENTIFIABLE":
-        return (f"The physics check refused to fit {eq}: {action.get('detail')}. Look up which sensors {eq} has and what the registry says "
-                f"about its mass, and say what measurement would resolve it.")
-    return None
+def data_goal(eq, fingerprint=""):
+    """The goal Warden writes when a machine has new sensor data. Fixed text, not a model."""
+    ds, _, rest = str(fingerprint or "").partition(":")
+    where = f" (dataset {ds}, rows and last time {rest})" if rest else ""
+    return (f"New sensor data arrived for {eq}{where}. Using queries only: say how much data there is for {eq} and what time span it covers, "
+            f"compare it with the previous dataset if the registry names one, and report what the maintenance history says was done to {eq} "
+            f"and when. Say what could not be checked.")
 
 
 def _now():
@@ -44,11 +35,11 @@ def _now():
 
 
 class Watcher:
-    """physics(question) -> verdict dict (with run_dir); team(goal, on_start) -> (answer dict, run_dir), where on_start(run_dir) is
-    called as soon as the run directory exists. Both are injected, so the loop is testable without a model or Zetaris."""
+    """team(goal, on_start) -> (answer dict, run_dir), where on_start(run_dir) is called as soon as the run directory exists.
+    It is injected, so the loop is testable without a model or the data platform."""
 
-    def __init__(self, zetaris, physics, team, root=".", interval=1800, equipment=(), log=None, webhook=None, services=None, missions=()):
-        self.z, self.physics, self.team = zetaris, physics, team
+    def __init__(self, zetaris, team, root=".", interval=1800, equipment=(), log=None, webhook=None, services=None, missions=(), council=None):
+        self.z, self.team = zetaris, team
         self.root, self.interval, self.only = root, int(interval), list(equipment or [])
         self.state_dir, self.queue_dir = os.path.join(root, "state"), os.path.join(root, "queue")
         os.makedirs(self.state_dir, exist_ok=True)
@@ -61,7 +52,7 @@ class Watcher:
         self.state = self._load(self.state_path, {"seen": {}, "cycles": 0, "runs": []})
         self.state.setdefault("missions", {})
         self.missions = [dict(m) for m in (missions or []) if isinstance(m, dict) and m.get("name") and m.get("goal")]   # standing missions (missions.yaml)
-        self.webhook, self.services, self._print = webhook, services, log
+        self.webhook, self.services, self._print, self.council = webhook, services, log, council   # council: callable -> session record or None
         self._status, self._hb_extra, self._stop = "starting", {}, False
 
     # --- files ------------------------------------------------------------------------------------------------------------
@@ -93,7 +84,7 @@ class Watcher:
 
     def heartbeat(self, status=None, **kw):
         """Written at every change of state and, from a background thread, every `every` seconds while a long run is in progress, so
-        'alive' never depends on how long the physics or the team takes."""
+        'alive' never depends on how long a mission takes."""
         if status is not None:
             self._status, self._hb_extra = status, kw
         self._dump(self.heartbeat_path, {"ts": time.time(), "when": _now(), "pid": os.getpid(), "status": self._status, "cycle": self.state["cycles"],
@@ -119,7 +110,7 @@ class Watcher:
         self._dump(path, m)
         return m
 
-    # --- the goal queue (people and the UI write it; the watcher takes it first) -------------------------------------------
+    # --- the goal queue (people and the UI write it; Warden takes it first) -------------------------------------------------
     def enqueue(self, goal, by="ui", **extra):
         item = {"goal": str(goal).strip(), "by": by, "ts": _now(), **extra}
         with open(self.queue_path, "a") as f:
@@ -167,66 +158,44 @@ class Watcher:
         except OSError:
             pass
 
-    def run_physics(self, eq, trigger):
-        q = PHYSICS_QUESTION.format(eq=eq)
-        started = _now()
-        self._dump(self.current_path, {"kind": "physics", "equipment": eq, "goal": q, "started": started, "trigger": trigger})
-        self.log(f"physics check on {eq} ({trigger})")
-        try:
-            v = self.physics(q)
-        except Exception as e:
-            err = f"{type(e).__name__}: {str(e)[:200]}"
-            self.log(f"physics check on {eq} failed: {err}")
-            self._record(kind="physics", equipment=eq, trigger=trigger, status="failed", error=err)
-            return None
-        finally:
-            self._clear_current()
-        action = v.get("action") or {}
-        self.manifest(v.get("run_dir"), kind="physics", trigger=trigger, equipment=eq, goal=q, status="done", started=started, finished=_now(),
-                      verdict=v.get("verdict"), action=action.get("type"), detail=action.get("detail"),
-                      narrative_replaced=bool(v.get("narrative_replaced")), models=v.get("models_used") or [])
-        self._record(kind="physics", equipment=eq, trigger=trigger, status="done", verdict=v.get("verdict"), action=action.get("type"), run_dir=v.get("run_dir"))
-        self.log(f"{eq}: {v.get('verdict')} / {action.get('type')}: {action.get('detail')}")
-        return v
-
-    def run_team(self, goal, trigger, by="watch", requeued=False):
+    def run_team(self, goal, trigger, by="warden", requeued=False, equipment=None):
         started, box = _now(), {}
 
         def on_start(run_dir):
             box["dir"] = run_dir
             self._dump(self.current_path, {"kind": "team", "goal": goal, "started": started, "trigger": trigger, "run_dir": run_dir, "requeued": requeued})
-            self.manifest(run_dir, kind="team", trigger=trigger, by=by, goal=goal, status="running", started=started)
+            self.manifest(run_dir, kind="team", trigger=trigger, by=by, goal=goal, equipment=equipment, status="running", started=started)
 
         self._dump(self.current_path, {"kind": "team", "goal": goal, "started": started, "trigger": trigger, "requeued": requeued})
-        self.log(f"team run ({trigger}): {goal[:120]}")
+        self.log(f"crew mission ({trigger}): {goal[:120]}")
         try:
             out, run_dir = self.team(goal, on_start)
         except Exception as e:
             err = f"{type(e).__name__}: {str(e)[:200]}"
-            self.manifest(box.get("dir"), kind="team", trigger=trigger, by=by, goal=goal, status="failed", started=started, finished=_now(), error=err)
-            self.log(f"team run failed: {err}")
-            self._record(kind="team", trigger=trigger, status="failed", goal=goal, error=err, run_dir=box.get("dir"))
+            self.manifest(box.get("dir"), kind="team", trigger=trigger, by=by, goal=goal, equipment=equipment, status="failed", started=started, finished=_now(), error=err)
+            self.log(f"crew mission failed: {err}")
+            self._record(kind="team", trigger=trigger, status="failed", goal=goal, equipment=equipment, error=err, run_dir=box.get("dir"))
             return None
         finally:
             self._clear_current()
         unfinished = len(out.get("unfinished") or [])
-        self.manifest(run_dir, kind="team", trigger=trigger, by=by, goal=goal, status="done", started=started, finished=_now(),
+        self.manifest(run_dir, kind="team", trigger=trigger, by=by, goal=goal, equipment=equipment, status="done", started=started, finished=_now(),
                       answer=str(out.get("answer") or "")[:600], unfinished=unfinished, models=out.get("models_used") or [])
-        self._record(kind="team", trigger=trigger, status="done", goal=goal, unfinished=unfinished, run_dir=run_dir)
-        self.notify(f"INVERSE team finished ({trigger}): {goal[:100]} -> {str(out.get('answer') or '')[:200]}")
+        self._record(kind="team", trigger=trigger, status="done", goal=goal, equipment=equipment, unfinished=unfinished, run_dir=run_dir)
+        self.notify(f"INVERSE crew finished ({trigger}): {goal[:100]} -> {str(out.get('answer') or '')[:200]}")
         return out
 
     def recover(self):
-        """A run that was in progress when the process died is marked interrupted; a team goal goes back on the queue once."""
+        """A run that was in progress when the process died is marked interrupted and its goal goes back on the queue once."""
         cur = self._load(self.current_path)
         if not cur:
             return None
-        self.log(f"recovered after an interruption: {cur.get('kind')} run started {cur.get('started')}")
+        self.log(f"recovered after an interruption: run started {cur.get('started')}")
         self.manifest(cur.get("run_dir"), status="interrupted", finished=_now())
-        if cur.get("kind") == "team" and not cur.get("requeued"):
+        if not cur.get("requeued"):
             trig = str(cur.get("trigger") or "")
             self.enqueue(cur["goal"], by="watch:recovery", requeued=True, mission=trig[len("mission:"):] if trig.startswith("mission:") else None)
-        self._record(kind=cur.get("kind"), status="interrupted", goal=cur.get("goal"), equipment=cur.get("equipment"), run_dir=cur.get("run_dir"))
+        self._record(kind="team", status="interrupted", goal=cur.get("goal"), run_dir=cur.get("run_dir"))
         self._clear_current()
         return cur
 
@@ -239,6 +208,7 @@ class Watcher:
             except requests.RequestException as e:
                 self.log(f"webhook failed: {e}")
 
+    # --- standing missions --------------------------------------------------------------------------------------------------
     def _mark_mission(self, name, ok):
         """Records when a standing mission ran; a failed one is due again in an hour, not after its whole interval."""
         every = next((float(m.get("every", 24)) for m in self.missions if m["name"] == name), 24.0) * 3600
@@ -257,7 +227,7 @@ class Watcher:
 
     # --- the loop -------------------------------------------------------------------------------------------------------------
     def cycle(self, force=False):
-        """One pass: queued goals first, then every machine whose data changed (all of them when forced). Returns what happened."""
+        """One pass: queued goals, then due missions, then every machine whose data changed (all of them when forced). Returns what happened."""
         self.state["cycles"] += 1
         self._save()
         self.heartbeat("working")
@@ -300,27 +270,27 @@ class Watcher:
             seen = self.state["seen"].get(eq)
             if seen == fp and not force:
                 continue
-            v = self.run_physics(eq, "new_data" if seen != fp else "forced")
-            self.state["seen"][eq] = fp
+            trigger = f"new_data:{eq}" if seen != fp else f"forced:{eq}"
+            goal = data_goal(eq, fp)
+            out = self.run_team(goal, trigger, by=f"warden:{eq}", equipment=eq)
+            self.state["seen"][eq] = fp                                        # a failed mission waits for new data, not a retry storm
             self._save()
-            if v is None:
-                done.append({"kind": "physics", "equipment": eq, "ok": False})
-                continue
-            goal = goal_for(v)
-            done.append({"kind": "physics", "equipment": eq, "ok": True, "verdict": v.get("verdict"), "escalated": bool(goal)})
-            if goal:
-                trigger = f"physics:{v.get('verdict')}"
-                out = self.run_team(goal, trigger, by=f"watch:{eq}")
-                done.append({"kind": "team", "trigger": trigger, "goal": goal, "ok": out is not None})
-            else:
-                self.log(f"{eq}: nothing to escalate")
+            done.append({"kind": "team", "trigger": trigger, "equipment": eq, "goal": goal, "ok": out is not None})
+        if self.council:                                                       # the council meets only when its own rules say so
+            try:
+                rec = self.council()
+                if rec:
+                    self.log(f"council session {rec.get('s')}: {len(rec.get('decisions') or [])} decision(s), {rec.get('calls', 0)} model call(s)")
+                    done.append({"kind": "council", "session": rec.get("s"), "decisions": len(rec.get("decisions") or []), "ok": True})
+            except Exception as e:
+                self.log(f"council failed: {type(e).__name__}: {str(e)[:200]}")
         self.state["last_cycle"] = _now()
         self._save()
         return done
 
     def loop(self, once=False, force=False, sleep=time.sleep):
         self.recover()
-        self.log(f"watch mode started (every {self.interval}s; machines: {', '.join(self.only) or 'all'})")
+        self.log(f"watch mode started (every {self.interval}s; machines: {', '.join(self.only) or 'all'}; missions: {', '.join(m['name'] for m in self.missions) or 'none'})")
         threading.Thread(target=self._pulse, daemon=True, name="watch-heartbeat").start()
         while True:
             try:

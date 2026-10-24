@@ -27,7 +27,7 @@ Experts:
 Known equipment IDs: {equipment}
 Return ONLY JSON: {{"tasks":[{{"id":"T1","goal":"<one self-contained instruction, written by you for THIS goal>","expert":"<a name from the list>","depends_on":[]}}]}}
 Write every goal in your own words for the goal you were given; never copy the example text or leave a placeholder.
-A physics task must name the machine by its ID in its goal. Use research to look facts up in the registry, sensor specs and maintenance history (not to dump raw samples; the physics expert reads those itself), reasoning for derivations and calculations.
+Use research to look facts up in the registry, sensor specs, maintenance history and samples (counts and ranges, not raw dumps), reasoning for derivations and calculations, solver for multi-step work with tools, vulnerability for a review of our own code.
 If no expert fits a task and an architect is on the team, give the architect a task to design, create and test an expert for that need, assign the dependent task to the expert name the architect should create (lowercase snake_case), and make it depend on the architect's task. Without an architect, define one (at most 2) by adding "new_experts":[{{"name":"snake_case","role":"one sentence","system_prompt":"its instructions","tools":["..."],"model_lane":"fast|deep"}}] to the JSON, using only these tools: {tools}. Prefer an existing expert when one fits."""
 
 COMPOSE_SYSTEM = """Write the final answer for the user from the accepted expert results. Rules: use only facts present in the results; cite every claim as
@@ -51,8 +51,8 @@ SUMMARY_WORDS = re.compile(r"\b(summari[sz]e|digest|what (do|does) (we|the crew|
 
 def rule_plan(goal, names, equipment):
     """A plan written by rule, for when the model cannot write one (a small local model may copy the schema's example text twice).
-    A machine named in the goal gets Newton's physics check and Scout's look at its history, then Euler answers the goal from both;
-    code words send the goal to Sentinel; summary words to Ada with the shared memory; anything else to Ada. Deterministic and traced."""
+    A machine named in the goal gets Scout's look at the registry, specs and history, then Euler answers the goal from it; code words
+    send the goal to Sentinel; summary words to Ada with the shared memory; anything else to Ada. Deterministic and traced."""
     tasks = []
 
     def add(expert, text, deps=()):
@@ -63,10 +63,8 @@ def rule_plan(goal, names, equipment):
     if CODE_WORDS.search(goal) and not machines:
         add("vulnerability", goal)
     elif machines:
-        for m in machines:
-            add("physics", f"Has {m} worn since its release test? Check it against the baseline.")
-        add("research", f"From the maintenance history and the sensor specifications: what was done to {' and '.join(machines)} and when, "
-                        f"and which sensor measures its displacement (sigma and unit)?")
+        add("research", f"From the registry, the sensor specifications and the maintenance history: what do we know about {' and '.join(machines)}, "
+                        f"what was done to {'them' if len(machines) > 1 else 'it'} and when, and how much sensor data is there?")
         add("reasoning", f"Using the accepted results from the earlier tasks, answer this in plain words: {goal}", deps=[t.id for t in tasks])
     elif SUMMARY_WORDS.search(goal):
         add("solver", goal + " Use the shared memory tool first.")
@@ -253,6 +251,12 @@ class Lead:
                 done[task.id] = task
             if run_dir:
                 plan.save(run_dir)
+        council = getattr(self.ctx, "council", None)
+        if council:                                                           # proposals written by rule from what this run showed
+            try:
+                council.observe(plan, self.ctx.trace.events, run_dir or getattr(self.ctx.trace, "dir", ""))
+            except Exception as e:
+                self.ctx.trace.event("council_error", op="observe", error=f"{type(e).__name__}: {str(e)[:200]}")
         return plan
 
     def _execute(self, task):
@@ -313,7 +317,7 @@ class Lead:
                 continue
             last = _norm(res.answer)
             try:
-                review = self._review(task, expert)
+                review = self.critic.review(task, task.result)
             except BudgetExceeded as e:
                 task.status, task.feedback = "failed", f"budget during review: {e}"
                 self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
@@ -328,6 +332,7 @@ class Lead:
             if review["verdict"] == "accept":
                 task.status, task.feedback = "done", ""
                 self.bus.post(task.expert, "all", res.answer, type="result", task=task.id, confidence=res.confidence)
+                self._file(res, task)
                 for f in res.findings:                                        # shared memory only holds what survived review
                     self._mem("add_finding", f"{task.expert}: {str(f.get('claim', ''))[:200]}", f.get("evidence") or [], source=f.get("source", "fitter"),
                               confidence=f.get("confidence", 0.7), expert=task.expert)
@@ -353,14 +358,14 @@ class Lead:
         task.status = "failed"
         self.ctx.trace.event("task_failed", task=task.id, reason="critic still not satisfied after retries: " + task.feedback)
 
-    def _review(self, task, expert):
-        """A deterministic expert (the physics pipeline) is reviewed by rule: its validators already decided, and a small model
-        reviewing physics it cannot check would only add noise. Everyone else goes to the Critic."""
-        if not getattr(expert, "retryable", True):
-            review = {"verdict": "accept", "reason": "deterministic result: its own checks are the review", "by": "rule"}
-            self.ctx.trace.event("critic", task=task.id, verdict="accept", reason=review["reason"], by="rule")
-            return review
-        return self.critic.review(task, task.result)
+    def _file(self, res, task):
+        """Proposals that rode on an accepted result go to the council; a council hiccup is traced, never fatal to the run."""
+        council = getattr(self.ctx, "council", None)
+        for p in (getattr(res, "proposals", None) or [])[:2] if council else []:
+            try:
+                council.file(p, by=task.expert, run=getattr(self.ctx.trace, "dir", ""))
+            except Exception as e:
+                self.ctx.trace.event("council_error", op="file", error=f"{type(e).__name__}: {str(e)[:200]}")
 
     def compose(self, plan, run_dir=None):
         ok = [t for t in plan.tasks if t.status == "done"]

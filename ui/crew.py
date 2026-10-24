@@ -8,6 +8,7 @@ import time
 import streamlit as st
 
 import autonomy
+import council_ui
 import parts
 import plain
 import team
@@ -19,13 +20,13 @@ from inverse_core.team.lanes import Lanes
 from inverse_core.team.registry import load_configs
 
 ROOT, RUNS_DIR, EXPERTS_DIR = team.ROOT, team.RUNS_DIR, team.EXPERTS_DIR
-EXAMPLES = [("Is pump P-104 wearing out?", "Is pump P-104 wearing out, and what does its maintenance history say was done to it?"),
+EXAMPLES = [("What do we know about P-104?", "From the registry, the sensor specifications and the maintenance history, what do we know about P-104, and how much sensor data is there for it?"),
             ("Check our own code", "Review this repository's own code for security weaknesses and propose the smallest fix for each verified finding."),
             ("What do we know so far?", "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.")]
 ICON = {"question": "❓", "answer": "💬", "result": "📣", "review": "🧐", "note": "📝"}
 TOOL_WORDS = {"run_sql": "data queries", "calc": "calculator", "memory": "shared memory", "ask_expert": "asks the others", "post_message": "leaves notes",
               "read_messages": "reads notes", "scan": "code scan", "read_file": "reads code", "grep": "searches code", "list_files": "lists files",
-              "physics_pipeline": "physics checks", "list_experts": "sees the crew", "design_expert": "designs agents", "create_expert": "builds agents",
+              "list_experts": "sees the crew", "design_expert": "designs agents", "create_expert": "builds agents",
               "test_expert": "test-drives agents"}
 
 
@@ -107,7 +108,7 @@ def answer(out, plan, configs):
 def render(ledger, ai_online, sidecar, health=None):
     ss, configs = st.session_state, _configs()
     st.markdown("## INVERSE crew")
-    st.caption("Nine AI agents that run on this computer, on local models, with no cloud: they reverse-engineer machines from sensor data, "
+    st.caption("Eight AI agents that run on this computer, on local models, with no cloud: they look things up in the data platform, "
                "review code, work through problems, check each other's work, talk to each other, and keep going on their own.")
     if health:
         parts.status_row(health)
@@ -158,6 +159,9 @@ def render(ledger, ai_online, sidecar, health=None):
 
     st.markdown("### On its own")
     autonomy.render(ROOT, configs)
+
+    st.markdown("### The council")
+    council_ui.render(ROOT, configs, ledger, sidecar)
 
     runs = team.saved_runs()
     st.markdown("### Past missions")

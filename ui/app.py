@@ -1,11 +1,9 @@
-"""INVERSE demo UI (Streamlit, :8501). Plain-language front end: pick or type a question, watch the steps,
-read the result. Wording lives in ui/plain.py, page sections in ui/parts.py, theme in .streamlit/config.toml."""
+"""INVERSE UI (Streamlit, :8501). The Crew page is the default: give the agents a goal, watch them work, see what they do on
+their own. Advanced keeps the plan editor, the experts editor and the replay with traces. Wording lives in ui/plain.py."""
 import getpass
 import os
 import subprocess
 import sys
-import threading
-import time
 
 import requests
 import streamlit as st
@@ -14,29 +12,22 @@ from dotenv import load_dotenv
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
-from inverse_core.clients.meterless import MeterlessClient, NightshiftOffline
-from inverse_core.clients.world import WorldClient
-from inverse_core.clients.zetaris import ZetarisClient
-from inverse_core.ledger import SidecarLedger
-from inverse_core.orchestrator import Orchestrator
+from inverse_core.clients.meterless import MeterlessClient  # noqa: E402
+from inverse_core.clients.zetaris import ZetarisClient  # noqa: E402
+from inverse_core.ledger import SidecarLedger  # noqa: E402
 
-import parts
-import plain
+import parts  # noqa: E402
+import plain  # noqa: E402
 
-st.set_page_config(page_title="INVERSE · a crew of local AI agents", page_icon="⚙️", layout="wide",
-                   initial_sidebar_state="auto")
+st.set_page_config(page_title="INVERSE · a crew of local AI agents", page_icon="⚙️", layout="wide", initial_sidebar_state="auto")
 SIDECAR = "http://127.0.0.1:8100"
-MACHINES = sorted({s["equipment"] for s in plain.SCENARIOS.values()})
 ledger, llm = SidecarLedger(SIDECAR), MeterlessClient()
 ss = st.session_state
-ss.setdefault("history", [])
-ss.setdefault("scenario", "wear")
-ss.setdefault("question", plain.SCENARIOS["wear"]["question"])
 
 
 @st.cache_data(ttl=20, show_spinner=False)
 def health():
-    """Cached briefly: an offline Nightshift would otherwise add a timeout to every click."""
+    """Cached briefly: an offline model server would otherwise add a timeout to every click."""
     h = llm.health()
     ai = {"status": h["status"], "route": llm.model, "n_models": len(h.get("models", [])), "detail": h.get("detail", "")}
     try:
@@ -68,18 +59,13 @@ def recheck():
     health.clear()
 
 
-def pick(key):
-    ss.scenario, ss.question = key, plain.SCENARIOS[key]["question"]
-
-
-@st.dialog("Forget past results?")
-def confirm_reset(equipment):
-    st.markdown(f"INVERSE will forget everything it remembers about **{equipment}**, including the last check's "
-                "baseline. The next run starts from scratch. This can't be undone.")
+@st.dialog("Forget what the crew remembers?")
+def confirm_reset():
+    st.markdown("The crew will forget every shared finding and every refuted claim in H-MEM. The next mission starts from scratch. This can't be undone.")
     c1, c2 = st.columns(2)
-    if c1.button(f"Forget {equipment}", type="primary", width="stretch"):
-        n = ledger.reset(equipment) + ledger.reset("team:shared")          # team memory is forgotten with it
-        st.toast(f"Forgot {n} saved results for {equipment}")
+    if c1.button("Forget it all", type="primary", width="stretch"):
+        n = ledger.reset("team:shared")
+        st.toast(f"Forgot {n} remembered items")
         st.rerun()
     if c2.button("Keep them", width="stretch"):
         st.rerun()
@@ -90,100 +76,21 @@ ai_online = h["ai"]["status"] == "online"
 parts.css()
 
 with st.sidebar:
-    mode = st.radio("Mode", ["Crew", "Physics bench", "Advanced"], key="mode", horizontal=True,
-                    help="Crew: give the agents a goal and watch them work. Physics bench: one physics-checked diagnosis, step by step. Advanced: edit plans and agents.")
+    mode = st.radio("Mode", ["Crew", "Advanced"], key="mode", horizontal=True,
+                    help="Crew: give the agents a goal and watch them work. Advanced: edit plans and agents, replay with the full trace.")
     st.divider()
     parts.connections(h, recheck, ssh_target(), ss.get("last_latency"))
     st.divider()
     st.markdown("### Memory")
-    eq_reset = st.selectbox("Machine", MACHINES, key="reset_eq")
-    if st.button("Forget past results…", icon=":material/delete_sweep:", width="stretch"):
-        confirm_reset(eq_reset)
-    st.caption("Do this before a demo so every run starts fresh.")
+    if st.button("Forget what the crew remembers…", icon=":material/delete_sweep:", width="stretch"):
+        confirm_reset()
+    st.caption("Shared findings and refuted claims live in H-MEM across missions. Do this before a demo so every mission starts fresh.")
 
-if mode == "Crew":
-    import crew
-    crew.render(ledger, ai_online, SIDECAR, h)
-    st.stop()
 if mode == "Advanced":
     import team
     team.render(ledger, ai_online, SIDECAR, h)
     st.stop()
 
-parts.hero()
-parts.status_row(h)
-parts.how_it_works()
-parts.glossary()
+import crew  # noqa: E402
 
-st.markdown("### 1 · Choose a question")
-parts.scenario_cards(ss.scenario, pick)
-question = st.text_area("Your question", key="question", height=80, help="Mention the machine by its ID: P-104 or T-200.")
-go = st.button("Run analysis", type="primary", icon=":material/play_arrow:", disabled=not ai_online or not question.strip())
-if not ai_online:
-    st.caption("Runs are paused because the AI is offline. See **AI** under Connections in the sidebar.")
-
-if go:
-    events, box = [], {}
-
-    def work():
-        try:
-            box["v"] = Orchestrator(ZetarisClient(), ledger, llm, runs_dir=os.path.join(ROOT, "runs"),
-                                    on_event=events.append, world=WorldClient(SIDECAR)).run(question)
-        except Exception as e:
-            box["err"] = e
-
-    th = threading.Thread(target=work, daemon=True)
-    th.start()
-    with st.status(f"Analyzing… {plain.provider_words()['run_time']}.", expanded=True) as status:
-        shown = 0
-        while th.is_alive() or shown < len(events):
-            while shown < len(events):
-                line = plain.step(events[shown])
-                shown += 1
-                if line:
-                    st.markdown(f"- {line}")
-            time.sleep(0.4)
-        if "err" in box:
-            status.update(label="The analysis stopped", state="error", expanded=True)
-        else:
-            status.update(label="Analysis complete", state="complete", expanded=False)
-    if "err" in box:
-        title, fix = plain.error(box["err"], MACHINES)
-        st.error(f"**{title}.** {fix}")
-        if isinstance(box["err"], NightshiftOffline):
-            recheck()
-    else:
-        v = box["v"]
-        ss.last, ss.events = v, list(events)
-        latencies = [e["latency_s"] for e in events if e.get("kind") == "llm" and e.get("latency_s") is not None]
-        if latencies:
-            ss.last_latency = latencies[-1]
-        ss.history.append({"Run": len(ss.history) + 1, "Machine": v["equipment"],
-                           "Result": plain.VERDICTS[v["verdict"]]["title"], "AI calls": v["stats"]["llm_calls"],
-                           "Models fitted": v["stats"]["fits"], "Skipped (remembered)": v["stats"]["skipped_refuted"]})
-
-st.markdown("### 2 · Result")
-v = ss.get("last")
-if not v:
-    parts.empty_result()
-else:
-    parts.verdict_banner(v)
-    parts.action_card(v)
-    parts.metrics(v)
-    parts.summary(v)
-    parts.limits(v)
-    t_checks, t_out, t_mem, t_behind = st.tabs(["Physics checks", "Ruled-out explanations", "Memory", "Behind the scenes"])
-    with t_checks:
-        parts.checks(v)
-    with t_out:
-        parts.ruled_out(v)
-    with t_mem:
-        try:
-            parts.memory(ledger.recall(v["equipment"]), v["equipment"])
-        except Exception:
-            st.error("**Memory is offline.** Its saved results can't be shown right now. See Connections in the sidebar.")
-    with t_behind:
-        parts.behind(v, ss.get("events", []))
-    if ss.history:
-        st.markdown("#### This session's runs")
-        parts.history(ss.history)
+crew.render(ledger, ai_online, SIDECAR, h)

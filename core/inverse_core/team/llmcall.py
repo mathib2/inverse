@@ -12,14 +12,15 @@ class BadReply(ValueError):
 class Ctx:
     """What an expert needs from the host app. Built once per run and passed to the registry."""
 
-    def __init__(self, lanes, trace, budget, zetaris=None, physics_runner=None, guard=None, equipment=(), root=".", markovian=None, bus=None):
+    def __init__(self, lanes, trace, budget, zetaris=None, guard=None, equipment=(), root=".", markovian=None, bus=None):
         self.lanes, self.trace, self.budget = lanes, trace, budget
-        self.zetaris, self.physics_runner, self.guard, self.equipment = zetaris, physics_runner, guard, list(equipment)
+        self.zetaris, self.guard, self.equipment = zetaris, guard, list(equipment)
         self.root = root                                                      # the repository experts may read (code we own)
         self.markovian = markovian                                            # Meterless Markovian client when the service is up, else None
         self.sql_cache = {}                                                   # per-run: the same read-only query is sent to Zetaris once
         self.bus = bus or Bus(getattr(trace, "dir", None), trace)             # how experts talk to each other (messages.jsonl next to the trace)
         self.registry = None                                                  # attached by build(); the architect's tools and ask_expert act on it
+        self.council = None                                                   # attached by build(); proposals go there, sessions decide them
 
 
 def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False, temperature=None):

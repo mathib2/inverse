@@ -295,7 +295,9 @@ def test_experts_review_the_plan_and_only_change_their_own_tasks(tmp_path):
         sys = messages[0]["content"]
         if sys.startswith("You are the lead"):
             return json.dumps({"tasks": [{"id": "T1", "goal": "Look up the mass of the pump", "expert": "research", "depends_on": []},
-                                          {"id": "T2", "goal": "Has it worn?", "expert": "physics", "depends_on": ["T1"]}]})
+                                          {"id": "T2", "goal": "Compare the mass with the spec", "expert": "reasoning", "depends_on": ["T1"]}]})
+        if sys.startswith("You are the Reasoning expert") and "reviewing the team plan" in sys:
+            return json.dumps({"ok": True, "changes": [], "missing": []})
         if sys.startswith("You are the Research expert") and "reviewing the team plan" in sys:
             return json.dumps({"ok": False, "changes": [{"id": "T1", "goal": "What is the registry mass of P-104?"}, {"id": "T2", "goal": "hijacked"}],
                                "missing": ["a machine ID"]})
@@ -305,7 +307,7 @@ def test_experts_review_the_plan_and_only_change_their_own_tasks(tmp_path):
     plan = lead.plan("Pump P-104 vibration changed. Has it worn?", collaborate=True)
     goals = {t.id: t.goal for t in plan.tasks}
     assert goals["T1"] == "What is the registry mass of P-104?"                            # research reworded its own task
-    assert goals["T2"] == "Has it worn? (machine: P-104)"                                   # physics reviewed by rule; research could not touch it
+    assert goals["T2"] == "Compare the mass with the spec"                                 # research could not touch another expert's task
     reviews = {e["expert"]: e for e in events(ctx, "plan_review")}
-    assert set(reviews) == {"research", "physics"} and reviews["research"]["changed"] == ["T1"] and reviews["physics"]["changed"] == ["T2"]
-    assert reviews["research"]["missing"] == ["a machine ID"] and reviews["physics"]["ok"] is True
+    assert set(reviews) == {"research", "reasoning"} and reviews["research"]["changed"] == ["T1"] and reviews["reasoning"]["changed"] == []
+    assert reviews["research"]["missing"] == ["a machine ID"] and reviews["reasoning"]["ok"] is True

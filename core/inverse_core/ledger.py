@@ -1,11 +1,11 @@
-"""Hypothesis ledger with trust rules. Source `validator` outranks any `llm_*` source:
-a validator-written refutation cannot be overwritten by a later LLM claim.
+"""Claim ledger with trust rules (the crew's shared memory). Source `validator` (a deterministic check) outranks `fitter` (a tool result)
+which outranks any `llm_*` source: a refutation written by a check cannot be overwritten by a later model claim.
 Backends: InMemoryLedger (tests) and SidecarLedger (Meterless H-MEM over HTTP)."""
 from __future__ import annotations
 
 import requests
 
-TRUST = {"validator": 3, "fitter": 2, "llm_critic": 1, "llm_proposer": 1, "llm_reporter": 1}
+TRUST = {"validator": 3, "fitter": 2, "council": 1, "llm_critic": 1, "llm_proposer": 1, "llm_reporter": 1}
 
 
 class InMemoryLedger:

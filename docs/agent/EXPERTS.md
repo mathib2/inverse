@@ -6,7 +6,7 @@ The team is a lead agent plus experts. **Experts are config, not code.** This pa
 
 | File | Who writes it | Purpose |
 |---|---|---|
-| `experts/<name>.yaml` | the repo | the built-in team: `physics`, `research`, `reasoning`, `solver`, `vulnerability` |
+| `experts/<name>.yaml` | the repo | the built-in crew: `research`, `reasoning`, `solver`, `vulnerability`, `architect` |
 | `experts.local/<name>.yaml` (gitignored) | you, or the UI panel **Experts · customize the team** | a new expert, or an override of a built-in with the same name. Deleting the file brings the built-in back unchanged |
 | the run | the lead (`new_experts` in its plan) | a `custom` expert for one run; **Keep it** in the UI writes it to `experts.local/` |
 
@@ -14,7 +14,7 @@ Fields:
 
 ```yaml
 name: solver                      # lowercase letters, digits, _
-kind: custom                      # physics | research | reasoning | custom | vulnerability
+kind: custom                      # research | reasoning | custom | vulnerability | architect
 role: "One or two sentences the lead reads when deciding whom to give a task."
 system_prompt_file: prompts/solver.md   # or: system_prompt: "inline instructions" (inline wins)
 tools: [run_sql, calc, memory]    # from the list below; unknown names are refused at load
@@ -27,7 +27,6 @@ A config error (unknown kind, tool or lane, bad name, non-positive budget) is re
 
 ## Kinds
 
-- **physics**: the existing physics-checked pipeline, wrapped unchanged. Deterministic, so the Critic cannot make it retry. Reviews plans by rule: its task must name a known machine.
 - **research**: read-only SQL on Zetaris through a guard (single SELECT, known tables only); every claim cites a query, numbers are checked against the rows.
 - **reasoning**: decompose, solve, and recompute every calculation with `safe_eval`; a mismatch triggers one repair turn and is visible to the Critic.
 - **custom**: a bounded tool loop defined only by its config: prompt, tools, lane, budget. One tool call per reply; every tool result is evidence; numbers in the answer that no tool produced lower the confidence and are listed under *not checked*. `solver` is one.

@@ -63,6 +63,8 @@ class Tools:
         "ask_expert": ("Ask another expert of the team one question and get its answer with evidence (it spends part of the run budget). args: {expert, question}", ("expert", "question")),
         "post_message": ("Leave a short note for another expert (or \"all\") that they see with their next task. args: {to, text}", ("to", "text")),
         "read_messages": ("Notes, questions and results other experts addressed to you or to all in this run. args: {}", ()),
+        "propose": ("File a proposal for the council (decided later, costs nothing now). args: {k: cfg|mission|note|agent|code, t: <agent, mission, shared or repo>, w: <the change>, y: <why>, p: {<the exact change>}, e: [evidence refs]}", ("k", "t", "w")),
+        "support": ("Back an open council proposal by its id. args: {id}", ("id",)),
     }
 
     def __init__(self, ctx, allowed=None, owner=""):
@@ -242,6 +244,24 @@ class Tools:
             raise ToolError(f"no expert named {to!r} on the team (use a name or \"all\")")
         m = self._bus().post(self.owner or "an expert", to, str(text), type="note", task=self.task_id)
         return {"delivered_to": to, "message": m["n"]}
+
+    def _propose(self, **args):
+        council = getattr(self.ctx, "council", None)
+        if council is None:
+            raise ToolError("no council is attached to this run")
+        p = council.file(args, by=self.owner or "an expert", run=getattr(self.ctx.trace, "dir", ""))
+        if p is None:
+            raise ToolError("the proposal was not accepted by the wire protocol (see the trace: proposal_dropped)")
+        return {"id": p["id"], "status": p["status"], "backers": len(p["backers"])}
+
+    def _support(self, id):
+        council = getattr(self.ctx, "council", None)
+        if council is None:
+            raise ToolError("no council is attached to this run")
+        p = council.support(str(id), self.owner or "an expert")
+        if p is None:
+            raise ToolError(f"no open proposal {id!r}")
+        return {"id": p["id"], "backers": len(p["backers"])}
 
     def _read_messages(self):
         return {"messages": [{k: m.get(k) for k in ("from", "to", "type", "task", "text")} for m in self._bus().inbox(self.owner or "", limit=12)]}
