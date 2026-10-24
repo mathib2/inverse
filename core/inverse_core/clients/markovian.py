@@ -8,7 +8,7 @@ import re
 import requests
 
 STATE_MARKER = re.compile(r"\[STATE_CHECKPOINT\]|@@@STATE@@@|---STATE---|\n\[STATE\]")
-FINAL_MARKER = re.compile(r"\[TASK_COMPLETE\]|@@@FINAL@@@|---FINAL---|\n\[FINAL\]")
+FINAL_MARKER = re.compile(r"\[TASK_COMPLETE\]|@@@FINAL@@@|---FINAL---|\n\[FINAL\]|<DONE\s*/?>")   # every final form the engine accepts
 
 
 def checkpoint(completed, remaining, decisions, context, final=False):
@@ -26,7 +26,11 @@ def content_of(reply):
 
 
 def ensure_marker(reply, final, completed="", remaining="", decisions="", context=""):
-    """A chunk that forgot its marker would stall the chain, so the host appends a code-built one (spec: exactly one marker per chunk)."""
+    """Exactly one marker per chunk, and the right one: a chunk that forgot its marker gets a code-built one; a non-final chunk
+    that ended the chain early (a stray final marker) gets the marker replaced by a checkpoint, so work is never skipped."""
+    if not final and FINAL_MARKER.search(reply):
+        body = STATE_MARKER.split(FINAL_MARKER.sub("", reply))[0].rstrip()
+        return body + "\n" + checkpoint(completed, remaining, decisions, context, final=False)
     if STATE_MARKER.search(reply) or FINAL_MARKER.search(reply):
         return reply
     return reply.rstrip() + "\n" + checkpoint(completed, remaining, decisions, context, final=final)

@@ -37,9 +37,9 @@ export class MarkovianHost {
     const goal = String(b?.goal ?? "").trim();
     if (!goal) throw new Error("goal is required");
     const id = `mk-${Date.now().toString(36)}-${++this.seq}`;
+    const engine = new this.mod.Markovian({ chunkConfig: b.chunkConfig ?? {}, historyDir: path.join(this.stateDir, "markovian") });   // may throw: nothing registered yet
     const st: RunState = { id, goal, started: Date.now(), steps: 0, carryover: "", next: deferred(), measured: { prompt_tokens: 0, completion_tokens: 0, calls: 0 } };
     this.runs.set(id, st);
-    const engine = new this.mod.Markovian({ chunkConfig: b.chunkConfig ?? {}, historyDir: path.join(this.stateDir, "markovian") });
     const generator = async (prompt: string) => {
       const p: Pending = { prompt, step: st.steps + 1, reply: deferred<string>() };
       st.waiting = p;

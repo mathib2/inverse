@@ -82,7 +82,7 @@ def markdown(rows, trow, meta):
         lines.append(f"| {r['scenario']} | {r['repeat']} | {r['verdict']} | {r['expected']} | {r.get('form') or '-'} | "
                      f"{r.get('numbers_in_narrative_not_in_result', r.get('error', '-'))} | {r.get('llm_calls', '-')} | {r['seconds']} |")
     if trow:
-        lines += ["", "## Team run", "", f"Goal: {trow['goal']}", "",
+        lines += ["", "## Team run", "", f"Goal: {trow['goal']}", ""] + ([f"- **The team run failed:** {trow['error']}"] if trow.get("error") else []) + [
                   f"- Tasks: {trow['tasks']}", f"- Citations valid: {trow['citations_valid']} (unknown: {trow['unknown_citations']})",
                   f"- Critic verdicts: {trow['critic_verdicts']}; retries: {trow['retries']}", f"- Plan reviews: {trow['plan_reviews']}",
                   f"- Unfinished tasks: {trow['unfinished']}", f"- Models: {trow['models']}; LLM calls: {trow['llm_calls']}; {trow['seconds']} s; trace `{trow['run_dir']}`"]
@@ -97,8 +97,14 @@ def main():
     a = ap.parse_args()
     t0 = time.time()
     rows = single(a.repeats)
-    trow = team(TEAM_GOAL) if a.team else None
-    meta = {"date": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "machine": platform.node(), "repeats": a.repeats, "seconds": round(time.time() - t0)}
+    trow = None
+    if a.team:
+        try:
+            trow = team(TEAM_GOAL)
+        except Exception as e:                                       # the paid single-question rows are kept whatever the team run does
+            trow = {"goal": TEAM_GOAL, "tasks": [], "citations_valid": "n/a", "unknown_citations": [], "unfinished": [], "critic_verdicts": [],
+                    "retries": 0, "plan_reviews": [], "models": [], "llm_calls": 0, "seconds": round(time.time() - t0, 1), "run_dir": "", "error": f"{type(e).__name__}: {e}"[:300]}
+    meta = {"date": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "machine": platform.system(), "repeats": a.repeats, "seconds": round(time.time() - t0)}
     os.makedirs(a.out, exist_ok=True)
     with open(os.path.join(a.out, "eval_live.json"), "w") as f:
         json.dump({"meta": meta, "single": rows, "team": trow}, f, indent=1, default=str)

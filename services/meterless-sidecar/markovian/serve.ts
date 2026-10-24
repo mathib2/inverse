@@ -11,10 +11,11 @@ const PORT = Number(process.env.MARKOVIAN_PORT ?? 8101);
 const host = await makeMarkovian(STATE);
 
 const body = (req: http.IncomingMessage) =>
-  new Promise<any>((ok) => {
+  new Promise<any>((ok, fail) => {
     let s = "";
     req.on("data", (c) => (s += c));
-    req.on("end", () => ok(s ? JSON.parse(s) : {}));
+    req.on("error", fail);
+    req.on("end", () => { try { ok(s ? JSON.parse(s) : {}); } catch (e) { fail(e); } });   // a bad body is a 500 for that request, not a crash
   });
 
 http

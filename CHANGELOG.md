@@ -1,5 +1,8 @@
 # Changelog
 
+## Review fixes (2026-10-24)
+- An adversarial review of the overnight changes confirmed eight defects; all fixed with regression tests: non-string or null model fields no longer crash a run (answer, reason, evidence detail), one unreadable plan sample no longer ends a vote, memory errors are traced instead of fatal, experts proposed by losing plan samples are dropped, the physics verdict is remembered only after review, the SQL guard checks aliased comma lists and refuses subqueries, file tools never read dot-folders or skipped folders, prompt files must live inside the repository, a Markovian chain is abandoned cleanly on any failure and unreviewed files are listed, stray final markers cannot end a chain early, the architect's test-drive budget is reported instead of failing the architect, the closed-form solver takes y0 at the first sample, the UI survives an offline Zetaris or a broken experts.local file and keeps the architect's tools when saved, the evaluation uses distinct noise realisations per scenario and varies record shapes for the refusal check.
+
 ## Submission documents (2026-10-24)
 - `docs/SPONSORS.md` (sponsor technology explanation), `docs/SUBMISSION.md` (project details and the checklist), `docs/ONBOARDING.md` (adding a machine; what a plant would need); the eval report gains a ten-times-noisier scenario.
 

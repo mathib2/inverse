@@ -55,21 +55,40 @@ class Lead:
         prompt = PLAN_SYSTEM.format(experts="\n".join(f"- {n}: {r}" for n, r in self.registry.roles().items()),
                                     equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(Tools.SPECS))
         msgs = [{"role": "system", "content": prompt}, {"role": "user", "content": goal}]
+        before = set(self.registry.configs)                                  # experts proposed by losing or invalid samples are dropped again
         if votes > 1:
             plan = self._vote(goal, msgs, votes)
             if plan is not None:
+                self._prune(before, plan)
                 return self.review_plan(plan) if collaborate else plan
         err = ""
         for _ in range(2):
             out = ask(self.ctx, self.plan_lane, msgs, "lead_plan", json_reply=True)
             try:
                 plan = self._parse_plan(goal, out["json"])
+                self._prune(before, plan)
                 self.ctx.trace.event("plan", goal=goal, tasks=[t.__dict__ | {"result": None} for t in plan.tasks], model=out["model"])
                 return self.review_plan(plan) if collaborate else plan
             except (PlanError, ConfigError, KeyError, TypeError, AttributeError) as e:
                 err = str(e)
                 msgs += [{"role": "assistant", "content": out["text"]}, {"role": "user", "content": "Invalid plan: " + err + ". Return corrected JSON."}]
+        self._prune(before, None)
         raise PlanError("the planner could not produce a valid plan: " + err)
+
+    def _prune(self, before, plan):
+        """Drop experts registered for this run during planning that the chosen plan does not use."""
+        used = {t.expert for t in plan.tasks} if plan else set()
+        for name in set(self.registry.configs) - before:
+            if name not in used and self.registry.drop(name):
+                self.ctx.trace.event("expert_dropped", name=name, reason="proposed during planning but not used by the chosen plan")
+
+    def _mem(self, op, *args, **kw):
+        """Memory is advisory: an H-MEM hiccup is traced, never fatal to the run."""
+        try:
+            return getattr(self.memory, op)(*args, **kw)
+        except Exception as e:
+            self.ctx.trace.event("memory_error", op=op, error=f"{type(e).__name__}: {str(e)[:200]}")
+            return [] if op in ("lessons", "findings") else None
 
     def _parse_plan(self, goal, j):
         for spec in (j.get("new_experts") or [])[:2]:
@@ -84,8 +103,8 @@ class Lead:
     def _vote(self, goal, msgs, votes):
         samples, invalid = [], 0
         for i in range(votes):
-            out = ask(self.ctx, self.plan_lane, msgs, f"lead_plan_sample{i + 1}", json_reply=True, temperature=0.7)
-            try:
+            try:                                                             # an unreadable sample counts as invalid; it does not end the vote
+                out = ask(self.ctx, self.plan_lane, msgs, f"lead_plan_sample{i + 1}", json_reply=True, temperature=0.7)
                 samples.append((self._parse_plan(goal, out["json"]), out["model"]))
             except (PlanError, ConfigError, KeyError, TypeError, AttributeError, ValueError):
                 invalid += 1
@@ -179,10 +198,10 @@ class Lead:
             if not ok:
                 self.ctx.trace.event("refused_scope", agent=task.expert, task=task.id, reason=why)
                 task.status, task.feedback = "rejected", "refused: " + why
-                self.memory.refute(f"{task.expert}: {task.goal[:160]}", "refused: " + why, source="validator", confidence=1.0, expert=task.expert)
+                self._mem("refute", f"{task.expert}: {task.goal[:160]}", "refused: " + why, source="validator", confidence=1.0, expert=task.expert)
                 self.ctx.trace.event("task_rejected", task=task.id, reason=task.feedback)
                 return
-        task.lessons = self.memory.lessons(task.expert)                      # what reviewers told this expert before (Reflexion)
+        task.lessons = self._mem("lessons", task.expert) or []               # what reviewers told this expert before (Reflexion)
         if task.lessons:
             self.ctx.trace.event("lessons", task=task.id, expert=task.expert, count=len(task.lessons))
         last, repeats = None, 0
@@ -200,6 +219,13 @@ class Lead:
                 task.feedback = (f"Your previous reply could not be read as JSON ({e}). Reply with exactly one JSON object and no prose."
                                  if isinstance(e, BadReply) else f"{type(e).__name__}: {e}")
                 self.ctx.trace.event("expert_error", task=task.id, error=f"{type(e).__name__}: {e}"[:300])
+                if attempt == self.max_attempts:
+                    task.status = "failed"
+                    return
+                continue
+            if not isinstance(res.answer, str) or not res.answer.strip():     # a JSON number or null where text was due: ask again, never crash
+                task.feedback = 'Your reply\'s "answer" field must be a non-empty string.'
+                self.ctx.trace.event("expert_error", task=task.id, error=f"answer was {type(res.answer).__name__}, not text")
                 if attempt == self.max_attempts:
                     task.status = "failed"
                     return
@@ -230,28 +256,29 @@ class Lead:
                 self.ctx.trace.event("critic", task=task.id, verdict="unreviewed", reason=note, by="error")
                 task.status, task.feedback = "done", ""
                 return
+            reason = str(review.get("reason") or "")
             if review["verdict"] == "accept":
                 task.status, task.feedback = "done", ""
                 for f in res.findings:                                        # shared memory only holds what survived review
-                    self.memory.add_finding(f"{task.expert}: {str(f.get('claim', ''))[:200]}", f.get("evidence") or [], source=f.get("source", "fitter"),
-                                            confidence=f.get("confidence", 0.7), expert=task.expert)
+                    self._mem("add_finding", f"{task.expert}: {str(f.get('claim', ''))[:200]}", f.get("evidence") or [], source=f.get("source", "fitter"),
+                              confidence=f.get("confidence", 0.7), expert=task.expert)
                 if res.findings:
                     self.ctx.trace.event("memory_write", task=task.id, findings=len(res.findings))
                 return
-            if review["by"] == "llm":                                       # a reviewer's reason is a lesson for this expert's next tasks
-                self.memory.add_lesson(task.expert, f"{task.goal[:80]}: {review['reason'][:200]}")
+            if review.get("by") == "llm" and reason:                         # a reviewer's reason is a lesson for this expert's next tasks
+                self._mem("add_lesson", task.expert, f"{task.goal[:80]}: {reason[:200]}")
             if review["verdict"] == "reject":
-                task.status, task.feedback = "rejected", review["reason"]
-                self.memory.refute(f"{task.expert}: {res.answer[:200]}", review["reason"], source="llm_critic" if review["by"] == "llm" else "validator",
-                                   expert=task.expert)
-                self.ctx.trace.event("task_rejected", task=task.id, reason=review["reason"])
+                task.status, task.feedback = "rejected", reason
+                self._mem("refute", f"{task.expert}: {res.answer[:200]}", reason, source="llm_critic" if review.get("by") == "llm" else "validator",
+                          expert=task.expert)
+                self.ctx.trace.event("task_rejected", task=task.id, reason=reason)
                 return
-            task.feedback = review["reason"]
+            task.feedback = reason
             if not getattr(expert, "retryable", True):                       # a deterministic expert would return the same answer
                 task.status = "failed"
                 self.ctx.trace.event("task_failed", task=task.id, reason="critic sent it back but the expert is deterministic: " + task.feedback)
                 return
-            self.ctx.trace.event("retry", task=task.id, next_attempt=attempt + 1, reason=review["reason"])
+            self.ctx.trace.event("retry", task=task.id, next_attempt=attempt + 1, reason=reason)
         task.status = "failed"
         self.ctx.trace.event("task_failed", task=task.id, reason="critic still not satisfied after retries: " + task.feedback)
 
@@ -260,7 +287,7 @@ class Lead:
         index = {f"{t.id}.E{i}": e for t in ok for i, e in enumerate(t.result["evidence"], 1)}
         payload = [{"task": t.id, "expert": t.expert, "goal": t.goal, "answer": t.result["answer"], "confidence": t.result["confidence"],
                     "assumptions": t.result["assumptions"], "not_checked": t.result["not_checked"],
-                    "evidence": {f"{t.id}.E{i}": e["detail"][:160] for i, e in enumerate(t.result["evidence"], 1)}} for t in ok]
+                    "evidence": {f"{t.id}.E{i}": str(e.get("detail") or "")[:160] for i, e in enumerate(t.result["evidence"], 1)}} for t in ok]
         problems = [{"task": t.id, "expert": t.expert, "status": t.status, "why": t.feedback} for t in plan.tasks if t.status != "done"]
         try:
             out = ask(self.ctx, self.compose_lane, [{"role": "system", "content": COMPOSE_SYSTEM},

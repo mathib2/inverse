@@ -4,6 +4,7 @@ tool-using expert for this run, and test-drive it on a sample task with a small 
 is held to the same scopes, budgets and review as any other expert, and the UI can keep it (experts.local/)."""
 from __future__ import annotations
 
+from ..budget import BudgetExceeded
 from ..ledger import InMemoryLedger
 from .custom import CustomExpert
 from .expert import ExpertBudget, Task
@@ -60,8 +61,11 @@ class ArchitectTools(Tools):
             raise ToolError(f"no expert named {name!r}; create it first")
         if reg.source.get(name) != "run":
             raise ToolError("only an expert created in this run can be test-driven")
-        res = reg.experts[name].run(Task("test", str(task), name), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=4, tokens=30000, seconds=120))
-        return {"answer": res.answer[:600], "confidence": res.confidence, "evidence": len(res.evidence),
+        try:
+            res = reg.experts[name].run(Task("test", str(task), name), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=4, tokens=30000, seconds=120))
+        except BudgetExceeded as e:                                          # the test-drive's own budget, not the architect's
+            raise ToolError(f"the test-drive exceeded its own small budget ({e}); simplify the sample task or the expert's instructions")
+        return {"answer": str(res.answer)[:600], "confidence": res.confidence, "evidence": len(res.evidence),
                 "evidence_sources": [str(e.get("source", ""))[:60] for e in res.evidence[:4]], "not_checked": res.not_checked[:4]}
 
 
