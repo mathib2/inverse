@@ -1,6 +1,6 @@
-from . import energy, numerics, stability, units, validity
+from . import energy, fit_quality, numerics, stability, units, validity
 
-ALL = [units, stability, energy, numerics, validity]
+ALL = [units, stability, energy, numerics, validity, fit_quality]
 
 
 def run_all(model, theta, data):

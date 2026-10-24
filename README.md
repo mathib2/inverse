@@ -15,7 +15,7 @@ A maintenance engineer asks *"what governs this machine, and has it worn?"*. INV
 
 ## What it does (three demo scenarios, all seeded and reproducible)
 
-1. **Pump P-104, has it worn?** Damping is recovered at 2.80 ± 0.02 N·s/m. H-MEM recalls last month's baseline (2.00). The agent raises a **maintenance flag: damping +40%, 73σ**.
+1. **Pump P-104, has it worn?** Damping is recovered at 2.80 ± 0.03 N·s/m (95%). H-MEM recalls last month's baseline (2.00). The agent raises a **maintenance flag: damping +40%, 53σ**.
 2. **Rig T-200, better fit vs physics.** A 4-parameter SINDy-style model fits better (lower chi², lower AIC) but has *negative damping*. The **stability and energy validators veto it**; the honest linear model is accepted. The veto is written to the ledger with source `validator`.
 3. **Pump P-104, mass unknown.** From free-decay data only the ratios c/m and k/m are determined (Jacobian rank 2 of 3). The agent **refuses**, and recommends *a forced response with a known 1 N force at 1.5 Hz* (largest Fisher determinant among the candidate experiments).
 
@@ -54,8 +54,9 @@ Not integrated: Markovian and Scout Intent. The injection guard (`agents/guard.p
 
 ## Math (nothing more than needed)
 
-MAP fit with `scipy.optimize.least_squares` on sensor-σ-whitened residuals · Laplace uncertainty `Cov ≈ (JᵀΣ⁻¹J)⁻¹` · identifiability by Jacobian SVD in log-parameter space (rank threshold 1e-6) and Fisher spectrum · PySINDy (STLSQ) proposes the nonlinear form · AIC/BIC + held-out rollouts · drift rule `|Δθ| > 3·√(σ_now²+σ_base²)` · next measurement maximizes `det F` over simulated experiments.
-Validators (`core/inverse_core/validators/`): Pint units · energy and dissipation sign · numerical integrity under tolerance refinement · regime of validity · stability of the linearization.
+MAP fit with `scipy.optimize.least_squares` on sensor-σ-whitened residuals, with the initial state (x0, v0) fitted jointly · Laplace uncertainty `Cov ≈ (JᵀΣ⁻¹J)⁻¹`, scaled by `max(1, χ²_red)` so intervals widen when the sensor spec understates the noise · identifiability by Jacobian SVD in log-parameter space (rank threshold 1e-6) and Fisher spectrum · a PySINDy regression initialises the full-library candidate (threshold 0, no sparsification, so the most flexible model always faces the validators) · AIC/BIC + held-out rollouts (refit on the first 70%, predict the unseen last 30%) · drift rule `|Δθ| > 3·√(σ_now²+σ_base²)` · next measurement maximizes `det F` over simulated experiments.
+Validators (`core/inverse_core/validators/`): Pint units · energy and dissipation sign · numerical integrity under tolerance refinement · regime of validity · stability of the linearization · goodness of fit (reduced χ² with residual whiteness: structured misfit is vetoed, white excess noise only widens the intervals).
+Calibration: across 40 seeds the 95% intervals contain the true damping 95% of the time, also when the real sensor noise is 2× the spec.
 
 ## Setup
 
@@ -78,12 +79,13 @@ From the laptop, open **one** tunnel (PowerShell on the laptop, never on the ser
 ```bash
 scripts/run_demo.sh                       # starts the sidecar and the UI (http://localhost:8501 through the tunnel)
 PYTHONPATH=core .venv/bin/python scripts/run_agent.py "Rig T-200 was reassembled. What governs its vibration?" --reset T-200
-PYTHONPATH=core .venv/bin/python -m pytest -q tests     # 25 tests incl. live Zetaris + sidecar integration
+PYTHONPATH=core .venv/bin/python -m pytest -q tests     # 40 tests incl. live Zetaris + sidecar integration
 ```
 
 ## Honest limitations
 
 - Data is **synthetic** (fixed seeds, documented in `data/README.md`); the trap case is constructed (one fixed seed where an over-flexible model overfits to the wrong sign). No real plant data was used.
 - One physical family (1-DOF vibration). The `software` adapter is only an interface stub.
-- The initial state is assumed known (release test) and is listed under *not checked*.
+- The initial state (x0, v0) is estimated jointly with the parameters; the first sample is only the starting guess.
+- The planner is deterministic: a question naming no known equipment is refused rather than mapped to a default.
 - Nightshift runs on the laptop: the tunnel and laptop must be on when the agent calls a model; the UI shows health and fails fast.

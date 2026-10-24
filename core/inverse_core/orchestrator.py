@@ -44,18 +44,23 @@ class Orchestrator:
 
         eqs = [r["equipment_id"] for r in self.z.sql("SELECT equipment_id FROM obs.equipment_table")]
         plan = planner.plan(question, eqs)
-        eq = plan["equipment"]
         trace.event("plan", **plan)
+        if not plan["equipment"]:                                          # never answer about a machine nobody asked about
+            raise planner.UnknownEquipment(f"No known equipment in the question. Known equipment: {', '.join(eqs)}")
+        eq = plan["equipment"]
         data = self.z.load(eq, "current")
         trace.event("zetaris_join", equipment=eq, dataset=data["dataset"], rows=len(data["t"]), sigma_x=data["sigma"], mass_kg=data["m"])
+        mass_known = plan["mass_known"] and data["m"] is not None          # a NULL registry mass is unknown too
         notes, blocked = guard.sanitize(self.z.maintenance(eq))
         trace.event("injection_guard", blocked=blocked, notes=len(notes))
         self._ensure_baseline(eq, trace)
         stats = A.new_stats()
 
-        verdict = A.identify(data, eq, self.ledger, plan["mass_known"], stats)
+        verdict = A.identify(data, eq, self.ledger, mass_known, stats)
         if verdict:
             trace.event("refused_before_fitting", reason="identifiability", action=verdict["action"]["detail"])
+        elif data["m"] is None:
+            raise NotImplementedError("Mass is unknown but identifiable from this data; fitting with a free mass is not implemented.")
         else:
             verdict = self._search(data, eq, notes, stats, trace, budget, note_model, run_id=trace.dir)
         text, bad, m = reporter.report(self.llm, trace, budget, verdict, question)
@@ -95,14 +100,18 @@ class Orchestrator:
             if not v:
                 break                                                   # a round with no new veto: stop (stuck detector otherwise forces another round)
             feedback = "; ".join(f"{e['model'].form()} vetoed by {[x['validator'] for x in e['failed']]}" for e in v)
-        extra, tests_done = [], set()
+        extra, tests_done = [], {}
         while fitted:                                                   # Critic: try to break the best survivor
             best = min(fitted, key=lambda e: (e["bic"], e["heldout_rmse"]))
             if budget.llm_calls >= self.max_llm_calls - 1:
                 break
-            res, reason, m = critic.critique(self.llm, trace, budget, best, data, tests_done)
+            done = tests_done.setdefault(best["model"].form(), set())  # per candidate: each survivor may face every test
+            out = critic.critique(self.llm, trace, budget, best, best.get("data", data), done)
+            if out is None:                                             # this candidate already faced every test
+                break
+            res, reason, m = out
             note_model(m)
-            tests_done.add(res["validator"].split(":")[1])
+            done.add(res["validator"].split(":", 1)[1])
             if res["passed"]:
                 extra.append({"validator": res["validator"], "passed": True, "detail": res["evidence"] + f" (Critic: {reason})"})
                 break
