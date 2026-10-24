@@ -1,0 +1,33 @@
+"""Lane name -> Nightshift model id. Experts and the Critic pick a lane by name; the client is the existing MeterlessClient.
+Defaults are Nemotron routes (Nightshift lists them in GET /v1/models); override with LANE_<NAME> in .env.
+`critic` defaults to a different model than `fast` and `deep`, so review is independent of the work it reviews."""
+from __future__ import annotations
+
+import os
+
+from ..clients.meterless import MeterlessClient
+
+DEFAULTS = {"fast": "nvidia/nemotron-3.5-lightning-30b-a3b",
+            "deep": "nvidia/nemotron-3-ultra-550b-a55b",
+            "critic": "nvidia/nemotron-3.5-super-vl-120b-a12b"}
+
+
+class Lanes:
+    def __init__(self, factory=None, mapping=None):
+        self.mapping = {n: os.environ.get("LANE_" + n.upper(), d) for n, d in DEFAULTS.items()}
+        self.mapping.update(mapping or {})
+        self._factory = factory or (lambda model: MeterlessClient(model=model))
+        self._clients = {}
+
+    def model(self, lane):
+        if lane not in self.mapping:
+            raise KeyError(f"unknown lane {lane!r} (known: {', '.join(self.mapping)})")
+        return self.mapping[lane]
+
+    def client(self, lane):
+        if lane not in self._clients:
+            self._clients[lane] = self._factory(self.model(lane))
+        return self._clients[lane]
+
+    def health(self):
+        return self.client("fast").health()

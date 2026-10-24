@@ -76,7 +76,7 @@ def confirm_reset(equipment):
                 "baseline. The next run starts from scratch. This can't be undone.")
     c1, c2 = st.columns(2)
     if c1.button(f"Forget {equipment}", type="primary", width="stretch"):
-        n = ledger.reset(equipment)
+        n = ledger.reset(equipment) + ledger.reset("team:shared")          # team memory is forgotten with it
         st.toast(f"Forgot {n} saved results for {equipment}")
         st.rerun()
     if c2.button("Keep them", width="stretch"):
@@ -95,6 +95,11 @@ with st.sidebar:
     if st.button("Forget past results…", icon=":material/delete_sweep:", width="stretch"):
         confirm_reset(eq_reset)
     st.caption("Do this before a demo so every run starts fresh.")
+
+if st.sidebar.radio("Mode", ["Single machine", "Team of experts"], key="mode", horizontal=True) == "Team of experts":
+    import team
+    team.render(ledger, ai_online, SIDECAR)
+    st.stop()
 
 parts.hero()
 parts.status_row(h)

@@ -82,3 +82,16 @@ def test_world_model_idempotent_and_shared_evidence(sidecar):
     s = w.summary("E1")["hypotheses"][0]
     assert s["status"] == "refuted" and {r["validator"] for r in s["results"]} == {"energy", "units"}
     assert [r for r in s["results"] if not r["passed"]][0]["validator"] == "energy"
+
+
+def test_team_memory_on_hmem_survives_runs_and_breaks_without_engine(sidecar):
+    """Engine test for the team orchestrator: a refuted claim written in one run is recalled in another, and stopping H-MEM breaks it."""
+    from inverse_core.team.memory import TeamMemory
+    url, proc = sidecar
+    TeamMemory(L.SidecarLedger(url)).refute("research: P-104 mass is 50 kg", "contradicted by obs.equipment_table", source="validator")
+    later = TeamMemory(L.SidecarLedger(url))                          # a new run, new objects, same H-MEM
+    assert "research: P-104 mass is 50 kg" in later.refuted()
+    assert later.add_finding("research: P-104 mass is 50 kg", [], source="llm_proposer")["accepted"] is False     # trust rule holds in H-MEM
+    _kill(proc); time.sleep(0.5)
+    with pytest.raises(requests.exceptions.RequestException):
+        TeamMemory(L.SidecarLedger(url)).refuted()
