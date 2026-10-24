@@ -7,6 +7,7 @@ import json
 import os
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from ..budget import BudgetExceeded
 from .critic import Critic
@@ -168,25 +169,49 @@ class Lead:
                                  missing=[str(m) for m in (review.get("missing") or [])][:5], model=review.get("model"))
         return plan.validate(self.registry.names(), self.creators())
 
-    def run(self, plan, run_dir=None):
+    @staticmethod
+    def levels(plan):
+        """Tasks grouped by dependency depth: everything in one level depends only on earlier levels, so it can run at the same time."""
+        depth = {}
+        for t in plan.order():
+            depth[t.id] = 1 + max((depth[d] for d in t.depends_on), default=-1)
+        groups = {}
+        for t in plan.tasks:
+            groups.setdefault(depth[t.id], []).append(t)
+        return [groups[k] for k in sorted(groups)]
+
+    def run(self, plan, run_dir=None, parallel=2):
+        """Executes the plan level by level; independent tasks in a level run concurrently (at most `parallel` at once), which
+        is where most of the wall-clock time of a multi-expert run goes."""
         plan.validate(self.registry.names(), self.creators())
         self.ctx.budget.t0 = time.time()                                      # the wall-clock budget starts when the plan is approved, not drafted
-        self.ctx.trace.event("plan_approved", tasks=[t.id for t in plan.tasks], pending_experts=plan.pending_experts(self.registry.names()))
+        self.ctx.trace.event("plan_approved", tasks=[t.id for t in plan.tasks], pending_experts=plan.pending_experts(self.registry.names()), parallel=parallel)
         if run_dir:
             plan.save(run_dir)
         done = {}
-        for task in plan.order():
-            blocked = [d for d in task.depends_on if done[d].status != "done"]
-            if blocked:
-                task.status, task.feedback = "failed", f"skipped: dependency {blocked} did not produce an accepted result"
-                self.ctx.trace.event("task_skipped", task=task.id, blocked_by=blocked)
-            elif task.expert not in self.registry.experts:                    # planned for an expert the architect was to create
-                task.status, task.feedback = "failed", f"no expert named {task.expert!r} exists: the architect task did not create it"
-                self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
+        for level in self.levels(plan):
+            ready = []
+            for task in level:
+                blocked = [d for d in task.depends_on if done[d].status != "done"]
+                if blocked:
+                    task.status, task.feedback = "failed", f"skipped: dependency {blocked} did not produce an accepted result"
+                    self.ctx.trace.event("task_skipped", task=task.id, blocked_by=blocked)
+                elif task.expert not in self.registry.experts:                # planned for an expert the architect was to create
+                    task.status, task.feedback = "failed", f"no expert named {task.expert!r} exists: the architect task did not create it"
+                    self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
+                else:
+                    task.context = "\n".join(f"[{d}] {done[d].result['answer']}" for d in task.depends_on)
+                    ready.append(task)
+            if len(ready) > 1 and parallel > 1:
+                workers = min(parallel, len(ready))
+                self.ctx.trace.event("level", tasks=[t.id for t in ready], parallel=workers)
+                with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="expert") as pool:
+                    list(pool.map(self._execute, ready))
             else:
-                task.context = "\n".join(f"[{d}] {done[d].result['answer']}" for d in task.depends_on)
-                self._execute(task)
-            done[task.id] = task
+                for task in ready:
+                    self._execute(task)
+            for task in level:
+                done[task.id] = task
             if run_dir:
                 plan.save(run_dir)
         return plan

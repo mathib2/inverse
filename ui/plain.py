@@ -266,6 +266,10 @@ def team_step(e: dict) -> str | None:
         return s + (f"; needs {'; '.join(e['missing'])}" if e.get("missing") else "")
     if k == "plan_approved":
         return "Plan approved; the experts start"
+    if k == "level":
+        return f"{', '.join(e.get('tasks') or [])} run at the same time"
+    if k == "sql_cache_hit":
+        return "Reused a query result from earlier in this run"
     if k == "delegate":
         return f"{who} starts {task}" + (f" (attempt {e['attempt']}, with the reviewer's notes)" if (e.get("attempt") or 1) > 1 else "")
     if k == "tool":

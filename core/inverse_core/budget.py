@@ -1,4 +1,5 @@
 """Caps rounds, LLM calls and wall-clock per task."""
+import threading
 import time
 
 
@@ -11,9 +12,11 @@ class Budget:
         self.max_rounds, self.max_llm_calls, self.max_seconds = max_rounds, max_llm_calls, max_seconds
         self.rounds = self.llm_calls = 0
         self.t0 = time.time()
+        self._lock = threading.Lock()
 
     def charge_llm(self):
-        self.llm_calls += 1
+        with self._lock:
+            self.llm_calls += 1
         self.check()
 
     def check(self):

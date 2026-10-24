@@ -139,7 +139,14 @@ class ResearchExpert(BaseExpert):
                 evidence.append({"type": "sql", "source": str(sql)[:200], "detail": f"REFUSED: {e}"})
                 continue
             budget.charge_tool()
-            rows = self.ctx.zetaris.sql(sql, limit=50)
+            cache = getattr(self.ctx, "sql_cache", None)
+            if cache is not None and sql in cache:                                   # the same read-only query is sent to Zetaris once per run
+                rows = cache[sql]
+                self.ctx.trace.event("sql_cache_hit", sql=sql[:120])
+            else:
+                rows = self.ctx.zetaris.sql(sql, limit=50)
+                if cache is not None:
+                    cache[sql] = rows
             if "maintenance_table" in sql and self.ctx.guard:                       # untrusted text never reaches a model raw
                 rows = self._sanitize(rows)
             rows_all.append(rows)
