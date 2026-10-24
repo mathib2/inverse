@@ -94,8 +94,12 @@ git clone --depth 1 https://github.com/Meterless/Meterless ~/vendor/Meterless   
 PYTHONPATH=core .venv/bin/python scripts/setup_zetaris.py    # creates the Zetaris database, REST tables, caches and views (idempotent)
 ```
 
-Nightshift runs on the machine that has the NVIDIA key; from there, open one reverse tunnel to the server so the Runtime is reachable at `127.0.0.1:8088`:
-`ssh -N -R 8088:127.0.0.1:8088 <user>@<server>`
+### Model provider
+
+`MODEL_PROVIDER` in `.env` picks where the AI runs; the client is the same OpenAI-compatible code path either way, and the UI, the reconnect advice and the team lanes follow the setting.
+
+- `nightshift` (default, the sponsor path): Meterless Nightshift runs on the machine that has the NVIDIA key; from there, open one reverse tunnel so the Runtime is reachable at `127.0.0.1:8088`: `ssh -N -R 8088:127.0.0.1:8088 <user>@<server>` (`docs/agent/NIGHTSHIFT_TUNNEL.md`).
+- `ollama` (the development lab): free local models served by Ollama on the server itself, no laptop and no credits (`docs/agent/LOCAL_MODELS.md`, with measured speeds).
 
 ## Usage
 
@@ -129,7 +133,7 @@ In the UI choose **Mode → Team of experts**: make a plan, edit it in the table
 - One physical family (1-DOF vibration). The `software` adapter is only an interface stub.
 - The initial state (x0, v0) is estimated jointly with the parameters; the first sample is only the starting guess.
 - The planner is deterministic: a question naming no known equipment is refused rather than mapped to a default.
-- Nightshift runs on a laptop: the tunnel and laptop must be on when the agent calls a model; the UI shows health and fails fast, and saved runs can be replayed without it.
+- With `MODEL_PROVIDER=nightshift` the AI runs on a laptop: the tunnel and laptop must be on when the agent calls a model; the UI shows health and fails fast, and saved runs can be replayed without it. With `ollama` it runs on the server's CPU: about 10 tokens/s on the lab's 4-core i5, and a 4B model can write a summary that contradicts its own verdict, which is why the reporter has a deterministic contradiction gate (`docs/agent/LOCAL_MODELS.md`).
 
 ## License
 

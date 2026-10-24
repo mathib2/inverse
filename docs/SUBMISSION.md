@@ -28,7 +28,7 @@ Deadline: **Tue 27 Oct 2026, 23:45 UTC** (6:45 PM Central). Track: **03, Reasoni
 2. Cursor requirement: cite the waiver announcement in `docs/SPONSORS.md`, or leave the honest statement as is.
 3. Meterless asked whether a laptop-hosted Nightshift behind a tunnel counts as "running on the participant's machine".
 4. Repository public; `git log -p | grep -c <tailnet-ip>` is zero in the tree (history still contains the address: squash or accept).
-5. Fresh traces in `docs/evidence/traces/` and `docs/evidence/EVAL_LIVE.md` regenerated with Nightshift online, H-MEM reset before.
+5. Fresh traces in `docs/evidence/traces/` and `docs/evidence/EVAL_LIVE.md` regenerated with Nightshift online, H-MEM reset before. Set `MODEL_PROVIDER=nightshift` in `.env` for the recording and the evaluation (the lab runs `ollama`), and switch back afterwards.
 6. One saved team run on the workstation for the replay segment.
 7. Video recorded (1 to 4 minutes) and the deck exported to PDF.
 8. `README.md` test count and the three scenario numbers match the live app.
