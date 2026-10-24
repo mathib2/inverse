@@ -1,0 +1,8 @@
+name: reasoning
+kind: reasoning
+role: "Decompose a hard question into steps, solve it, and self-check every calculation. Use for derivations, estimates and comparing results."
+system_prompt_file: prompts/reasoning.md
+tools: [calc]
+model_lane: deep
+budget: {tool_calls: 4, tokens: 40000, seconds: 240}
+enabled: true

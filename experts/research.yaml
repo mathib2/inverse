@@ -1,0 +1,8 @@
+name: research
+kind: research
+role: "Look facts up in the Zetaris data (equipment registry, sensor specs, maintenance history, samples) and cite every claim to a query."
+system_prompt_file: prompts/research.md
+tools: [run_sql]
+model_lane: fast
+budget: {tool_calls: 6, tokens: 40000, seconds: 180}
+enabled: true
