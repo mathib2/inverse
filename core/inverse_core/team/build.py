@@ -24,7 +24,7 @@ def build(zetaris, ledger, world=None, root=".", runs_dir="runs", on_event=None,
         return Orchestrator(zetaris, ledger, lanes.client("deep"), runs_dir=runs_dir, world=world).run(question)
 
     ctx = Ctx(lanes, trace, Budget(max_llm_calls=max_llm_calls, max_seconds=max_seconds), zetaris=zetaris, physics_runner=physics,
-              guard=guard.sanitize, equipment=equipment)
+              guard=guard.sanitize, equipment=equipment, root=root)
     registry = Registry(ctx, os.path.join(root, "experts"), root)
     memory = TeamMemory(ledger)
     return Lead(ctx, registry, memory, Critic(ctx)), ctx

@@ -36,6 +36,18 @@ class PhysicsExpert(BaseExpert):
 
     retryable = False
 
+    def review_plan(self, plan, mine):
+        """Rule-based plan review: a physics task must name a known machine; if it doesn't, borrow the one the goal names."""
+        changes, missing = [], []
+        for t in mine:
+            if not any(e in t.goal for e in self.ctx.equipment):
+                named = [e for e in self.ctx.equipment if e in plan.goal]
+                if named:
+                    changes.append({"id": t.id, "goal": f"{t.goal} (machine: {named[0]})"})
+                else:
+                    missing.append(f"{t.id}: no known machine named (known: {', '.join(self.ctx.equipment)})")
+        return {"ok": not missing, "changes": changes, "missing": missing}
+
     def run(self, task, memory, budget):
         budget.charge_tool()
         v = self.ctx.physics_runner(task.goal)

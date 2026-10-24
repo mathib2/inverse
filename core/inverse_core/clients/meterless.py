@@ -41,8 +41,12 @@ class MeterlessClient:
             return {"status": "online", "models": ids, "route_available": self.model in ids}
         return {"status": "offline", "detail": f"HTTP {r.status_code}"}
 
-    def chat(self, messages, temperature=0.0, max_tokens=REPLY_MAX_TOKENS):
+    def chat(self, messages, temperature=0.0, max_tokens=REPLY_MAX_TOKENS, json_object=False):
+        """json_object=True asks the runtime for exactly one JSON object (OpenAI `response_format`), which Nightshift honours;
+        callers still parse with extract_json, so a runtime that ignores the hint degrades gracefully."""
         body = {"model": self.model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+        if json_object:
+            body["response_format"] = {"type": "json_object"}
         for attempt in range(len(RETRY_DELAYS) + 1):
             t0 = time.time()
             try:
@@ -66,8 +70,15 @@ def strip_thinking(text):
 
 
 def extract_json(text):
-    """First JSON object in an LLM reply (tolerates prose or code fences)."""
-    m = re.search(r"\{.*\}", text, re.S)
-    if not m:
-        raise ValueError("no JSON object in reply")
-    return json.loads(m.group(0))
+    """The first complete JSON object in an LLM reply. Tolerates prose before or after it, code fences, and a second
+    object appended after the first (reasoning models sometimes restate their answer)."""
+    text = re.sub(r"```(?:json)?", "", text or "")
+    dec = json.JSONDecoder()
+    for m in re.finditer(r"\{", text):
+        try:
+            obj, _ = dec.raw_decode(text, m.start())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    raise ValueError("no JSON object in reply")

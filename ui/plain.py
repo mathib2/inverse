@@ -243,3 +243,50 @@ def error(exc: Exception, known_equipment=()) -> tuple[str, str]:
     if name in ("ConnectionError", "ConnectTimeout", "ReadTimeout"):
         return "A service didn't respond", "Zetaris or the memory service didn't answer. Check the connections in the sidebar."
     return "Something went wrong", f"{name}: {str(exc)[:200]}"
+
+
+def team_step(e: dict) -> str | None:
+    """One plain line of live progress for a team-run trace event, or None for events too technical to show."""
+    k, task, who = e.get("kind"), e.get("task", ""), e.get("expert") or e.get("agent") or "an expert"
+    if k == "plan":
+        n = len(e.get("tasks") or [])
+        return f"The lead drafted a plan with {n} task{'s' if n != 1 else ''}"
+    if k == "expert_created":
+        return f"The lead created a new expert, {e.get('name')}: {e.get('role')}"
+    if k == "plan_review":
+        changed = e.get("changed") or []
+        s = f"{who} reviewed the plan: " + (f"reworded {', '.join(changed)}" if changed else ("fine as drafted" if e.get("ok", True) else "had concerns"))
+        return s + (f"; needs {'; '.join(e['missing'])}" if e.get("missing") else "")
+    if k == "plan_approved":
+        return "Plan approved; the experts start"
+    if k == "delegate":
+        return f"{who} starts {task}" + (f" (attempt {e['attempt']}, with the reviewer's notes)" if (e.get("attempt") or 1) > 1 else "")
+    if k == "tool":
+        return f"{who} used {e.get('tool')}" + (", which failed" if e.get("error") else "")
+    if k == "refused_scope":
+        return f"{who} refused {task}: {e.get('reason')}"
+    if k == "expert_result":
+        n = e.get("evidence") or 0
+        return f"{who} finished {task} with {n} piece{'s' if n != 1 else ''} of evidence"
+    if k == "critic":
+        by = "a fixed rule" if e.get("by") == "rule" else "the reviewer"
+        return {"accept": f"{task} accepted by {by}", "revise": f"{task} sent back by {by}: {e.get('reason')}",
+                "reject": f"{task} rejected by {by}: {e.get('reason')}"}.get(e.get("verdict"))
+    if k == "retry":
+        return f"{task} will be retried"
+    if k == "stuck":
+        return f"{task}: the expert repeated itself, so it must change strategy"
+    if k == "escalate":
+        return f"{task} stopped: the expert kept repeating the same answer"
+    if k == "expert_error":
+        return f"{task}: the expert hit an error and will try again"
+    if k == "task_failed":
+        return f"{task} failed: {e.get('reason')}"
+    if k == "task_rejected":
+        return f"{task} rejected: {e.get('reason')}"
+    if k == "task_skipped":
+        return f"{task} skipped: it needed a task that did not finish"
+    if k == "compose":
+        n = e.get("unfinished") or 0
+        return "The lead wrote the final answer" + (f" ({n} task{'s' if n != 1 else ''} unfinished)" if n else "")
+    return None
