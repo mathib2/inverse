@@ -38,7 +38,7 @@ class Watcher:
     """team(goal, on_start) -> (answer dict, run_dir), where on_start(run_dir) is called as soon as the run directory exists.
     It is injected, so the loop is testable without a model or the data platform."""
 
-    def __init__(self, zetaris, team, root=".", interval=1800, equipment=(), log=None, webhook=None, services=None, missions=()):
+    def __init__(self, zetaris, team, root=".", interval=1800, equipment=(), log=None, webhook=None, services=None, missions=(), council=None):
         self.z, self.team = zetaris, team
         self.root, self.interval, self.only = root, int(interval), list(equipment or [])
         self.state_dir, self.queue_dir = os.path.join(root, "state"), os.path.join(root, "queue")
@@ -52,7 +52,7 @@ class Watcher:
         self.state = self._load(self.state_path, {"seen": {}, "cycles": 0, "runs": []})
         self.state.setdefault("missions", {})
         self.missions = [dict(m) for m in (missions or []) if isinstance(m, dict) and m.get("name") and m.get("goal")]   # standing missions (missions.yaml)
-        self.webhook, self.services, self._print = webhook, services, log
+        self.webhook, self.services, self._print, self.council = webhook, services, log, council   # council: callable -> session record or None
         self._status, self._hb_extra, self._stop = "starting", {}, False
 
     # --- files ------------------------------------------------------------------------------------------------------------
@@ -276,6 +276,14 @@ class Watcher:
             self.state["seen"][eq] = fp                                        # a failed mission waits for new data, not a retry storm
             self._save()
             done.append({"kind": "team", "trigger": trigger, "equipment": eq, "goal": goal, "ok": out is not None})
+        if self.council:                                                       # the council meets only when its own rules say so
+            try:
+                rec = self.council()
+                if rec:
+                    self.log(f"council session {rec.get('s')}: {len(rec.get('decisions') or [])} decision(s), {rec.get('calls', 0)} model call(s)")
+                    done.append({"kind": "council", "session": rec.get("s"), "decisions": len(rec.get("decisions") or []), "ok": True})
+            except Exception as e:
+                self.log(f"council failed: {type(e).__name__}: {str(e)[:200]}")
         self.state["last_cycle"] = _now()
         self._save()
         return done

@@ -10,3 +10,5 @@ services/meterless-sidecar/.state/
 experts.local/
 state/
 queue/
+council/
+missions.local.yaml

@@ -7,6 +7,7 @@ from ..agents import guard
 from ..budget import Budget
 from ..clients.markovian import MarkovianClient
 from ..trace import Trace
+from .council import Council
 from .critic import Critic
 from .lanes import Lanes
 from .lead import Lead
@@ -32,5 +33,6 @@ def build(zetaris, ledger, world=None, root=".", runs_dir="runs", on_event=None,
               guard=guard.sanitize, equipment=equipment, root=root, markovian=markovian)
     registry = Registry(ctx, os.path.join(root, "experts"), root)
     ctx.registry = registry                                           # the architect's tools act on it
+    ctx.council = Council(root, trace, ctx.bus)                       # proposals filed during the run; sessions decide them later
     memory = TeamMemory(ledger)
     return Lead(ctx, registry, memory, Critic(ctx)), ctx

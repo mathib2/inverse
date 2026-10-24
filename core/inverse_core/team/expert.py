@@ -39,9 +39,17 @@ class ExpertResult:
     models_used: list = field(default_factory=list)
     trace_ref: str = ""
     findings: list = field(default_factory=list)   # [{"claim", "evidence", "source", "confidence"}], written to memory on accept
+    proposals: list = field(default_factory=list)  # CW/1 proposals the expert filed with this result; the Lead hands them to the council on accept
 
     def to_dict(self):
         return asdict(self)
+
+
+def proposals_of(j, n=2):
+    """The optional `propose` list of a reply, at most n objects; anything else is ignored (the council checks the rest)."""
+    if not isinstance(j, dict):
+        return []
+    return [p for p in (j.get("propose") or [])[:n] if isinstance(p, dict)]
 
 
 def require_evidence(result):

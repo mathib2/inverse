@@ -20,6 +20,7 @@ class Ctx:
         self.sql_cache = {}                                                   # per-run: the same read-only query is sent to Zetaris once
         self.bus = bus or Bus(getattr(trace, "dir", None), trace)             # how experts talk to each other (messages.jsonl next to the trace)
         self.registry = None                                                  # attached by build(); the architect's tools and ask_expert act on it
+        self.council = None                                                   # attached by build(); proposals go there, sessions decide them
 
 
 def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False, temperature=None):

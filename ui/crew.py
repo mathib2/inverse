@@ -8,6 +8,7 @@ import time
 import streamlit as st
 
 import autonomy
+import council_ui
 import parts
 import plain
 import team
@@ -158,6 +159,9 @@ def render(ledger, ai_online, sidecar, health=None):
 
     st.markdown("### On its own")
     autonomy.render(ROOT, configs)
+
+    st.markdown("### The council")
+    council_ui.render(ROOT, configs, ledger, sidecar)
 
     runs = team.saved_runs()
     st.markdown("### Past missions")

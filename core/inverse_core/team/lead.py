@@ -251,6 +251,12 @@ class Lead:
                 done[task.id] = task
             if run_dir:
                 plan.save(run_dir)
+        council = getattr(self.ctx, "council", None)
+        if council:                                                           # proposals written by rule from what this run showed
+            try:
+                council.observe(plan, self.ctx.trace.events, run_dir or getattr(self.ctx.trace, "dir", ""))
+            except Exception as e:
+                self.ctx.trace.event("council_error", op="observe", error=f"{type(e).__name__}: {str(e)[:200]}")
         return plan
 
     def _execute(self, task):
@@ -326,6 +332,7 @@ class Lead:
             if review["verdict"] == "accept":
                 task.status, task.feedback = "done", ""
                 self.bus.post(task.expert, "all", res.answer, type="result", task=task.id, confidence=res.confidence)
+                self._file(res, task)
                 for f in res.findings:                                        # shared memory only holds what survived review
                     self._mem("add_finding", f"{task.expert}: {str(f.get('claim', ''))[:200]}", f.get("evidence") or [], source=f.get("source", "fitter"),
                               confidence=f.get("confidence", 0.7), expert=task.expert)
@@ -350,6 +357,15 @@ class Lead:
             self.ctx.trace.event("retry", task=task.id, next_attempt=attempt + 1, reason=reason)
         task.status = "failed"
         self.ctx.trace.event("task_failed", task=task.id, reason="critic still not satisfied after retries: " + task.feedback)
+
+    def _file(self, res, task):
+        """Proposals that rode on an accepted result go to the council; a council hiccup is traced, never fatal to the run."""
+        council = getattr(self.ctx, "council", None)
+        for p in (getattr(res, "proposals", None) or [])[:2] if council else []:
+            try:
+                council.file(p, by=task.expert, run=getattr(self.ctx.trace, "dir", ""))
+            except Exception as e:
+                self.ctx.trace.event("council_error", op="file", error=f"{type(e).__name__}: {str(e)[:200]}")
 
     def compose(self, plan, run_dir=None):
         ok = [t for t in plan.tasks if t.status == "done"]

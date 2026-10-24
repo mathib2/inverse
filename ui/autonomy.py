@@ -5,8 +5,8 @@ import time
 
 import pandas as pd
 import streamlit as st
-import yaml
 
+from inverse_core.missions import load_missions
 from inverse_core.team.crew import CREW
 
 
@@ -19,12 +19,7 @@ def _load(path, default=None):
 
 
 def missions(root):
-    try:
-        with open(os.path.join(root, "missions.yaml")) as f:
-            rows = yaml.safe_load(f) or []
-    except (OSError, ValueError):
-        rows = []
-    return [m for m in rows if isinstance(m, dict) and m.get("name") and m.get("goal")]
+    return load_missions(root)
 
 
 def manifests(root, limit=12):
@@ -72,7 +67,7 @@ def render(root, configs=None):
     rows = missions(root)
     if rows:
         last = state.get("missions") or {}
-        st.caption("Standing missions (edit `missions.yaml` to change them):")
+        st.caption("Standing missions (`missions.yaml`, plus what the council and people change in `missions.local.yaml`):")
         st.dataframe(pd.DataFrame([{"mission": m["name"], "every": f"{m.get('every', 24)} h", "last run": _ago(last.get(m["name"])), "goal": str(m["goal"])[:110]} for m in rows]),
                      hide_index=True, width="stretch")
     done = manifests(root)

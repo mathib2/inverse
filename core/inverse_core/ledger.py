@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import requests
 
-TRUST = {"validator": 3, "fitter": 2, "llm_critic": 1, "llm_proposer": 1, "llm_reporter": 1}
+TRUST = {"validator": 3, "fitter": 2, "council": 1, "llm_critic": 1, "llm_proposer": 1, "llm_reporter": 1}
 
 
 class InMemoryLedger:

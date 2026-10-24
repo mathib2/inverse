@@ -14,22 +14,11 @@ import time
 from dotenv import load_dotenv
 
 load_dotenv(".env")
+from inverse_core.missions import load_missions  # noqa: E402
 from inverse_core.watch import Watcher  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNS = os.path.join(ROOT, "runs")
-MISSIONS = os.path.join(ROOT, "missions.yaml")
-
-
-def load_missions():
-    """Standing missions the crew runs on its own (missions.yaml at the repository root)."""
-    try:
-        import yaml
-        with open(MISSIONS) as f:
-            rows = yaml.safe_load(f) or []
-    except (OSError, ValueError):
-        return []
-    return [m for m in rows if isinstance(m, dict) and m.get("name") and m.get("goal")]
 SIDECARS = {8100: "/healthz", 8101: "/healthz"}
 
 
@@ -79,6 +68,16 @@ def main():
         lead.run(plan, ctx.trace.dir, parallel=2)
         return lead.compose(plan, ctx.trace.dir), ctx.trace.dir
 
+    def council():
+        """A council session when the council's own rules say one is due (enough open proposals, a backed one, a stale one); else nothing."""
+        from inverse_core.team.council import Council
+        probe = Council(ROOT)
+        reason = probe.due()
+        if not reason:
+            return None
+        lead, ctx = build(z, ledger, world, root=ROOT, runs_dir=RUNS, on_event=say, lanes=lanes)
+        return ctx.council.session(ctx, lead.registry, lead.memory, world, reason=reason, by="warden")
+
     def services():
         """The memory sidecar (8100) and Markovian (8101) must answer before a run; start them if not (run_sidecars.sh is idempotent)."""
         down = [p for p in SIDECARS if not _up(p)]
@@ -88,7 +87,7 @@ def main():
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(8)
 
-    w = Watcher(z, team, root=ROOT, interval=a.interval, equipment=a.equipment, missions=load_missions(), log=lambda s: print(s, flush=True),
+    w = Watcher(z, team, root=ROOT, interval=a.interval, equipment=a.equipment, missions=load_missions(ROOT), council=council, log=lambda s: print(s, flush=True),
                 webhook=os.environ.get("WATCH_WEBHOOK"), services=services)
     try:
         w.loop(once=a.once, force=a.force)
