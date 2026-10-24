@@ -48,6 +48,14 @@ cd ~/inverse-live && PYTHONPATH=core .venv/bin/python scripts/watch.py --once --
 With the local models (`docs/agent/LOCAL_MODELS.md`) a physics check takes about two minutes and a team run several, so the
 30-minute interval is comfortable; a queued goal is picked up within about 30 seconds.
 
+### Standing missions
+
+`missions.yaml` at the repository root lists what the crew does on its own besides reacting to data: a name, an interval in hours and a goal
+(`{machines}` is filled with the registry's machine IDs). Each cycle, after the queue and before the data checks, Warden runs every mission
+whose interval has passed as a crew run (trigger `mission:<name>`, manifest `by: warden`) and records the time in `state/watch.json`. The
+shipped missions: a machine-health check every 12 hours, a code review every 24 hours, a memory digest every 24 hours. Edit the file; no restart needed
+for the next cycle to see the change (the file is read at start; restart `inverse-watch` after editing).
+
 ## 2. The experts talk (`core/inverse_core/team/bus.py`, `team/tools.py`)
 
 A message bus lives next to every run (`runs/<ts>/messages.jsonl`, mirrored as `message` events in the trace):

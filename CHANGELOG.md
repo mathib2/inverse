@@ -1,5 +1,11 @@
 # Changelog
 
+## The crew (2026-10-24)
+- The agents have names by expertise (Atlas, Vera, Warden, Newton, Scout, Euler, Ada, Sentinel, Forge; `core/inverse_core/team/crew.py`, `callsign` in `experts/*.yaml`); identifiers in configs, plans, traces and messages are unchanged. `docs/CREW.md`.
+- A new front page, **Crew**, is the default: one goal box, the agents at work in plain sentences, the answer, who did what, what they said to each other, Warden's panel (standing missions, a queue, what ran on its own) and past missions to replay. The old pages remain as **Physics bench** and **Advanced**.
+- Standing missions (`missions.yaml`): Warden runs them on their schedule, so the crew works without anyone asking (machine health, code review, memory digest).
+- `MODEL_PROVIDER` defaults to `ollama`: fully local; `nightshift` remains the sponsor path.
+
 ## Small gaps closed (2026-10-24)
 - The Proposer and the Critic ask the runtime for one JSON object (`response_format: json_object`), as the team side already did; the committed traces show the parse errors this removes. `docs/SPONSORS.md` now says what those traces show about Nemotron proposals instead of a claim that could not be true by construction. `MarkovianClient` defaults to the Markovian port (8101). The H-MEM sidecar answers 400 to a malformed body instead of dying (integration test). The unknown-mass limit is in the README and the UI explains it in plain words.
 

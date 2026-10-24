@@ -1,4 +1,5 @@
 name: architect
+callsign: Forge
 kind: architect
 role: "Designs, creates and tests a new expert when the team lacks one for a task: give it the need, it returns the name of a tested expert to delegate to."
 system_prompt_file: prompts/architect.md

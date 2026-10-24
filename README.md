@@ -1,9 +1,23 @@
-# INVERSE: a physics-checked reverse-engineering agent, and the team of experts around it
+# INVERSE: a crew of local AI agents that reverse-engineer machines, check each other, and run on their own
 
-**Turn sensor logs into a verified physics model, or an honest refusal. Then let a team of configurable experts plan, check each other, and answer with evidence.**
+**Nine agents on one computer, on local models, with no cloud. Give them a goal, or let them find their own: they plan, do the work, check each other, talk to each other, and answer with evidence or an honest refusal.**
 Open Agent Hackathon 2026 · Track 03 (Reasoning Architecture) · Zetaris + Meterless + NVIDIA Nemotron
 
-After a repair or reassembly, a reliability engineer runs a release test on a machine and asks *"what governs this machine now, and has it worn since the last test?"*. INVERSE recovers the hidden physical parameters from the sensor data and answers one of three ways, never on LLM judgment alone:
+| Agent | What they do |
+|---|---|
+| **Atlas** | plans the mission, hands out the tasks, writes the answer with citations |
+| **Vera** | reviews every result on its own lane and sends weak work back |
+| **Warden** | keeps watch: new data, standing missions and queued goals start runs on their own |
+| **Newton** | reverse-engineers a machine's physics from sensor data; the physics checks decide |
+| **Scout** | finds facts in the data platform and cites every query |
+| **Euler** | works through derivations; every number recomputed |
+| **Ada** | multi-step problems with tools; asks the others when a step needs them |
+| **Sentinel** | reviews our own code for weaknesses; every finding checked against the file |
+| **Forge** | builds and test-drives a new agent when the crew lacks one |
+
+The crew page (`http://<server>:8501`) is one box: write a goal, press Go, watch them plan, work, review and talk; see what Warden did on its own; replay any past mission. Names, tools and how they talk: `docs/CREW.md`. How they run unattended: `docs/agent/AUTONOMY.md`.
+
+**The crew's first skill is physics.** After a repair or reassembly, a reliability engineer runs a release test on a machine and asks *"what governs this machine now, and has it worn since the last test?"*. INVERSE recovers the hidden physical parameters from the sensor data and answers one of three ways, never on LLM judgment alone:
 
 | Verdict | Meaning |
 |---|---|
@@ -99,8 +113,8 @@ PYTHONPATH=core .venv/bin/python scripts/setup_zetaris.py    # creates the Zetar
 
 `MODEL_PROVIDER` in `.env` picks where the AI runs; the client is the same OpenAI-compatible code path either way, and the UI, the reconnect advice and the team lanes follow the setting.
 
-- `nightshift` (default, the sponsor path): Meterless Nightshift runs on the machine that has the NVIDIA key; from there, open one reverse tunnel so the Runtime is reachable at `127.0.0.1:8088`: `ssh -N -R 8088:127.0.0.1:8088 <user>@<server>` (`docs/agent/NIGHTSHIFT_TUNNEL.md`).
-- `ollama` (the development lab): free local models served by Ollama on the server itself, no laptop and no credits (`docs/agent/LOCAL_MODELS.md`, with measured speeds).
+- `ollama` (default): free local models served by Ollama on the server itself, no cloud, no laptop and no credits (`docs/agent/LOCAL_MODELS.md`, with measured speeds).
+- `nightshift` (the sponsor path): Meterless Nightshift runs on the machine that has the NVIDIA key; from there, open one reverse tunnel so the Runtime is reachable at `127.0.0.1:8088`: `ssh -N -R 8088:127.0.0.1:8088 <user>@<server>` (`docs/agent/NIGHTSHIFT_TUNNEL.md`).
 
 ## Usage
 

@@ -23,7 +23,7 @@ from inverse_core.orchestrator import Orchestrator
 import parts
 import plain
 
-st.set_page_config(page_title="INVERSE · physics-checked machine diagnosis", page_icon="⚙️", layout="wide",
+st.set_page_config(page_title="INVERSE · a crew of local AI agents", page_icon="⚙️", layout="wide",
                    initial_sidebar_state="auto")
 SIDECAR = "http://127.0.0.1:8100"
 MACHINES = sorted({s["equipment"] for s in plain.SCENARIOS.values()})
@@ -90,8 +90,8 @@ ai_online = h["ai"]["status"] == "online"
 parts.css()
 
 with st.sidebar:
-    mode = st.radio("Mode", ["Single machine", "Team of experts"], key="mode", horizontal=True,
-                    help="Single machine: one physics-checked diagnosis. Team of experts: a lead plans, experts work, a Critic checks.")
+    mode = st.radio("Mode", ["Crew", "Physics bench", "Advanced"], key="mode", horizontal=True,
+                    help="Crew: give the agents a goal and watch them work. Physics bench: one physics-checked diagnosis, step by step. Advanced: edit plans and agents.")
     st.divider()
     parts.connections(h, recheck, ssh_target(), ss.get("last_latency"))
     st.divider()
@@ -101,7 +101,11 @@ with st.sidebar:
         confirm_reset(eq_reset)
     st.caption("Do this before a demo so every run starts fresh.")
 
-if mode == "Team of experts":
+if mode == "Crew":
+    import crew
+    crew.render(ledger, ai_online, SIDECAR, h)
+    st.stop()
+if mode == "Advanced":
     import team
     team.render(ledger, ai_online, SIDECAR, h)
     st.stop()

@@ -47,7 +47,7 @@ class Watcher:
     """physics(question) -> verdict dict (with run_dir); team(goal, on_start) -> (answer dict, run_dir), where on_start(run_dir) is
     called as soon as the run directory exists. Both are injected, so the loop is testable without a model or Zetaris."""
 
-    def __init__(self, zetaris, physics, team, root=".", interval=1800, equipment=(), log=None, webhook=None, services=None):
+    def __init__(self, zetaris, physics, team, root=".", interval=1800, equipment=(), log=None, webhook=None, services=None, missions=()):
         self.z, self.physics, self.team = zetaris, physics, team
         self.root, self.interval, self.only = root, int(interval), list(equipment or [])
         self.state_dir, self.queue_dir = os.path.join(root, "state"), os.path.join(root, "queue")
@@ -59,6 +59,8 @@ class Watcher:
         self.log_path = os.path.join(self.state_dir, "watch.log")
         self.queue_path, self.done_path = os.path.join(self.queue_dir, "goals.jsonl"), os.path.join(self.queue_dir, "done.jsonl")
         self.state = self._load(self.state_path, {"seen": {}, "cycles": 0, "runs": []})
+        self.state.setdefault("missions", {})
+        self.missions = [dict(m) for m in (missions or []) if isinstance(m, dict) and m.get("name") and m.get("goal")]   # standing missions (missions.yaml)
         self.webhook, self.services, self._print = webhook, services, log
         self._status, self._hb_extra, self._stop = "starting", {}, False
 
@@ -236,6 +238,16 @@ class Watcher:
             except requests.RequestException as e:
                 self.log(f"webhook failed: {e}")
 
+    def due_missions(self, now=None):
+        """Standing missions whose interval has passed, or that never ran. `every` is in hours."""
+        now = time.time() if now is None else now
+        out = []
+        for m in self.missions:
+            last = self.state["missions"].get(m["name"])
+            if last is None or now - float(last) >= float(m.get("every", 24)) * 3600:
+                out.append(m)
+        return out
+
     # --- the loop -------------------------------------------------------------------------------------------------------------
     def cycle(self, force=False):
         """One pass: queued goals first, then every machine whose data changed (all of them when forced). Returns what happened."""
@@ -256,6 +268,16 @@ class Watcher:
             with open(self.done_path, "a") as f:
                 f.write(json.dumps({**item, "finished": _now(), "ok": out is not None}) + "\n")
             done.append({"kind": "team", "trigger": "queue", "goal": item["goal"], "ok": out is not None})
+        for m in self.due_missions():                                           # the crew works on its own: standing missions on their schedule
+            try:
+                machines_txt = ", ".join(self.equipment()) or "the machines in the registry"
+            except Exception:
+                machines_txt = "the machines in the registry"
+            goal = str(m["goal"]).replace("{machines}", machines_txt)
+            out = self.run_team(goal, f"mission:{m['name']}", by="warden")
+            self.state["missions"][m["name"]] = time.time()
+            self._save()
+            done.append({"kind": "team", "trigger": f"mission:{m['name']}", "goal": goal, "ok": out is not None})
         try:
             machines = self.equipment()
         except Exception as e:
@@ -313,4 +335,4 @@ class Watcher:
 
     def status(self):
         return {"heartbeat": self._load(self.heartbeat_path), "cycles": self.state["cycles"], "last_cycle": self.state.get("last_cycle"),
-                "seen": self.state["seen"], "queued": len(self.pending()), "runs": self.state["runs"][-10:]}
+                "seen": self.state["seen"], "missions": self.state.get("missions", {}), "queued": len(self.pending()), "runs": self.state["runs"][-10:]}

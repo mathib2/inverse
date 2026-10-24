@@ -14,9 +14,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 import plain  # noqa: E402
 
 
-def test_provider_defaults_to_nightshift_and_follows_env(monkeypatch):
+def test_provider_defaults_to_ollama_and_follows_env(monkeypatch):
     monkeypatch.delenv("MODEL_PROVIDER", raising=False)
-    assert M.provider()["id"] == "nightshift"
+    assert M.provider()["id"] == "ollama"                                      # fully local by default
+    monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
+    assert M.provider()["id"] == "nightshift" and "Nightshift" in M.provider()["name"]
     monkeypatch.setenv("MODEL_PROVIDER", "ollama")
     assert M.provider()["name"] == "Ollama (local)" and "docker start ollama" in M.provider()["offline_short"]
     monkeypatch.setenv("MODEL_PROVIDER", "vllm")                       # unknown servers get the generic words under their own name
