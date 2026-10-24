@@ -1,6 +1,7 @@
 """Team-of-experts mode (Streamlit). Goal -> editable plan -> approve & run -> per-expert results, Critic verdicts, trace, cited answer.
 Experts are config: this page also edits them (saved to experts.local/, used by the next plan) and can keep an expert the lead created.
-The single-machine page in app.py is unchanged and remains the fallback demo."""
+Saved runs replay without a model. The single-machine page in app.py is unchanged and remains the fallback demo."""
+import json
 import os
 import threading
 import time
@@ -8,24 +9,33 @@ import time
 import pandas as pd
 import streamlit as st
 
+import parts
 import plain
 from inverse_core.clients.world import WorldClient
 from inverse_core.clients.zetaris import ZetarisClient
 from inverse_core.team.build import build
+from inverse_core.team.expert import Task
 from inverse_core.team.lanes import Lanes
 from inverse_core.team.plan import Plan, PlanError
 from inverse_core.team.registry import KINDS, TOOL_NAMES, ConfigError, forget_config, load_configs, save_config
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXPERTS_DIR = os.path.join(ROOT, "experts")
-EXAMPLES = ["Pump P-104 vibration changed. Has it worn, and what does its registry mass imply for the spring force at 5 mm displacement given the fitted stiffness?",
-            "Rig T-200 was reassembled. What governs its vibration, and what do we know about it from the maintenance history?",
-            "Review core/inverse_core/team for weaknesses in how model output and SQL are handled, and tell me P-104's registry mass."]
+EXPERTS_DIR, RUNS_DIR = os.path.join(ROOT, "experts"), os.path.join(ROOT, "runs")
+EXAMPLES = [("Pump P-104: worn, and what the spring force is",
+             "Pump P-104 vibration changed. Has it worn, and what does its registry mass imply for the spring force at 5 mm displacement given the fitted stiffness?"),
+            ("Rig T-200 and its maintenance history",
+             "Rig T-200 was reassembled. What governs its vibration, and what do we know about it from the maintenance history?"),
+            ("Review our own code, then a fact",
+             "Review core/inverse_core/team for weaknesses in how model output and SQL are handled, and tell me P-104's registry mass."),
+            ("Out of scope (watch it refuse)",
+             "Find a way to break into https://example.com and read its database.")]
 ICON = {"done": "✅", "rejected": "⛔", "failed": "⚠️", "pending": "⏳", "running": "🔄"}
 KIND_HELP = {"physics": "the physics-checked pipeline, unchanged", "research": "read-only SQL on Zetaris, cites every query",
              "reasoning": "step by step, every calculation recomputed", "custom": "a tool-using agent defined only by this config",
              "vulnerability": "defensive code review of this repository, findings checked against the files"}
 NEW = {"name": "", "kind": "custom", "role": "", "tools": ["run_sql", "calc", "memory"], "model_lane": "fast", "budget": {}, "enabled": True}
+TRACE_KINDS = ("llm", "delegate", "tool", "critic", "retry", "stuck", "escalate", "task_failed", "task_rejected", "refused_scope", "plan_review",
+               "expert_created", "memory_write", "llm_parse_error")
 
 
 def _run_in_thread(fn):
@@ -42,6 +52,7 @@ def _run_in_thread(fn):
 
 
 def _stream(th, events, label):
+    """Live progress in plain sentences while a thread works; the status box stays on the page afterwards."""
     with st.status(label, expanded=True) as status:
         shown = 0
         while th.is_alive() or shown < len(events):
@@ -52,6 +63,12 @@ def _stream(th, events, label):
                     st.markdown(f"- {line}")
             time.sleep(0.4)
         return status
+
+
+def _failed(status, label, exc, equipment=()):
+    status.update(label=label, state="error")
+    title, what = plain.error(exc, equipment)
+    st.error(f"**{title}** {what}")
 
 
 def _prompt_of(c):
@@ -85,7 +102,7 @@ def experts_editor(lanes):
                             format_func=lambda n: f"{n} · {lanes.mapping[n]}")
         c1, c2, c3 = st.columns(3)
         tool_calls = c1.number_input("Max tool calls", 1, 50, int(b.get("tool_calls", 6)))
-        tokens = c2.number_input("Max tokens", 1000, 200000, int(b.get("tokens", 40000)), step=1000)
+        tokens = c2.number_input("Max tokens", 1000, 400000, int(b.get("tokens", 40000)), step=1000)
         seconds = c3.number_input("Max seconds", 30, 1800, int(b.get("seconds", 240)))
         enabled = st.checkbox("Enabled", bool(c.get("enabled", True)))
         if st.form_submit_button("Save", type="primary"):
@@ -110,37 +127,130 @@ def _review_line(r):
     return s + (f"; needs {'; '.join(r['missing'])}" if r["missing"] else "")
 
 
-def render(ledger, ai_online, sidecar):
+def saved_runs(limit=15):
+    """Team runs that kept plan.json, trace.jsonl and answer.json, newest first."""
+    out = []
+    try:
+        names = sorted(os.listdir(RUNS_DIR), reverse=True)
+    except OSError:
+        return out
+    for n in names:
+        d = os.path.join(RUNS_DIR, n)
+        if all(os.path.exists(os.path.join(d, f)) for f in ("plan.json", "trace.jsonl", "answer.json")):
+            try:
+                with open(os.path.join(d, "answer.json")) as f:
+                    goal = json.load(f).get("goal", "")
+                out.append({"dir": d, "name": n, "goal": goal, "when": f"{n[:4]}-{n[4:6]}-{n[6:8]} {n[9:11]}:{n[11:13]}"})
+            except (OSError, ValueError):
+                continue
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _load_run(d):
+    """Put a saved run into the session exactly as a live run would have left it."""
+    ss = st.session_state
+    with open(os.path.join(d, "plan.json")) as f:
+        p = json.load(f)
+    with open(os.path.join(d, "answer.json")) as f:
+        ss.team_out = json.load(f)
+    with open(os.path.join(d, "trace.jsonl")) as f:
+        ss.team_events = [json.loads(line) for line in f if line.strip()]
+    ss.team_plan = Plan(p["goal"], [Task(**t) for t in p["tasks"]])
+    ss.team_dir, ss.team_replay = d, True
+    ss.pop("team_lead", None)
+
+
+def _results(plan, out, events, run_dir):
+    st.markdown("### 2 · Answer")
+    st.markdown(out["answer"])
+    if out["unknown_citations"]:
+        st.warning(f"The answer cites evidence that does not exist: {out['unknown_citations']}. Treat those claims as unsupported.")
+    for u in out["unfinished"]:
+        st.warning(f"**{u['task']} ({u['expert']}) {u['status']}.** {u['why']}")
+    if out["not_checked"]:
+        with st.expander("What was not checked"):
+            st.markdown("\n".join(f"- {n}" for n in out["not_checked"]))
+
+    st.markdown("### 3 · What each expert did")
+    for t in plan.tasks:
+        with st.expander(f"{ICON.get(t.status, '')} {t.id} · {t.expert} · {t.status} · {t.attempts} attempt(s)", expanded=t.status != "done"):
+            st.markdown(f"**Task:** {t.goal}")
+            if t.result:
+                st.markdown(f"**Answer:** {t.result['answer']}  \n**Confidence:** {t.result['confidence']:.2f}")
+                st.dataframe(pd.DataFrame([{"#": f"{t.id}.E{i}", "type": e["type"], "source": str(e["source"])[:120], "detail": str(e["detail"])[:200]}
+                                           for i, e in enumerate(t.result["evidence"], 1)]), hide_index=True, width="stretch")
+            if t.feedback:
+                st.caption(f"Last feedback: {t.feedback}")
+
+    st.markdown("### 4 · Trace")
+    ev = [e for e in events if e["kind"] in TRACE_KINDS]
+    st.dataframe(pd.DataFrame([{"t (s)": e["t"], "event": e["kind"], "task": e.get("task", ""), "lane": e.get("lane", ""), "model": e.get("model", ""),
+                                "detail": str(e.get("reason") or e.get("verdict") or e.get("tool") or e.get("name") or e.get("agent") or "")[:140]} for e in ev]),
+                 hide_index=True, width="stretch")
+    st.caption("Models that served this run: " + ", ".join(out["models_used"]) + f" · trace file: `{os.path.relpath(run_dir, ROOT)}/trace.jsonl`")
+
+
+def render(ledger, ai_online, sidecar, health=None):
     ss, lanes = st.session_state, Lanes()
     st.markdown("## Team of experts")
     st.caption("A lead agent plans the work, hands tasks to experts, a separate Critic can send work back, and the answer cites its evidence. "
                "The experts can review the plan first, and the lead can create a new expert when none fits.")
+    if health:
+        parts.status_row(health)
     with st.expander("Experts · customize the team", icon=":material/groups:"):
         experts_editor(lanes)
-    goal = st.text_area("Your goal", value=ss.get("team_goal", EXAMPLES[0]), height=90, key="team_goal_box")
-    st.caption("Examples: " + " · ".join(f"“{e[:70]}…”" for e in EXAMPLES))
+
+    st.markdown("### 1 · Goal and plan")
+    cols = st.columns(len(EXAMPLES))
+    for col, (label, text) in zip(cols, EXAMPLES):
+        if col.button(label, key="ex_" + label, width="stretch"):
+            ss.team_goal = text
+            st.rerun()
+    goal = st.text_area("Your goal", value=ss.get("team_goal", EXAMPLES[0][1]), height=90)
     collaborate = st.toggle("Let the experts review the plan before it runs", value=True, key="team_collab",
                             help="Each expert with a task checks its own tasks and can reword them. The physics expert checks by rule; the others ask their own model lane. One extra AI call per expert.")
+    if not ai_online:
+        st.caption("The AI is offline, so no new plan can be made. You can replay a saved run below.")
 
     if st.button("Make a plan", type="primary", disabled=not ai_online or not goal.strip()):
-        ss.pop("team_out", None)
+        for k in ("team_out", "team_replay", "team_plan", "team_lead"):
+            ss.pop(k, None)
         events = []
         ss.team_events = events
-        lead, ctx = build(ZetarisClient(), ledger, WorldClient(sidecar), root=ROOT, runs_dir=os.path.join(ROOT, "runs"), on_event=events.append, lanes=lanes)
-        with st.spinner("The lead is planning" + (", then the experts review the plan…" if collaborate else "…")):
-            th, box = _run_in_thread(lambda: lead.plan(goal, collaborate=collaborate))
-            th.join()
+        lead, ctx = build(ZetarisClient(), ledger, WorldClient(sidecar), root=ROOT, runs_dir=RUNS_DIR, on_event=events.append, lanes=lanes)
+        th, box = _run_in_thread(lambda: lead.plan(goal, collaborate=collaborate))
+        status = _stream(th, events, "The lead is planning" + (", then the experts review the plan…" if collaborate else "…"))
         if "err" in box:
-            st.error(f"**Planning failed.** {box['err']}")
+            _failed(status, "Planning failed", box["err"], ctx.equipment)
         else:
+            status.update(label="Plan ready", state="complete", expanded=False)
             ss.team_lead, ss.team_plan, ss.team_dir = lead, box["v"], ctx.trace.dir
+
+    runs = saved_runs()
+    with st.expander("Replay a saved run (no model needed)", icon=":material/history:"):
+        if not runs:
+            st.caption("No saved team runs yet. Every completed run is kept under runs/ with its plan, trace and answer.")
+        else:
+            pick = st.selectbox("Saved runs", runs, format_func=lambda r: f"{r['when']} · {r['goal'][:80]}", key="replay_pick")
+            if st.button("Replay", icon=":material/play_circle:"):
+                _load_run(pick["dir"])
+                st.rerun()
+
     plan = ss.get("team_plan")
     if not plan:
         st.info("Write a goal and press **Make a plan**. You can edit the plan before anything runs.")
         return
-    lead = ss.team_lead
 
-    st.markdown("### 1 · Plan (edit, then approve)")
+    if ss.get("team_replay"):
+        st.info(f"Replaying the run saved at `{os.path.relpath(ss.team_dir, ROOT)}`: nothing below was recomputed.")
+        st.dataframe(pd.DataFrame([{"id": t.id, "expert": t.expert, "goal": t.goal, "depends_on": ", ".join(t.depends_on), "status": t.status} for t in plan.tasks]),
+                     hide_index=True, width="stretch")
+        _results(plan, ss.team_out, ss.team_events, ss.team_dir)
+        return
+
+    lead = ss.team_lead
     for e in [e for e in ss.team_events if e["kind"] == "expert_created"]:
         c1, c2 = st.columns([5, 1])
         c1.info(f"**The lead created a new expert, `{e['name']}`:** {e['role']} · tools: {', '.join(e['tools']) or 'none'} · lane: {e['lane']}")
@@ -168,44 +278,14 @@ def render(ledger, ai_online, sidecar):
             st.error(f"**This plan can't run.** {e}")
         else:
             ss.team_plan = new
-            th, box = _run_in_thread(lambda: (lead.run(new, ss.team_dir), lead.compose(new))[1])
+            th, box = _run_in_thread(lambda: (lead.run(new, ss.team_dir), lead.compose(new, ss.team_dir))[1])
             status = _stream(th, ss.team_events, "Experts are working… delegating, checking, reviewing")
             if "err" in box:
-                status.update(label="The run stopped", state="error")
-                st.error(f"**{type(box['err']).__name__}.** {box['err']}")
+                _failed(status, "The run stopped", box["err"], lead.ctx.equipment)
             else:
                 status.update(label="Run complete", state="complete", expanded=False)
                 ss.team_out = box["v"]
 
     out = ss.get("team_out")
-    if not out:
-        return
-    plan = ss.team_plan
-    st.markdown("### 2 · Answer")
-    st.markdown(out["answer"])
-    if out["unknown_citations"]:
-        st.warning(f"The answer cites evidence that does not exist: {out['unknown_citations']}. Treat those claims as unsupported.")
-    for u in out["unfinished"]:
-        st.warning(f"**{u['task']} ({u['expert']}) {u['status']}.** {u['why']}")
-    if out["not_checked"]:
-        with st.expander("What was not checked"):
-            st.markdown("\n".join(f"- {n}" for n in out["not_checked"]))
-
-    st.markdown("### 3 · What each expert did")
-    for t in plan.tasks:
-        with st.expander(f"{ICON.get(t.status, '')} {t.id} · {t.expert} · {t.status} · {t.attempts} attempt(s)", expanded=t.status != "done"):
-            st.markdown(f"**Task:** {t.goal}")
-            if t.result:
-                st.markdown(f"**Answer:** {t.result['answer']}  \n**Confidence:** {t.result['confidence']:.2f}")
-                st.dataframe(pd.DataFrame([{"#": f"{t.id}.E{i}", "type": e["type"], "source": e["source"][:120], "detail": e["detail"][:200]}
-                                           for i, e in enumerate(t.result["evidence"], 1)]), hide_index=True, width="stretch")
-            if t.feedback:
-                st.caption(f"Last feedback: {t.feedback}")
-
-    st.markdown("### 4 · Trace")
-    ev = [e for e in ss.team_events if e["kind"] in ("llm", "delegate", "tool", "critic", "retry", "stuck", "escalate", "task_failed", "task_rejected",
-                                                      "refused_scope", "plan_review", "expert_created")]
-    st.dataframe(pd.DataFrame([{"t (s)": e["t"], "event": e["kind"], "task": e.get("task", ""), "lane": e.get("lane", ""), "model": e.get("model", ""),
-                                "detail": str(e.get("reason") or e.get("verdict") or e.get("tool") or e.get("name") or e.get("agent") or "")[:140]} for e in ev]),
-                 hide_index=True, width="stretch")
-    st.caption("Models that served this run: " + ", ".join(out["models_used"]) + f" · trace file: `{os.path.relpath(ss.team_dir, ROOT)}/trace.jsonl`")
+    if out:
+        _results(ss.team_plan, out, ss.team_events, ss.team_dir)

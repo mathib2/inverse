@@ -88,12 +88,15 @@ class UnsafeSQL(ValueError):
 
 
 def check_sql(sql):
-    """Read-only, single statement, known tables only. Raises UnsafeSQL otherwise."""
+    """Read-only, single statement, known tables only (every name after FROM or JOIN, comma lists included; no subqueries).
+    Raises UnsafeSQL otherwise."""
     s = sql.strip().rstrip(";").strip()                       # one trailing semicolon is harmless; any other is refused below
     if not re.match(r"(?i)select\b", s) or FORBIDDEN.search(s):
         raise UnsafeSQL("only a single read-only SELECT is allowed")
-    tables = re.findall(r"(?i)\b(?:from|join)\s+(?:obs\.)?([A-Za-z_][A-Za-z0-9_]*)", s)
-    bad = [t for t in tables if t not in ALLOWED_TABLES]
+    tables = []
+    for clause in re.findall(r"(?i)\b(?:from|join)\s+([^\s;(),]+(?:\s*,\s*[^\s;(),]+)*)", s):
+        tables += [re.sub(r"(?i)^obs\.", "", t.strip()) for t in clause.split(",") if t.strip()]
+    bad = [t for t in tables if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", t) or t not in ALLOWED_TABLES]
     if not tables or bad:
         raise UnsafeSQL(f"unknown table(s): {bad or 'none referenced'}")
     return s
@@ -134,8 +137,9 @@ class ResearchExpert(BaseExpert):
         bad = unverified_numbers(j.get("answer", ""), payload)
         not_checked = [f"numbers in the answer not found in the rows: {bad}"] if bad else []
         conf = max(0.0, float(j.get("confidence", 0.5)) - (0.3 if bad else 0.0))
-        memory.add_finding(j.get("answer", "")[:300], evidence[:2], source="fitter", confidence=conf, expert=self.name)
-        return require_evidence(ExpertResult(j.get("answer", ""), evidence, conf, j.get("assumptions", []), not_checked, models))
+        res = require_evidence(ExpertResult(j.get("answer", ""), evidence, conf, j.get("assumptions", []), not_checked, models))
+        res.findings = [{"claim": j.get("answer", ""), "evidence": evidence[:2], "source": "fitter", "confidence": conf}]   # written on accept
+        return res
 
     def _sanitize(self, rows):
         notes = [r for r in rows if "note" in r and "record_id" in r]
@@ -211,9 +215,10 @@ class ReasoningExpert(BaseExpert):
             ev, bad = self._check(j.get("steps", []))
         conf = max(0.0, float(j.get("confidence", 0.5)) - (0.3 if bad else 0.0))
         not_checked = [f"unresolved: {b}" for b in bad] + ["steps without arithmetic are the model's reasoning, not machine-verified"]
+        res = require_evidence(ExpertResult(j.get("answer", ""), ev, conf, j.get("assumptions", []), not_checked, models))
         if not bad:
-            memory.add_finding(j.get("answer", "")[:300], ev[:2], source="fitter", confidence=conf, expert=self.name)
-        return require_evidence(ExpertResult(j.get("answer", ""), ev, conf, j.get("assumptions", []), not_checked, models))
+            res.findings = [{"claim": j.get("answer", ""), "evidence": ev[:2], "source": "fitter", "confidence": conf}]      # written on accept
+        return res
 
 
 KINDS = {"physics": PhysicsExpert, "research": ResearchExpert, "reasoning": ReasoningExpert}

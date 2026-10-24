@@ -4,15 +4,20 @@ The Lead may define a new expert when no configured one fits a task, and the exp
 from __future__ import annotations
 
 import json
+import os
 import re
+import time
 
 from ..budget import BudgetExceeded
 from .critic import Critic
+from .custom import scope_check
 from .expert import ExpertBudget, Task
 from .llmcall import BadReply, ask
 from .plan import Plan, PlanError
 from .registry import ConfigError
 from .tools import Tools
+
+CODE_TOOLS = {"scan", "read_file", "grep", "list_files"}      # any expert that can read code is held to the defensive, own-code scope
 
 PLAN_SYSTEM = """You are the lead of a team of experts. Decompose the user's goal into at most 5 tasks and assign each to ONE expert.
 Delegate by what each task needs. Use depends_on when a task needs another task's result. Do not use an expert you did not list or define.
@@ -105,6 +110,7 @@ class Lead:
 
     def run(self, plan, run_dir=None):
         plan.validate(self.registry.names())
+        self.ctx.budget.t0 = time.time()                                      # the wall-clock budget starts when the plan is approved, not drafted
         self.ctx.trace.event("plan_approved", tasks=[t.id for t in plan.tasks])
         if run_dir:
             plan.save(run_dir)
@@ -124,6 +130,14 @@ class Lead:
 
     def _execute(self, task):
         expert = self.registry.experts[task.expert]
+        if set(getattr(expert, "tools", None) or []) & CODE_TOOLS:            # scope is a property of the tool layer, not of one expert class
+            ok, why = scope_check(task.goal)
+            if not ok:
+                self.ctx.trace.event("refused_scope", agent=task.expert, task=task.id, reason=why)
+                task.status, task.feedback = "rejected", "refused: " + why
+                self.memory.refute(f"{task.expert}: {task.goal[:160]}", "refused: " + why, source="validator", confidence=1.0, expert=task.expert)
+                self.ctx.trace.event("task_rejected", task=task.id, reason=task.feedback)
+                return
         last, repeats = None, 0
         for attempt in range(1, self.max_attempts + 1):
             task.attempts, task.status = attempt, "running"
@@ -157,9 +171,25 @@ class Lead:
                 last = _norm(res.answer)
                 continue
             last = _norm(res.answer)
-            review = self.critic.review(task, task.result)
+            try:
+                review = self.critic.review(task, task.result)
+            except BudgetExceeded as e:
+                task.status, task.feedback = "failed", f"budget during review: {e}"
+                self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
+                return
+            except Exception as e:                                            # the reviewer is down: keep the result, say it was not checked
+                note = f"the Critic could not review this result ({type(e).__name__}: {str(e)[:120]})"
+                task.result["not_checked"] = list(task.result.get("not_checked") or []) + [note]
+                self.ctx.trace.event("critic", task=task.id, verdict="unreviewed", reason=note, by="error")
+                task.status, task.feedback = "done", ""
+                return
             if review["verdict"] == "accept":
                 task.status, task.feedback = "done", ""
+                for f in res.findings:                                        # shared memory only holds what survived review
+                    self.memory.add_finding(f"{task.expert}: {str(f.get('claim', ''))[:200]}", f.get("evidence") or [], source=f.get("source", "fitter"),
+                                            confidence=f.get("confidence", 0.7), expert=task.expert)
+                if res.findings:
+                    self.ctx.trace.event("memory_write", task=task.id, findings=len(res.findings))
                 return
             if review["verdict"] == "reject":
                 task.status, task.feedback = "rejected", review["reason"]
@@ -176,21 +206,32 @@ class Lead:
         task.status = "failed"
         self.ctx.trace.event("task_failed", task=task.id, reason="critic still not satisfied after retries: " + task.feedback)
 
-    def compose(self, plan):
+    def compose(self, plan, run_dir=None):
         ok = [t for t in plan.tasks if t.status == "done"]
         index = {f"{t.id}.E{i}": e for t in ok for i, e in enumerate(t.result["evidence"], 1)}
         payload = [{"task": t.id, "expert": t.expert, "goal": t.goal, "answer": t.result["answer"], "confidence": t.result["confidence"],
                     "assumptions": t.result["assumptions"], "not_checked": t.result["not_checked"],
                     "evidence": {f"{t.id}.E{i}": e["detail"][:160] for i, e in enumerate(t.result["evidence"], 1)}} for t in ok]
         problems = [{"task": t.id, "expert": t.expert, "status": t.status, "why": t.feedback} for t in plan.tasks if t.status != "done"]
-        out = ask(self.ctx, self.compose_lane, [{"role": "system", "content": COMPOSE_SYSTEM},
-                  {"role": "user", "content": json.dumps({"goal": plan.goal, "results": payload, "unfinished": problems}, default=str)}], "lead_compose")
-        cited = set(re.findall(r"\[(T\d+\.E\d+)\]", out["text"]))
+        try:
+            out = ask(self.ctx, self.compose_lane, [{"role": "system", "content": COMPOSE_SYSTEM},
+                      {"role": "user", "content": json.dumps({"goal": plan.goal, "results": payload, "unfinished": problems}, default=str)}], "lead_compose")
+            text, model, fallback = out["text"].strip(), out["model"], False
+        except Exception as e:                                                # the writer is down: assemble the answer by code, nothing is lost
+            text = "\n\n".join(f"**{t.id} ({t.expert})**: {t.result['answer']} " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1)) for t in ok) \
+                or "No task produced an accepted result."
+            text += f"\n\n*(The writer model was unavailable, {type(e).__name__}; this summary was assembled by code from the accepted results.)*"
+            model, fallback = None, True
+        cited = set(re.findall(r"\[(T\d+\.E\d+)\]", text))
         bad = sorted(cited - set(index))
-        self.ctx.trace.event("compose", cited=len(cited), unknown_citations=bad, unfinished=len(problems), model=out["model"])
-        answer = out["text"].strip()
+        self.ctx.trace.event("compose", cited=len(cited), unknown_citations=bad, unfinished=len(problems), model=model, fallback=fallback)
+        answer = text
         if problems:                                                          # written by code, verbatim: the model never paraphrases a failure
             answer += "\n\n**Not completed**\n" + "\n".join(f"- {p['task']} ({p['expert']}) {p['status']}: {p['why']}" for p in problems)
-        return {"answer": answer, "citations": {c: index[c] for c in sorted(cited & set(index))}, "unknown_citations": bad,
-                "unfinished": problems, "not_checked": sorted({n for t in ok for n in t.result["not_checked"]}),
-                "models_used": sorted({e["model"] for e in self.ctx.trace.events if e["kind"] == "llm" and e.get("model")})}
+        result = {"answer": answer, "citations": {c: index[c] for c in sorted(cited & set(index))}, "unknown_citations": bad,
+                  "unfinished": problems, "not_checked": sorted({n for t in ok for n in t.result["not_checked"]}),
+                  "models_used": sorted({e["model"] for e in self.ctx.trace.events if e["kind"] == "llm" and e.get("model")}), "goal": plan.goal}
+        if run_dir:                                                           # with plan.json and trace.jsonl this makes the run replayable without a model
+            with open(os.path.join(run_dir, "answer.json"), "w") as f:
+                json.dump(result, f, indent=1, default=str)
+        return result

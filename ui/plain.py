@@ -240,6 +240,12 @@ def error(exc: Exception, known_equipment=()) -> tuple[str, str]:
         return "Which machine?", f"INVERSE doesn't know the machine in your question. Mention one of: {ids}."
     if name == "BudgetExceeded":
         return "The run took too long", "It hit its time or AI-call limit. Try again, or ask a simpler question."
+    if name == "PlanError":
+        return "No usable plan", f"The lead could not turn the goal into a plan it can run. {str(exc)[:200]}"
+    if name == "BadReply":
+        return "Couldn't read the AI's reply", "The AI answered in a form INVERSE couldn't read. Try again; the trace keeps a preview of the reply."
+    if name == "ConfigError":
+        return "An expert's settings are invalid", f"{str(exc)[:200]}"
     if name in ("ConnectionError", "ConnectTimeout", "ReadTimeout"):
         return "A service didn't respond", "Zetaris or the memory service didn't answer. Check the connections in the sidebar."
     return "Something went wrong", f"{name}: {str(exc)[:200]}"
