@@ -53,3 +53,14 @@ def test_a_failed_mission_is_retried_in_an_hour_not_after_its_whole_interval(tmp
     w = Watcher(z, physics, team, root=str(tmp_path), interval=60, missions=[{"name": "digest", "every": 24, "goal": "Summarize."}])
     assert [d["ok"] for d in w.cycle() if d["kind"] == "team"] == [False]
     assert w.due_missions() == [] and w.due_missions(now=time.time() + 3601) and not w.due_missions(now=time.time() + 1800)
+
+
+def test_a_requeued_mission_counts_as_that_mission_when_it_completes(tmp_path):
+    z, physics, team = FakeZ(), FakePhysics(str(tmp_path), {"P-104": CLEAN, "T-200": CLEAN}), FakeTeam(str(tmp_path))
+    w = Watcher(z, physics, team, root=str(tmp_path), interval=60, missions=[{"name": "digest", "every": 24, "goal": "Summarize."}])
+    w._dump(w.current_path, {"kind": "team", "goal": "Summarize.", "started": "x", "trigger": "mission:digest"})      # the process died mid-mission
+    w.recover()
+    assert w.pending()[0]["mission"] == "digest" and [m["name"] for m in w.due_missions()] == ["digest"]
+    done = w.cycle()
+    assert team.goals == ["Summarize."] and [d["trigger"] for d in done if d["kind"] == "team"] == ["queue"]        # ran once, from the queue
+    assert w.due_missions() == [] and w.status()["missions"]["digest"] > 0                                           # and counted as the mission
