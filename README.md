@@ -18,11 +18,12 @@ After a repair or reassembly, a reliability engineer runs a release test on a ma
 | Criterion | Evidence |
 |---|---|
 | Impact | The user and the decision are above. What that is worth: a wear decision with calibrated uncertainty instead of a guess, and a refusal that says what to measure next. `docs/evidence/EVAL.md`: wear flagged 20 of 20 times when planted, 0 false alarms in 20, refusal 20 of 20 when the data cannot answer. |
-| Technical | `core/inverse_core/`: identifiability by SVD of the sigma-whitened log-parameter Jacobian before any fit; whitened least squares with the initial state as nuisance parameters; Laplace intervals with Birge scaling; six validators; held-out rollouts. Measured interval coverage 93-100% (`docs/evidence/EVAL.md`). 80+ tests, CI on every push. |
+| Technical | `core/inverse_core/`: identifiability by SVD of the sigma-whitened log-parameter Jacobian before any fit; whitened least squares with the initial state as nuisance parameters; Laplace intervals with Birge scaling; six validators; held-out rollouts. Measured interval coverage 93-100% (`docs/evidence/EVAL.md`). 146 tests, CI on every push. |
 | Innovation | Refusal before fitting with the resolving experiment named; a better-fitting model vetoed on physics grounds (0 of 80 trap seeds accepted a negative-damping model); experts that review the plan; a lead that creates an expert when none fits; code-review findings that must point at a real line or are dropped. |
 | Demo | `docs/DEMO_SCRIPT.md` (three segments: a live single-machine run, the refusal, a replayed team run), saved runs replayable in the UI without a model, traces with the served model per call in `docs/evidence/traces/`. Keeping the AI reachable: `docs/agent/NIGHTSHIFT_TUNNEL.md`. |
 | Product & UX | One wording layer (`ui/plain.py`, tests fail on jargon), three one-click scenarios, live progress in plain sentences, a plan you can edit before it runs, an experts panel to change the team without code. |
 | Sponsor tech | The table below and `docs/SPONSORS.md`: every sponsor has a code path, a test and an evidence file. |
+| Unattended operation | `scripts/watch.py` checks Zetaris for new data, runs the physics check, escalates a wear flag, a rejection or a refusal to the team with a goal written by rule, and keeps a manifest per run; inside a run the experts talk through a message bus and can consult each other (`ask_expert`). `docs/agent/AUTONOMY.md`; tests in `tests/test_watch.py` and `tests/test_bus.py`. |
 
 ## What it does (three seeded, reproducible scenarios)
 

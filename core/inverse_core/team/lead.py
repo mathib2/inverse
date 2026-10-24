@@ -235,7 +235,9 @@ class Lead:
         for attempt in range(1, self.max_attempts + 1):
             task.attempts, task.status = attempt, "running"
             budget = self.registry.budget_for(task.expert)
-            task.messages = [m for m in self.bus.inbox(task.expert) if not (m.get("type") == "result" and m.get("task") in task.depends_on)]
+            task.messages = [m for m in self.bus.inbox(task.expert)
+                             if not (m.get("type") == "result" and m.get("task") in task.depends_on)        # already in task.context
+                             and not (m.get("type") == "review" and m.get("task") == task.id)]              # already in task.feedback
             self.ctx.trace.event("delegate", task=task.id, expert=task.expert, attempt=attempt, lane=expert.lane, feedback=task.feedback or None,
                                  messages=len(task.messages) or None)
             try:
