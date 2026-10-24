@@ -32,6 +32,10 @@ The Crew page (`http://<server>:8501`) is one box. Write a goal and press **Go**
 
 A message bus per mission: an accepted result is announced to everyone, Vera's notes go to the agent they concern, Ada can ask another agent a question or leave a note, and each agent sees the messages addressed to it with its next task, marked as data from teammates, not instructions. The crew page shows the conversation live and in replay.
 
+## The council
+
+Any agent can propose a change to the crew at no cost, inside the JSON it already returns or through the `propose` tool: an agent's budget, tools or prompt; a standing mission; a note for shared memory; keeping an agent Forge built; or a code change, which always becomes a task card for people. Proposals are one small JSON object each (CW/1, `docs/COUNCIL.md`), with ids that merge the same idea into one proposal with several backers. The council decides them in short, rare sessions that a rule starts (three open, a backed one, a stale one, Warden's cycle, or a person), bounded to four model calls: Vera votes on the whole agenda in one call, the agent a change concerns votes on its own items, and a fixed rule adopts, rejects or defers. Adopted changes are applied by code, reversibly, and recorded in the book, the trace, the bus and the Meterless World Model.
+
 ## On its own
 
 `scripts/watch.py` is Warden. Each cycle (every `WATCH_INTERVAL` seconds, 30 minutes by default) it runs queued goals first (`queue/goals.jsonl`, the crew page's box, or `--queue "..."`), then the standing missions in `missions.yaml` whose interval has passed (a data check every 12 hours, a code review and a memory digest every 24 hours), then one mission per machine whose sensor data changed. Every run has a manifest; a run interrupted by a crash is marked and its goal re-queued once; the memory sidecars are restarted if they stop answering. Nothing acts on equipment or writes to the data platform. On the workstation: `~/.local/bin/inverse-watch start|stop|status|log`.

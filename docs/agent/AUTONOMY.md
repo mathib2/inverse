@@ -10,6 +10,7 @@ every WATCH_INTERVAL seconds (default 1800)
   1. queued goals first            queue/goals.jsonl: the crew page's box, `scripts/watch.py --queue "..."`, or anyone with a shell
   2. standing missions that are due  missions.yaml: name, every (hours), goal; {machines} is filled from the registry
   3. one mission per machine whose sensor data changed
+  4. a council session, only when the council's own rules say one is due (docs/COUNCIL.md)
        fingerprint = current dataset + row count + last timestamp     (one SQL per machine)
        changed (or --force) -> a crew mission with a fixed goal text about that machine (data_goal)
 ```

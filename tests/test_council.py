@@ -70,7 +70,7 @@ def test_wire_parses_caps_and_refuses_what_it_cannot_apply():
     same, _ = wire.parse_proposal({"kind": "cfg", "target": "research", "what": "Raise the tool-call budget to 8!", "patch": {"budget.tool_calls": 8}}, "ada")
     assert same["id"] == p["id"]                                                            # the same idea has the same id, whoever files it
     assert wire.parse_proposal({"k": "magic", "t": "x", "w": "do things"}, "a")[1].startswith("unknown kind")
-    assert wire.parse_proposal({"k": "cfg", "t": "research", "w": "more", "p": {"budget.tool_calls": 99}}, "a")[1] == "budget.tool_calls must be between 1 and 16"
+    assert wire.parse_proposal({"k": "cfg", "t": "research", "w": "more calls", "p": {"budget.tool_calls": 99}}, "a")[1] == "budget.tool_calls must be between 1 and 16"
     assert wire.parse_proposal({"k": "cfg", "t": "research", "w": "give it the scan tool", "p": {"tools+": "scan"}}, "a")[1].startswith("tool 'scan' cannot be granted")
     assert wire.parse_proposal({"k": "cfg", "t": "research", "w": "add a rule", "p": {"enabled": False}}, "a")[1].startswith("patch key 'enabled' is not allowed")
     assert wire.parse_proposal({"k": "note", "t": "shared", "w": "x" * 500}, "a")[0]["w"] == "x" * 140                # too long is truncated, never refused

@@ -22,6 +22,10 @@ everyone, Vera's notes go to the agent they concern, Ada can ask another agent a
 small budget) or leave a note (`post_message`), and each agent sees the messages addressed to it with its next task, marked
 as data from teammates, not instructions. The crew page shows the conversation live and in replay.
 
+## How they change the crew
+
+Proposals ride on the replies agents already return (`propose`), or go through the `propose` and `support` tools, two rules in the Lead, or a person. The council decides them in rare, bounded sessions (Vera votes on the whole agenda in one call; the agent a change concerns votes on its own items; a fixed rule decides) and applies adopted changes by code, reversibly: configs in `experts.local`, missions in `missions.local.yaml`, notes in shared memory, agents kept, task cards for people when code must change. `docs/COUNCIL.md`.
+
 ## How they run on their own
 
 Warden (`scripts/watch.py`) loops on the workstation (`~/.local/bin/inverse-watch start|stop|status|log`). Each cycle: queued

@@ -15,7 +15,7 @@ import os
 import time
 
 from ..budget import Budget, BudgetExceeded
-from ..missions import local_missions, save_local_missions
+from ..missions import load_missions, local_missions, save_local_missions
 from . import wire
 from .llmcall import BadReply, ask
 
@@ -95,9 +95,9 @@ class Council:
         self._apply_event(e)
         return e
 
-    def _event(self, kind, **kw):
+    def _event(self, name, **kw):
         if self.trace is not None:
-            self.trace.event(kind, **kw)
+            self.trace.event(name, **kw)
 
     def _say(self, to, text, type="note", **extra):
         if self.bus is not None:
@@ -257,7 +257,6 @@ class Council:
                 if k == "system_prompt+" and str(c.get("system_prompt") or "").count("[council]") >= MAX_PROMPT_ADDENDA:
                     return f"{p['t']} already has {MAX_PROMPT_ADDENDA} council addenda"
         if p["k"] == "mission":
-            from ..missions import load_missions
             names = {m["name"] for m in load_missions(self.root)}
             if "name" in p["p"] and p["p"]["name"] not in names and len(names) >= MAX_MISSIONS:
                 return f"the crew already has {MAX_MISSIONS} missions"
@@ -344,7 +343,7 @@ class Council:
         for k, v in p["p"].items():
             if k != "name":
                 row[k] = v
-        if "goal" not in row and not any(m["name"] == name for m in __import__("inverse_core.missions", fromlist=["load_missions"]).load_missions(self.root)):
+        if "goal" not in row and not any(m["name"] == name for m in load_missions(self.root)):
             raise ValueError("a new mission needs a goal")
         save_local_missions(self.root, rows)
         return {"kind": "mission", "before": before}, f"mission {name}: " + ", ".join(f"{k}={v}" for k, v in p["p"].items() if k != "name")
@@ -406,7 +405,7 @@ class Council:
     # --- rules the Lead applies after a run: proposals from what the trace shows ------------------------------------------------
     def observe(self, plan, events, run=""):
         """Code-filed proposals: a budget that ran out twice this run raises that budget; an agent Forge built and used is kept."""
-        filed = []
+        filed, before = [], set(self.proposals)
         failed = [e for e in events if e.get("kind") == "task_failed" and "tool-call budget" in str(e.get("reason", ""))]
         by_expert = {}
         for e in failed:
@@ -418,7 +417,7 @@ class Council:
             cur = int(m.group(1)) if m else 6
             p = self.file({"k": "cfg", "t": name, "w": f"raise {name}'s tool-call budget to {min(16, cur + 2)}", "y": f"ran out of tool calls {n} time(s) in {run or 'a run'}",
                            "p": {"budget.tool_calls": min(16, cur + 2)}, "e": [f"runs/{os.path.basename(run)}"] if run else []}, by="rule:budget", run=run)
-            if p:
+            if p and p["id"] not in before:
                 filed.append(p["id"])
         for e in events:
             if e.get("kind") == "expert_created" and e.get("config"):
@@ -426,7 +425,7 @@ class Council:
                 if used:
                     p = self.file({"k": "agent", "t": e["name"], "w": f"keep the agent {e['name']} that Forge built", "y": f"it finished a task in {run or 'this run'}",
                                    "p": {"config": e["config"]}, "e": []}, by="rule:keep", run=run)
-                    if p:
+                    if p and p["id"] not in before:
                         filed.append(p["id"])
         return filed
 

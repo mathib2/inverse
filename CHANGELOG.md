@@ -1,5 +1,10 @@
 # Changelog
 
+## The council (2026-10-24)
+- CW/1 (`team/wire.py`): one small JSON object per message with short keys and hard caps; verbs P, S, V, D, X; kinds cfg, mission, note, agent, code with a per-kind patch whitelist; content-addressed ids merge the same idea into one proposal with backers.
+- `team/council.py`: filing is free (a `propose` list in an agent's reply, the `propose`/`support` tools, two rules in the Lead, people); sessions happen only by rule, at most once an hour, bounded to four model calls; Vera votes on the whole agenda in one call, the agent a change concerns votes on its own items; a fixed rule decides; effects are applied by code with undo (experts.local, missions.local.yaml, shared memory, kept agents, task cards for people). Book, trace events, bus messages and World Model entities for every step. Warden holds a session when one is due.
+- UI: a council section on the crew page (open proposals, decisions, a session on demand, a form, undo); `scripts/council.py` from a shell.
+
 ## The experts are the product (2026-10-24)
 - The physics subsystem (orchestrator, analysis, validators, inference, the physics expert, the Physics bench page, its scripts, evidence and tests) is removed: the hackathon entry is the crew of local, autonomous agents. The data generator for the obs-service stays.
 - Warden reacts to new sensor data by starting a crew mission about that machine (fixed goal text), not a physics check; the `data check` standing mission replaces `machine health`.
