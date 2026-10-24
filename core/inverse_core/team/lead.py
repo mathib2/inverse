@@ -256,7 +256,7 @@ class Lead:
                 continue
             if not isinstance(res.answer, str) or not res.answer.strip():     # a JSON number or null where text was due: ask again, never crash
                 task.feedback = 'Your reply\'s "answer" field must be a non-empty string.'
-                self.ctx.trace.event("expert_error", task=task.id, error=f"answer was {type(res.answer).__name__}, not text")
+                self.ctx.trace.event("expert_error", task=task.id, error="answer was empty" if isinstance(res.answer, str) else f"answer was {type(res.answer).__name__}, not text")
                 if attempt == self.max_attempts:
                     task.status = "failed"
                     return

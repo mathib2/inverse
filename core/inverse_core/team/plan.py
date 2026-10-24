@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import asdict
 
 from .expert import Task
@@ -12,6 +13,11 @@ from .expert import Task
 
 class PlanError(ValueError):
     pass
+
+
+# A small model sometimes copies the example text of the schema instead of writing the task: such a plan is refused and the
+# planner is told why (its retry then gets a second chance).
+PLACEHOLDER = re.compile(r"(?i)^\s*(a self-contained instruction|self-contained instruction|instruction|goal|task|name|todo|tbd|\.\.\.)?\s*$")
 
 
 class Plan:
@@ -34,6 +40,8 @@ class Plan:
         if len(set(ids)) != len(ids):
             raise PlanError("duplicate task ids")
         for t in self.tasks:
+            if PLACEHOLDER.match(str(t.goal or "")):
+                raise PlanError(f"task {t.id} has no real goal ({str(t.goal)!r}): write the instruction itself, not the example text")
             missing = [d for d in t.depends_on if d not in ids]
             if missing:
                 raise PlanError(f"task {t.id} depends on unknown task(s) {missing}")
