@@ -313,7 +313,7 @@ class Lead:
                 continue
             last = _norm(res.answer)
             try:
-                review = self.critic.review(task, task.result)
+                review = self._review(task, expert)
             except BudgetExceeded as e:
                 task.status, task.feedback = "failed", f"budget during review: {e}"
                 self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
@@ -353,6 +353,15 @@ class Lead:
         task.status = "failed"
         self.ctx.trace.event("task_failed", task=task.id, reason="critic still not satisfied after retries: " + task.feedback)
 
+    def _review(self, task, expert):
+        """A deterministic expert (the physics pipeline) is reviewed by rule: its validators already decided, and a small model
+        reviewing physics it cannot check would only add noise. Everyone else goes to the Critic."""
+        if not getattr(expert, "retryable", True):
+            review = {"verdict": "accept", "reason": "deterministic result: its own checks are the review", "by": "rule"}
+            self.ctx.trace.event("critic", task=task.id, verdict="accept", reason=review["reason"], by="rule")
+            return review
+        return self.critic.review(task, task.result)
+
     def compose(self, plan, run_dir=None):
         ok = [t for t in plan.tasks if t.status == "done"]
         index = {f"{t.id}.E{i}": e for t in ok for i, e in enumerate(t.result["evidence"], 1)}
@@ -360,11 +369,14 @@ class Lead:
                     "assumptions": t.result["assumptions"], "not_checked": t.result["not_checked"],
                     "evidence": {f"{t.id}.E{i}": str(e.get("detail") or "")[:160] for i, e in enumerate(t.result["evidence"], 1)}} for t in ok]
         problems = [{"task": t.id, "expert": t.expert, "status": t.status, "why": t.feedback} for t in plan.tasks if t.status != "done"]
-        try:
+        if not ok:                                                            # nothing survived review: the answer is written by code, never by a model
+            text, model, fallback = "No task produced an accepted result.", None, True
+        else:
+          try:
             out = ask(self.ctx, self.compose_lane, [{"role": "system", "content": COMPOSE_SYSTEM},
                       {"role": "user", "content": json.dumps({"goal": plan.goal, "results": payload, "unfinished": problems}, default=str)}], "lead_compose")
             text, model, fallback = out["text"].strip(), out["model"], False
-        except Exception as e:                                                # the writer is down: assemble the answer by code, nothing is lost
+          except Exception as e:                                              # the writer is down: assemble the answer by code, nothing is lost
             text = "\n\n".join(f"**{t.id} ({t.expert})**: {t.result['answer']} " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1)) for t in ok) \
                 or "No task produced an accepted result."
             text += f"\n\n*(The writer model was unavailable, {type(e).__name__}; this summary was assembled by code from the accepted results.)*"
