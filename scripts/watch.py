@@ -52,28 +52,24 @@ def main():
     ap.add_argument("--verbose", action="store_true", help="print every trace event")
     a = ap.parse_args()
     if a.queue:
-        print("queued:", json.dumps(Watcher(None, None, None, root=ROOT).enqueue(a.queue, by=os.environ.get("USER", "cli"))))
+        print("queued:", json.dumps(Watcher(None, None, root=ROOT).enqueue(a.queue, by=os.environ.get("USER", "cli"))))
         return
     if a.status:
-        print(json.dumps(Watcher(None, None, None, root=ROOT).status(), indent=1, default=str))
+        print(json.dumps(Watcher(None, None, root=ROOT).status(), indent=1, default=str))
         return
 
     from inverse_core.clients.world import WorldClient
     from inverse_core.clients.zetaris import ZetarisClient
     from inverse_core.ledger import SidecarLedger
-    from inverse_core.orchestrator import Orchestrator
     from inverse_core.team.build import build
     from inverse_core.team.lanes import Lanes
 
     z, ledger, world, lanes = ZetarisClient(), SidecarLedger(), WorldClient(), Lanes()
-    show = ("task", "expert", "verdict", "reason", "model", "from", "to", "type", "form", "action")
+    show = ("task", "expert", "verdict", "reason", "model", "from", "to", "type")
 
     def say(e):
         if a.verbose:
             print("  ·", e["kind"], {k: v for k, v in e.items() if k in show}, flush=True)
-
-    def physics(question):
-        return Orchestrator(z, ledger, lanes.client("deep"), runs_dir=RUNS, on_event=say, world=world).run(question)
 
     def team(goal, on_start):
         lead, ctx = build(z, ledger, world, root=ROOT, runs_dir=RUNS, on_event=say, lanes=lanes)
@@ -92,7 +88,7 @@ def main():
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(8)
 
-    w = Watcher(z, physics, team, root=ROOT, interval=a.interval, equipment=a.equipment, missions=load_missions(), log=lambda s: print(s, flush=True),
+    w = Watcher(z, team, root=ROOT, interval=a.interval, equipment=a.equipment, missions=load_missions(), log=lambda s: print(s, flush=True),
                 webhook=os.environ.get("WATCH_WEBHOOK"), services=services)
     try:
         w.loop(once=a.once, force=a.force)

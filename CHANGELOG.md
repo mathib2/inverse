@@ -1,5 +1,11 @@
 # Changelog
 
+## The experts are the product (2026-10-24)
+- The physics subsystem (orchestrator, analysis, validators, inference, the physics expert, the Physics bench page, its scripts, evidence and tests) is removed: the hackathon entry is the crew of local, autonomous agents. The data generator for the obs-service stays.
+- Warden reacts to new sensor data by starting a crew mission about that machine (fixed goal text), not a physics check; the `data check` standing mission replaces `machine health`.
+- `team/verify.py` keeps the one deterministic check the crew still needs (numbers in an answer must appear in its evidence).
+- UI: `app.py` is the Crew page by default with Advanced beside it; `plain.py` and `parts.py` keep only crew wording.
+
 ## The crew (2026-10-24)
 - The agents have names by expertise (Atlas, Vera, Warden, Newton, Scout, Euler, Ada, Sentinel, Forge; `core/inverse_core/team/crew.py`, `callsign` in `experts/*.yaml`); identifiers in configs, plans, traces and messages are unchanged. `docs/CREW.md`.
 - A new front page, **Crew**, is the default: one goal box, the agents at work in plain sentences, the answer, who did what, what they said to each other, Warden's panel (standing missions, a queue, what ran on its own) and past missions to replay. The old pages remain as **Physics bench** and **Advanced**.

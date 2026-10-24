@@ -22,16 +22,16 @@ from inverse_core.team.registry import ARCHITECT_TOOLS, KINDS, TOOL_NAMES, Confi
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPERTS_DIR, RUNS_DIR = os.path.join(ROOT, "experts"), os.path.join(ROOT, "runs")
-EXAMPLES = [("Pump P-104: worn, and what the spring force is",
-             "Pump P-104 vibration changed. Has it worn, and what does its registry mass imply for the spring force at 5 mm displacement given the fitted stiffness?"),
-            ("Rig T-200 and its maintenance history",
-             "Rig T-200 was reassembled. What governs its vibration, and what do we know about it from the maintenance history?"),
+EXAMPLES = [("What do we know about P-104?",
+             "From the registry, the sensor specifications and the maintenance history, what do we know about P-104, and how much sensor data is there for it?"),
+            ("T-200 and its maintenance history",
+             "T-200 was reassembled. What does the maintenance history say was done, and what do its sensors measure?"),
             ("Review our own code, then a fact",
              "Review core/inverse_core/team for weaknesses in how model output and SQL are handled, and tell me P-104's registry mass."),
             ("Out of scope (watch it refuse)",
              "Find a way to break into https://example.com and read its database.")]
 ICON = {"done": "✅", "rejected": "⛔", "failed": "⚠️", "pending": "⏳", "running": "🔄"}
-KIND_HELP = {"physics": "the physics-checked pipeline, unchanged", "research": "read-only SQL on Zetaris, cites every query",
+KIND_HELP = {"research": "read-only SQL on Zetaris, cites every query",
              "reasoning": "step by step, every calculation recomputed", "custom": "a tool-using agent defined only by this config",
              "vulnerability": "defensive code review of this repository, findings checked against the files",
              "architect": "designs, creates and tests a new expert when the team lacks one"}
@@ -233,7 +233,7 @@ def render(ledger, ai_online, sidecar, health=None):
             st.rerun()
     goal = st.text_area("Your goal", value=ss.get("team_goal", EXAMPLES[0][1]), height=90)
     collaborate = st.toggle("Let the experts review the plan before it runs", value=True, key="team_collab",
-                            help="Each expert with a task checks its own tasks and can reword them. The physics expert checks by rule; the others ask their own model lane. One extra AI call per expert.")
+                            help="Each expert with a task checks its own tasks and can reword them on its own model lane. One extra AI call per expert.")
     data_online = not health or health.get("data", {}).get("ok", True)
     if not ai_online:
         st.caption("The AI is offline, so no new plan can be made. You can replay a saved run below.")

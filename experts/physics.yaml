@@ -1,8 +1,0 @@
-name: physics
-callsign: Newton
-kind: physics
-role: "Recover and verify the physics of a machine's vibration from its sensor data (wear, damping, stiffness). The task must name the machine ID."
-tools: [physics_pipeline]
-model_lane: deep
-budget: {tool_calls: 2, tokens: 60000, seconds: 420}
-enabled: true

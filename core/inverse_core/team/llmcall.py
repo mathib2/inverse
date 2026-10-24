@@ -12,9 +12,9 @@ class BadReply(ValueError):
 class Ctx:
     """What an expert needs from the host app. Built once per run and passed to the registry."""
 
-    def __init__(self, lanes, trace, budget, zetaris=None, physics_runner=None, guard=None, equipment=(), root=".", markovian=None, bus=None):
+    def __init__(self, lanes, trace, budget, zetaris=None, guard=None, equipment=(), root=".", markovian=None, bus=None):
         self.lanes, self.trace, self.budget = lanes, trace, budget
-        self.zetaris, self.physics_runner, self.guard, self.equipment = zetaris, physics_runner, guard, list(equipment)
+        self.zetaris, self.guard, self.equipment = zetaris, guard, list(equipment)
         self.root = root                                                      # the repository experts may read (code we own)
         self.markovian = markovian                                            # Meterless Markovian client when the service is up, else None
         self.sql_cache = {}                                                   # per-run: the same read-only query is sent to Zetaris once

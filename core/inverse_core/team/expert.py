@@ -1,4 +1,4 @@
-"""Expert contract. Every expert, including the wrapped physics agent, takes a Task and returns an ExpertResult
+"""Expert contract. Every expert takes a Task and returns an ExpertResult
 with at least one evidence item. Claims an expert wants remembered go in `findings`; the Lead writes them to
 TeamMemory only after the Critic accepts the result, so a rejected claim never becomes shared memory."""
 from __future__ import annotations

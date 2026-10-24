@@ -1,1 +1,1 @@
-"""INVERSE core: physics-checked inverse-problem agent (domain-agnostic core + physical adapter)."""
+"""INVERSE core: a crew of local AI agents (team layer, memory, watch loop) and the clients they use."""

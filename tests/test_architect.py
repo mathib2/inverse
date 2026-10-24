@@ -33,7 +33,7 @@ def test_architect_tools_validate_create_and_test_drive_an_expert(tmp_path):
     reg = team(ctx)
     tools, budget = ArchitectTools(ctx, ["list_experts", "design_expert", "create_expert", "test_expert"]), ExpertBudget(tool_calls=10)
     names = {e["name"] for e in tools.call("list_experts", {}, budget)["experts"]}
-    assert {"physics", "research", "reasoning", "solver", "vulnerability", "architect"} <= names
+    assert {"research", "reasoning", "solver", "vulnerability", "architect"} <= names
     bad = tools.call("design_expert", {"name": "unit_converter", "role": "Converts units", "tools": ["create_expert"]}, budget)
     assert "unknown tool" in bad["error"]                                        # a created expert cannot create experts
     ok = tools.call("design_expert", {"name": "unit_converter", "role": "Converts units", "system_prompt": "Convert units carefully.", "tools": ["calc"]}, budget)

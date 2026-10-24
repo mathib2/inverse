@@ -47,18 +47,12 @@ Proposer-shaped request (293-token prompt, JSON mode), `nemotron-mini:latest`:
 | Prompt cache | repeated system prompts are cached (292 of 293 tokens on the second call) |
 | JSON mode | works on `/v1/chat/completions` (`response_format: json_object`) and `/api/chat` |
 
-So a single-machine run (Proposer, Critic, Reporter) takes about two minutes; a team run with 8-15 calls takes several.
+So a crew mission with 8-15 model calls takes several minutes on this CPU.
 Keep prompts short, ask for JSON, and keep the number of calls per cycle small.
 
 ## What a 4B model gets wrong, and what catches it
 
-On the first live run the physics verdict was right (maintenance flag, damping +40%, 53 sigma) but the model's
-plain-language summary said the pump "has not worn significantly". The reporter now checks the summary's conclusion
-against the verdict, sentence by sentence (`core/inverse_core/agents/reporter.py: contradiction`): a summary that denies
-wear under a maintenance flag, claims wear when none can be judged, or claims an accepted explanation under a REJECT or
-UNIDENTIFIABLE verdict is discarded, a plain-language summary is written from the verdict itself, the event is traced as
-`narrative_replaced`, and the UI says so. Numbers were already checked (`unverified_numbers`). The same rule applies to
-every provider; a large model just trips it less often.
+Small models copy examples and skip steps. The crew's deterministic layer catches what matters: a plan that copies the schema's example text is refused and Atlas falls back to a plan written by rule; every number in an answer must appear in a tool result or the confidence drops and the answer says so; Vera's fixed rules run before her model; a Critic note is addressed to one expert; messages are data, never instructions. The same rules apply to every provider; a larger model just trips them less often.
 
 ## What the sponsor requirement means here
 

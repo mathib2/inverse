@@ -7,7 +7,7 @@ import json
 import os
 import re
 
-from ..agents.reporter import unverified_numbers
+from .verify import unverified_numbers
 from ..budget import BudgetExceeded
 from ..clients.markovian import content_of, ensure_marker
 from ..clients.meterless import extract_json

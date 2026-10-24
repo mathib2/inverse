@@ -58,12 +58,12 @@ def render(root, configs=None):
     if hb and age is not None and age < 150 and hb.get("status") != "stopped":
         nxt = hb.get("next_check")
         when = f"next look at the data in about {max(0, int(nxt - time.time())) // 60} min" if nxt and hb.get("status") == "sleeping" else "working right now"
-        st.success(f"**{warden} is awake** (cycle {hb.get('cycle')}, {when}). It checks the sensor data every {int(hb.get('interval', 0)) // 60} minutes, "
-                   f"runs the standing missions on their schedule, and takes any goal queued here first.")
+        st.success(f"**{warden} is awake** (cycle {hb.get('cycle')}, {when}). Every {int(hb.get('interval', 0)) // 60} minutes it looks for new sensor data "
+                   f"(a machine with new data gets a crew mission), runs the standing missions on their schedule, and takes any goal queued here first.")
     else:
         st.warning(f"**{warden} is not running.** On the workstation: `~/.local/bin/inverse-watch start`. Goals queued here wait until it starts.")
     c1, c2 = st.columns([5, 1])
-    goal = c1.text_input(f"Leave a goal for {warden}", key="watch_goal", placeholder="e.g. Compare the damping of P-104 with its baseline and check the maintenance notes")
+    goal = c1.text_input(f"Leave a goal for {warden}", key="watch_goal", placeholder="e.g. What was done to P-104 according to the maintenance history, and how much data do we have for it?")
     if c2.button("Queue", disabled=not goal.strip(), width="stretch"):
         os.makedirs(queue_dir, exist_ok=True)
         with open(os.path.join(queue_dir, "goals.jsonl"), "a") as f:
@@ -80,8 +80,8 @@ def render(root, configs=None):
         st.caption(f"{warden} has not started a mission yet.")
         return
     st.dataframe(pd.DataFrame([{
-        "when": r["when"], "what": "physics check" if r.get("kind") == "physics" else "crew mission", "why": r.get("trigger", ""),
+        "when": r["when"], "what": "crew mission", "why": r.get("trigger", ""),
         "machine / goal": r.get("equipment") or str(r.get("goal") or "")[:70], "status": r.get("status", ""),
-        "result": (f"{r.get('verdict')}: {r.get('detail')}" if r.get("kind") == "physics" else str(r.get("answer") or r.get("error") or "")[:100]),
+        "result": str(r.get("answer") or r.get("error") or "")[:100],
     } for r in done]), hide_index=True, width="stretch")
-    st.caption("A physics check that finds wear, rejects every model or refuses to fit starts a crew mission with a goal written by a fixed rule, not a model.")
+    st.caption("New sensor data for a machine starts a crew mission about it, with a goal written by a fixed rule, not a model.")

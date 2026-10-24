@@ -1,9 +1,9 @@
 # Standing missions: what the crew does on its own, besides reacting to new sensor data and to queued goals.
-# Warden (scripts/watch.py) runs each one as a crew run when its interval has passed; `every` is in hours.
-# {machines} is replaced by the machine IDs found in the registry. Edit, add or remove missions freely.
-- name: machine health
+# Warden (scripts/watch.py) runs each one as a crew mission when its interval has passed; `every` is in hours.
+# {machines} is replaced by the machine IDs found in the registry. Edit, add or remove missions freely; restart Warden afterwards.
+- name: data check
   every: 12
-  goal: "Check {machines} for wear against their baselines and say which ones need maintenance and why."
+  goal: "For {machines}: using queries, report how much sensor data each machine has, the time span it covers, and what the maintenance history says was done to it and when. Flag anything that changed since the last check in shared memory."
 - name: code review
   every: 24
   goal: "Review this repository's own code for security weaknesses and propose the smallest fix for each verified finding."
