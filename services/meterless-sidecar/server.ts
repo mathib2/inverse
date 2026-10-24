@@ -13,10 +13,14 @@ const hmem = new HMEM({ persistDir: STATE });
 const PORT = Number(process.env.SIDECAR_PORT ?? 8100);
 
 const body = (req: http.IncomingMessage) =>
-  new Promise<any>((ok) => {
+  new Promise<any>((ok, fail) => {
     let s = "";
     req.on("data", (c) => (s += c));
-    req.on("end", () => ok(s ? JSON.parse(s) : {}));
+    req.on("error", fail);
+    req.on("end", () => {
+      try { ok(s ? JSON.parse(s) : {}); }
+      catch (e: any) { fail(Object.assign(new Error(`bad JSON body: ${e?.message ?? e}`), { status: 400 })); }   // a bad body is a 400 for that request, not a crash
+    });
   });
 const send = (res: http.ServerResponse, code: number, obj: unknown) => {
   res.writeHead(code, { "content-type": "application/json" });
@@ -84,7 +88,7 @@ http
       }
       send(res, 404, { error: "not found" });
     } catch (e: any) {
-      send(res, 500, { error: String(e?.message ?? e) });
+      send(res, e?.status ?? 500, { error: String(e?.message ?? e) });                     // a bad request is 400; an engine error is 500; the process lives on
     }
   })
   .listen(PORT, "127.0.0.1", () => console.log(`sidecar on 127.0.0.1:${PORT} (H-MEM reference)`));

@@ -60,3 +60,15 @@ def test_cut_off_suggestions_are_recorded_and_said_plainly(tmp_path):
     event = next(e for e in trace.events if e["kind"] == "proposer_parse_error")
     assert event["truncated"] is True
     assert plain.step(event) == "The AI's suggestions were cut off, so INVERSE used its built-in ones"
+
+
+def test_proposer_and_critic_ask_the_runtime_for_one_json_object(tmp_path):
+    """The team side always asked for JSON mode; the physics side did not, and the committed traces show the parse errors."""
+    llm = RecordingLLM(json.dumps({"candidates": [{"terms": ["c", "k"]}]}))
+    proposer.propose(llm, Trace(str(tmp_path)), NoBudget(), {}, 0.01, [], set(), "", 1.0)
+    assert llm.kwargs[-1].get("json_object") is True
+    data = D.p104_current()
+    fitted, _ = A.evaluate(data, "E", L.InMemoryLedger(), physical.candidate_library(data, 1.0)[:1], A.new_stats())
+    llm = RecordingLLM(json.dumps({"test": "long_horizon_energy", "reason": "stub"}))
+    critic.critique(llm, Trace(str(tmp_path)), NoBudget(), fitted[0], fitted[0]["data"], set())
+    assert llm.kwargs[-1].get("json_object") is True

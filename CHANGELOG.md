@@ -1,5 +1,8 @@
 # Changelog
 
+## Small gaps closed (2026-10-24)
+- The Proposer and the Critic ask the runtime for one JSON object (`response_format: json_object`), as the team side already did; the committed traces show the parse errors this removes. `docs/SPONSORS.md` now says what those traces show about Nemotron proposals instead of a claim that could not be true by construction. `MarkovianClient` defaults to the Markovian port (8101). The H-MEM sidecar answers 400 to a malformed body instead of dying (integration test). The unknown-mass limit is in the README and the UI explains it in plain words.
+
 ## Runs on its own, and the experts talk (2026-10-24)
 - Watch mode (`scripts/watch.py`, `core/inverse_core/watch.py`): a loop on the workstation checks Zetaris for new sensor data per machine, runs the physics check, decides by rule whether the team is needed (wear flag, rejection, refusal) and runs it with a goal written from the verdict; a manifest per run, a heartbeat, a log, a goal queue people and the UI can write to, recovery of interrupted runs, and a sidecar check. `~/.local/bin/inverse-watch` keeps it running in tmux on the workstation.
 - A message bus (`team/bus.py`): accepted results, the Critic's notes, questions and answers go on `runs/<ts>/messages.jsonl` and the trace; each expert sees the messages addressed to it with its next task. New tools `ask_expert` (consult another expert, one level deep, small budget), `post_message` and `read_messages`; the Solver holds them. The UI shows the conversation of every run and a watch-mode panel.

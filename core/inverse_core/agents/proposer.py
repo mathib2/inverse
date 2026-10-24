@@ -38,7 +38,7 @@ def to_models(reply_text, m):
 def propose(llm, trace, budget, regime, sigma, notes, refuted, feedback, m):
     budget.charge_llm()
     msgs = build_prompt(regime, sigma, notes, refuted, feedback)
-    r = llm.chat(msgs)
+    r = llm.chat(msgs, json_object=True)                                      # one JSON object: Nightshift and Ollama honour response_format
     trace.event("llm", agent="proposer", model=r["model"], latency_s=r["latency_s"], prompt=msgs[1]["content"], reply=r["text"][:1500])
     try:
         return to_models(r["text"], m), r["model"]

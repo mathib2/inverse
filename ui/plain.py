@@ -272,6 +272,9 @@ def error(exc: Exception, known_equipment=()) -> tuple[str, str]:
         return "Couldn't read the AI's reply", "The AI answered in a form INVERSE couldn't read. Try again; the trace keeps a preview of the reply."
     if name == "ConfigError":
         return "An expert's settings are invalid", f"{str(exc)[:200]}"
+    if name == "NotImplementedError":
+        return "Not supported in this version", ("The registry has no mass for this machine and the data could still determine it, but fitting with a "
+                                                 "free mass is not implemented yet. Add the mass to the registry (or measure it) and run again.")
     if name in ("ConnectionError", "ConnectTimeout", "ReadTimeout"):
         return "A service didn't respond", "Zetaris or the memory service didn't answer. Check the connections in the sidebar."
     return "Something went wrong", f"{name}: {str(exc)[:200]}"

@@ -15,7 +15,7 @@ def critique(llm, trace, budget, entry, data, tried_tests=()):
     msgs = [{"role": "system", "content": SYSTEM},
             {"role": "user", "content": f"Model: {entry['model'].form()} theta={[round(float(v),4) for v in entry['fit']['theta']]}. "
                                         f"Validators passed: {[v['validator'] for v in entry['validators']]}. Menu: {menu}"}]
-    r = llm.chat(msgs)
+    r = llm.chat(msgs, json_object=True)                                      # one JSON object: Nightshift and Ollama honour response_format
     trace.event("llm", agent="critic", model=r["model"], latency_s=r["latency_s"], prompt=msgs[1]["content"], reply=r["text"][:800])
     try:
         pick = extract_json(r["text"])
