@@ -105,6 +105,7 @@ def test_result_without_evidence_is_refused():
 
 def test_sql_guard_allows_selects_on_known_tables_only():
     assert check_sql("SELECT * FROM obs.equipment_table WHERE equipment_id = 'P-104'")
+    assert check_sql("SELECT * FROM obs.equipment_table;") == "SELECT * FROM obs.equipment_table"
     for bad in ["DROP TABLE obs.equipment_table", "SELECT 1; DELETE FROM obs.equipment_table", "SELECT * FROM obs.secrets",
                 "SELECT * FROM obs.equipment_table -- x", "SELECT 1"]:
         with pytest.raises(UnsafeSQL):
@@ -221,3 +222,21 @@ def test_expert_crash_fails_the_task_not_the_run(tmp_path):
     t = Task("T1", "think", "reasoning")
     Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()), max_attempts=2)._execute(t)
     assert t.status == "failed" and "model exploded" in t.feedback
+
+
+def test_physics_expert_wraps_pipeline_and_puts_quoted_numbers_in_evidence(tmp_path):
+    verdict = {"verdict": "ACCEPT", "equipment": "P-104", "run_dir": "runs/x", "models_used": ["m"], "not_checked": ["nonlinear damping"],
+               "model": {"form": "m*x'' + c*x' + k*x = F(t)", "rmse": 0.01, "heldout_rmse": 0.011,
+                         "parameters": [{"name": "c", "value": 2.8, "ci95": [2.78, 2.82], "unit": "N*s/m"}]},
+               "evidence": [{"validator": "stability", "passed": True, "detail": "eigenvalues Re=-1.4"}],
+               "action": {"type": "maintenance_flag", "detail": "c up", "drift": [{"param": "c", "direction": "up", "relative_change": 0.4, "sigmas": 73.0, "flagged": True}]},
+               "vetoed": [{"form": "cubic", "failed": [{"validator": "energy"}]}]}
+    ctx = make_ctx(tmp_path, lambda m, msgs: "{}", physics_runner=lambda q: verdict)
+    reg = Registry(ctx, os.path.join(ROOT, "experts"), ROOT)
+    mem = TeamMemory(InMemoryLedger())
+    exp = reg.experts["physics"]
+    res = exp.run(Task("T1", "Has P-104 worn?", "physics"), mem, reg.budget_for("physics"))
+    assert exp.retryable is False
+    text = " ".join(e["detail"] for e in res.evidence)
+    assert "c=2.8" in text and "73" in text and "stability" in " ".join(e["source"] for e in res.evidence)
+    assert any("cubic" in f for f in mem.refuted())

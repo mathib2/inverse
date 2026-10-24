@@ -19,7 +19,8 @@ def deterministic(result):
     if not result.get("evidence"):
         return "revise", "no evidence attached; every conclusion needs at least one evidence item"
     if any(e.get("detail", "").startswith("REFUSED") for e in result["evidence"]) and not any(e["type"] == "sql" and not e["detail"].startswith("REFUSED") for e in result["evidence"]):
-        return "revise", "every query was refused by the SQL guard; write a read-only SELECT on the listed tables"
+        why = next(e["detail"] for e in result["evidence"] if e.get("detail", "").startswith("REFUSED"))
+        return "revise", f"every query was refused by the SQL guard ({why[9:]}); write a read-only SELECT on the listed tables"
     mism = [e for e in result["evidence"] if "MISMATCH" in e.get("detail", "")]
     if mism:
         return "revise", "a calculation does not match its expected value: " + mism[0]["source"]
@@ -38,7 +39,7 @@ class Critic:
             self.ctx.trace.event("critic", task=task.id, verdict=hard[0], reason=hard[1], by="rule")
             return {"verdict": hard[0], "reason": hard[1], "by": "rule"}
         payload = {"task": task.goal, "answer": result["answer"], "confidence": result["confidence"], "assumptions": result["assumptions"],
-                   "not_checked": result["not_checked"], "evidence": [{k: v for k, v in e.items() if k != "rows"} | ({"rows": e["rows"][:3]} if "rows" in e else {}) for e in result["evidence"]]}
+                   "not_checked": result["not_checked"], "evidence": [{k: v for k, v in e.items() if k != "rows"} | ({"rows": e["rows"][:8]} if "rows" in e else {}) for e in result["evidence"]]}
         try:
             out = ask(self.ctx, self.lane, [{"role": "system", "content": SYSTEM}, {"role": "user", "content": json.dumps(payload, default=str)}],
                       "critic", json_reply=True)

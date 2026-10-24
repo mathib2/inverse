@@ -31,13 +31,23 @@ class BaseExpert:
 
 
 class PhysicsExpert(BaseExpert):
-    """Wraps the existing single-agent pipeline unchanged: input a task, return its calibrated verdict as an ExpertResult."""
+    """Wraps the existing single-agent pipeline unchanged: input a task, return its calibrated verdict as an ExpertResult.
+    Deterministic: re-running it cannot change the answer, so the Lead does not retry it (retryable = False)."""
+
+    retryable = False
 
     def run(self, task, memory, budget):
         budget.charge_tool()
         v = self.ctx.physics_runner(task.goal)
         ev = [{"type": "tool", "source": "validator:" + e["validator"], "detail": ("PASS " if e["passed"] else "FAIL ") + e["detail"]}
               for e in v.get("evidence", [])]
+        m = v.get("model") or {}
+        if m.get("parameters"):                                            # the numbers the answer quotes must be in the evidence
+            ev.append({"type": "tool", "source": "fit:MAP+Laplace", "detail": "; ".join(
+                f"{p['name']}={p['value']:.4g} (95% CI {p['ci95'][0]:.4g} to {p['ci95'][1]:.4g}) {p['unit']}" for p in m["parameters"])
+                + f"; rmse={m.get('rmse', float('nan')):.4g}, held-out rmse={m.get('heldout_rmse', float('nan')):.4g}"})
+        for d in v.get("action", {}).get("drift", []):
+            ev.append({"type": "tool", "source": "drift:" + d["param"], "detail": f"{d['param']} {d['direction']} {d['relative_change']:+.1%} vs baseline, {d['sigmas']:.3g} sigma (flag threshold 3 sigma), flagged={d['flagged']}"})
         if not ev:
             ev = [{"type": "tool", "source": "identifiability", "detail": v.get("action", {}).get("detail", v["verdict"])}]
         params = "; ".join(f"{p['name']}={p['value']:.4g} (95% CI {p['ci95'][0]:.4g} to {p['ci95'][1]:.4g}) {p['unit']}"
@@ -67,7 +77,7 @@ class UnsafeSQL(ValueError):
 
 def check_sql(sql):
     """Read-only, single statement, known tables only. Raises UnsafeSQL otherwise."""
-    s = sql.strip()
+    s = sql.strip().rstrip(";").strip()                       # one trailing semicolon is harmless; any other is refused below
     if not re.match(r"(?i)select\b", s) or FORBIDDEN.search(s):
         raise UnsafeSQL("only a single read-only SELECT is allowed")
     tables = re.findall(r"(?i)\b(?:from|join)\s+(?:obs\.)?([A-Za-z_][A-Za-z0-9_]*)", s)
@@ -81,7 +91,7 @@ class ResearchExpert(BaseExpert):
     """Zetaris-only: the model writes SELECTs, we validate and run them, every claim cites a query and its rows."""
 
     def run(self, task, memory, budget):
-        sys1 = (self.prompt + "\n" + SCHEMA + '\nReturn ONLY JSON: {"queries":["SELECT ..."]} with at most 3 read-only SELECTs.')
+        sys1 = (self.prompt + "\n" + SCHEMA + '\nReturn ONLY JSON: {"queries":["SELECT ..."]} with at most 3 read-only SELECTs, no semicolons.')
         q = ask(self.ctx, self.lane, [{"role": "system", "content": sys1}, {"role": "user", "content": self._task_text(task)}],
                 self.name, budget, json_reply=True)
         models, evidence, rows_all = [q["model"]], [], []

@@ -16,7 +16,7 @@ Experts:
 {experts}
 Known equipment IDs: {equipment}
 Return ONLY JSON: {{"tasks":[{{"id":"T1","goal":"a self-contained instruction","expert":"name","depends_on":[]}}]}}
-A physics task must name the machine by its ID in its goal. Use research to look facts up in the data, reasoning for derivations and calculations."""
+A physics task must name the machine by its ID in its goal. Use research to look facts up in the registry, sensor specs and maintenance history (not to dump raw samples; the physics expert reads those itself), reasoning for derivations and calculations."""
 
 COMPOSE_SYSTEM = """Write the final answer for the user from the accepted expert results. Rules: use only facts present in the results; cite every claim as
 [T1.E2] (task id, evidence number); say which expert produced each part; state uncertainty and what was NOT checked; if a task failed or was rejected, say so and do not fill the gap.
@@ -113,6 +113,10 @@ class Lead:
                 self.ctx.trace.event("task_rejected", task=task.id, reason=review["reason"])
                 return
             task.feedback = review["reason"]
+            if not getattr(expert, "retryable", True):                       # a deterministic expert would return the same answer
+                task.status = "failed"
+                self.ctx.trace.event("task_failed", task=task.id, reason="critic sent it back but the expert is deterministic: " + task.feedback)
+                return
             self.ctx.trace.event("retry", task=task.id, next_attempt=attempt + 1, reason=review["reason"])
         task.status = "failed"
         self.ctx.trace.event("task_failed", task=task.id, reason="critic still not satisfied after retries: " + task.feedback)
@@ -132,4 +136,4 @@ class Lead:
         self.ctx.trace.event("compose", cited=len(cited), unknown_citations=bad, unfinished=len(problems), model=out["model"])
         return {"answer": out["text"], "citations": {c: index[c] for c in sorted(cited & set(index))}, "unknown_citations": bad,
                 "unfinished": problems, "not_checked": sorted({n for t in ok for n in t.result["not_checked"]}),
-                "models_used": sorted({m for t in plan.tasks if t.result for m in t.result["models_used"] if m} | {out["model"]})}
+                "models_used": sorted({e["model"] for e in self.ctx.trace.events if e["kind"] == "llm" and e.get("model")})}

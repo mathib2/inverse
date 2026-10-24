@@ -82,6 +82,20 @@ PYTHONPATH=core .venv/bin/python scripts/run_agent.py "Rig T-200 was reassembled
 PYTHONPATH=core .venv/bin/python -m pytest -q tests     # 40 tests incl. live Zetaris + sidecar integration
 ```
 
+## Team of experts (orchestrator)
+
+A lead agent turns a goal into a plan (tasks + assigned experts), delegates by dependency, a Critic on a separate Nemotron lane can send work back, and the final answer cites expert evidence.
+The single-machine page and CLI above are unchanged and remain the fallback.
+
+```bash
+PYTHONPATH=core .venv/bin/python scripts/run_team.py "Pump P-104 vibration changed. Has it worn, and what does its registry mass imply for the spring force at 5 mm given the fitted stiffness?" [--edit] [--reset]
+```
+In the UI choose **Mode → Team of experts**: make a plan, edit it in the table, **Approve and run**.
+
+- Experts are config: `experts/*.yaml` (name, kind, role, `system_prompt_file`, tools, `model_lane`, budget, enabled) and `prompts/*.md`. Add, re-scope or disable one without touching code. Kinds: `physics` (wraps the existing pipeline unchanged), `research` (Zetaris read-only SQL, cites queries), `reasoning` (decompose, solve, recompute every calculation).
+- Lanes (`fast`, `deep`, `critic`) map to Nemotron routes in `team/lanes.py`; override with `LANE_*` in `.env`. The serving model of every call is in `runs/<ts>/trace.jsonl`.
+- Team memory lives in H-MEM (`team:shared`); **Forget past results** clears it too. Evidence: `docs/agent/ENGINE_EVIDENCE.md`.
+
 ## Honest limitations
 
 - Data is **synthetic** (fixed seeds, documented in `data/README.md`); the trap case is constructed (one fixed seed where an over-flexible model overfits to the wrong sign). No real plant data was used.
