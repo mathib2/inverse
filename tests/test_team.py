@@ -241,3 +241,10 @@ def test_physics_expert_wraps_pipeline_and_puts_quoted_numbers_in_evidence(tmp_p
     text = " ".join(e["detail"] for e in res.evidence)
     assert "c=2.8" in text and "73" in text and "stability" in " ".join(e["source"] for e in res.evidence)
     assert any("cubic" in f for f in mem.refuted())
+
+
+def test_plan_rejects_placeholder_goals_copied_from_the_schema():
+    for goal in ("a self-contained instruction", "Instruction", "   ", "..."):
+        with pytest.raises(PlanError, match="no real goal"):
+            Plan("g", [Task("T1", goal, "research")]).validate({"research"})
+    Plan("g", [Task("T1", "List the maintenance records of P-104", "research")]).validate({"research"})
