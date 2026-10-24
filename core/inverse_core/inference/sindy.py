@@ -1,5 +1,8 @@
-"""PySINDy (STLSQ) discovery of the acceleration law from (x, v). Returns coefficients of
-m*v' = -(c v + k x + a x^3 + b v^3). SINDy PROPOSES; the fitter refines and the validators decide."""
+"""PySINDy regression of the acceleration law from (x, v). Returns coefficients of
+m*v' = -(c v + k x + a x^3 + b v^3). With the default threshold=0.0 STLSQ does NOT sparsify: this is a
+ridge regression over the full library, used only to initialise the full-library candidate, so the most
+flexible model is always put in front of the validators. Pass threshold>0 for genuine sparse selection.
+It PROPOSES; the fitter refines and the validators decide."""
 import numpy as np
 import pysindy as ps
 

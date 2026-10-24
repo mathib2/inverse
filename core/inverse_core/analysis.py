@@ -25,7 +25,7 @@ def identify(data, equipment, ledger, mass_known, stats):
     t, y0, sigma = data["t"], data["y0"], data["sigma"]
     base = {"dataset_id": data.get("dataset", "unnamed")}
     target = linear(m=m) if mass_known else linear(free_m=True)
-    th0 = [m, 2.0, 100.0] if not mass_known else [2.0, 100.0]
+    th0 = [m or 1.0, 2.0, 100.0] if not mass_known else [2.0, 100.0]     # nominal point; registry mass may be NULL
     ident = I.check(target, th0, t, y0, sigma, data["u"])
     if ident["identifiable"]:
         return None
@@ -56,13 +56,14 @@ def evaluate(data, equipment, ledger, cands, stats, tried=None):
             tried.add(form)
             continue
         tried.add(form)
-        f = F.fit(model, t, x, sigma, y0, th_start, data["u"])
+        f = F.fit(model, t, x, sigma, y0, th_start, data["u"], fit_y0=True)    # data["y0"] is only the starting guess
         stats["fits"] += 1
-        vs = V.run_all(model, f["theta"], data)
+        dfit = dict(data, y0=f["y0"])                                          # validators and rollouts start from the fitted state
+        vs = V.run_all(model, f["theta"], dfit)
         failed = [v for v in vs if not v["passed"]]
-        aic, bic = S.aic_bic(f["chi2"], f["n"], len(model.free))
-        ho = S.heldout_rollout_rmse(model, f["theta"], data)
-        entry = {"model": model, "fit": f, "validators": vs, "aic": aic, "bic": bic, "heldout_rmse": ho, "failed": failed}
+        aic, bic = S.aic_bic(f["chi2"], f["n"], f["n_fitted"])
+        ho = S.heldout_rollout_rmse(model, f["theta"], dfit)
+        entry = {"model": model, "fit": f, "validators": vs, "aic": aic, "bic": bic, "heldout_rmse": ho, "failed": failed, "data": dfit}
         if failed:
             vetoed.append(entry)
             ledger.record(equipment, {"form": form, "status": "refuted", "tests_failed": [v["validator"] for v in failed],
@@ -94,9 +95,10 @@ def finalize(data, equipment, ledger, fitted, vetoed, stats, baseline=None, extr
     else:
         action = {"type": "none", "detail": "no parameter drift beyond uncertainty" if baseline else "no baseline available", "drift": drifts}
     return {**base, "verdict": "ACCEPT",
-            "model": {"form": model.form(), "parameters": _params(model, f), "rmse": f["rmse"], "bic": best["bic"], "heldout_rmse": best["heldout_rmse"]},
+            "model": {"form": model.form(), "parameters": _params(model, f), "rmse": f["rmse"], "bic": best["bic"], "heldout_rmse": best["heldout_rmse"],
+                      "reduced_chi2": f["chi2_red"], "initial_state": f["y0"]},
             "evidence": [{"validator": v["validator"], "passed": v["passed"], "detail": v["evidence"]} for v in best["validators"]] + list(extra_evidence),
-            "tests_failed": [], "not_checked": ["nonlinear damping above the sampled frequency range", "temperature dependence", "forced operation (data is free decay)", "initial state is assumed known (release test)"],
+            "tests_failed": [], "not_checked": ["nonlinear damping above the sampled frequency range", "temperature dependence", "forced operation (data is free decay)"],
             "falsifier": "a no-input rollout whose energy rises, or held-out data the model mispredicts beyond noise",
             "regime": regime(data), "action": action, "stats": stats, "models_used": list(models_used),
             "vetoed": [_summ(e) for e in vetoed], "now": {k: list(v) for k, v in now.items()}}

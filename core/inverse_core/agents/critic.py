@@ -7,8 +7,11 @@ SYSTEM = ("You are a skeptical physicist. Given an accepted model, choose ONE te
 
 
 def critique(llm, trace, budget, entry, data, tried_tests=()):
-    budget.charge_llm()
+    """tried_tests: tests this candidate already faced. Returns None (no LLM call) once it has faced every test."""
     menu = {k: v for k, v in MENU.items() if k not in tried_tests}
+    if not menu:
+        return None
+    budget.charge_llm()
     msgs = [{"role": "system", "content": SYSTEM},
             {"role": "user", "content": f"Model: {entry['model'].form()} theta={[round(float(v),4) for v in entry['fit']['theta']]}. "
                                         f"Validators passed: {[v['validator'] for v in entry['validators']]}. Menu: {menu}"}]

@@ -16,8 +16,8 @@ MENU = {
 def run(name, model, theta, data):
     if name == "early_split_refit":
         n = len(data["t"]) // 2
-        f = F.fit(model, data["t"][:n], data["x"][:n], data["sigma"], data["y0"], theta, data["u"])
-        yfull = simulate(model, f["theta"], data["t"], data["y0"], data["u"])[0]
+        f = F.fit(model, data["t"][:n], data["x"][:n], data["sigma"], data["y0"], theta, data["u"], fit_y0=True)
+        yfull = simulate(model, f["theta"], data["t"], f["y0"], data["u"])[0]
         rmse = float(np.sqrt(np.mean((data["x"][n:] - yfull[n:]) ** 2)))
         return result("falsifier:" + name, rmse <= 3 * data["sigma"], f"refit on first {n} samples; second-half rollout RMSE {rmse:.4g} vs 3*sigma={3*data['sigma']:.3g}")
     if name == "long_horizon_energy":

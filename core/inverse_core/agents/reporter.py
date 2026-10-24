@@ -20,10 +20,15 @@ def _numbers(obj):
     return out
 
 
+_NOT_CLAIMS = re.compile(r"\b[A-Z]{1,4}-\d+\b|\b\d{4}-\d{2}-\d{2}\b")       # equipment IDs (P-104) and ISO dates
+_NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")             # no trailing '.', no digits inside words
+CONVENTIONS = (95.0, 3.0)                                                    # CI level and drift threshold, not verdict numbers
+
+
 def unverified_numbers(text, verdict):
-    known = _numbers(verdict)
+    known = _numbers(verdict) + list(CONVENTIONS)
     bad = []
-    for tok in re.findall(r"\d+\.?\d*", text):
+    for tok in _NUMBER.findall(_NOT_CLAIMS.sub(" ", text)):
         v = float(tok)
         if not any(abs(v - k) <= 0.01 * max(abs(k), 1e-9) or abs(abs(k) * 100 - v) <= 1 for k in known):
             bad.append(tok)

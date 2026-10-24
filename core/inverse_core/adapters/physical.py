@@ -8,7 +8,8 @@ def parameter_spec(model):
 
 
 def candidate_library(data, m):
-    """Candidate model forms with starting values. SINDy proposes the nonlinear starting point."""
+    """Candidate model forms with starting values: the linear model, and the full-library nonlinear model
+    initialised by a PySINDy regression (no sparsification; see inference/sindy.py)."""
     out = [(linear(m=m), [1.0, 80.0])]
     try:
         s = sindy.discover(data["t"], data["x"], data["v"], m)

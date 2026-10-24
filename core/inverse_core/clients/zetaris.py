@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import uuid
 
 import numpy as np
@@ -12,6 +13,14 @@ SAMPLE_VIEWS = {
     "p104-current": "obs.p104_current_samples",
     "trap-current": "obs.trap_current_samples",
 }
+_SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+
+
+def _sql_id(value):
+    """Identifiers are interpolated into SQL, so only plain IDs are allowed through."""
+    if not _SAFE_ID.match(str(value)):
+        raise ValueError(f"refusing to build SQL with identifier {value!r}")
+    return value
 
 
 class ZetarisClient:
@@ -31,21 +40,26 @@ class ZetarisClient:
 
     def dataset_id(self, equipment_id, which="current"):
         col = "current_dataset" if which == "current" else "baseline_dataset"
-        rows = self.sql(f"SELECT {col} AS d FROM obs.equipment_table WHERE equipment_id = '{equipment_id}'")
+        rows = self.sql(f"SELECT {col} AS d FROM obs.equipment_table WHERE equipment_id = '{_sql_id(equipment_id)}'")
         return rows[0]["d"]
 
     def load(self, equipment_id, which="current"):
         """The one SQL join: samples + sensor spec (sigma, unit) + equipment registry (mass). Returns pipeline input."""
         ds = self.dataset_id(equipment_id, which)
+        if ds not in SAMPLE_VIEWS:
+            raise KeyError(f"no sample view registered for dataset {ds!r} (known: {', '.join(SAMPLE_VIEWS)})")
         rows = self.sql(
             f"SELECT s.t AS t, s.x AS x, s.v AS v, sp.sigma AS sigma, sp.unit AS unit, e.mass_kg AS mass_kg "
-            f"FROM {SAMPLE_VIEWS[ds]} s JOIN obs.equipment_table e ON e.equipment_id = '{equipment_id}' "
+            f"FROM {SAMPLE_VIEWS[ds]} s JOIN obs.equipment_table e ON e.equipment_id = '{_sql_id(equipment_id)}' "
             f"JOIN obs.sensors_table sp ON sp.equipment_id = e.equipment_id AND sp.quantity = 'x' ORDER BY s.t")
         t = np.array([float(r["t"]) for r in rows])
         x = np.array([float(r["x"]) for r in rows])
         v = np.array([float(r["v"]) for r in rows])
-        return {"t": t, "x": x, "v": v, "sigma": float(rows[0]["sigma"]), "unit_x": rows[0]["unit"], "m": float(rows[0]["mass_kg"]),
-                "y0": [1.0, 0.0], "u": None, "dataset": ds, "equipment_id": equipment_id, "source": "zetaris"}
+        m = rows[0]["mass_kg"]
+        return {"t": t, "x": x, "v": v, "sigma": float(rows[0]["sigma"]), "unit_x": rows[0]["unit"],
+                "m": float(m) if m is not None else None,                  # NULL in the registry means unknown mass
+                "y0": [float(x[0]), float(v[0])],                         # starting guess from the data; the fit refines it
+                "u": None, "dataset": ds, "equipment_id": equipment_id, "source": "zetaris"}
 
     def maintenance(self, equipment_id):
-        return self.sql(f"SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = '{equipment_id}' ORDER BY date")
+        return self.sql(f"SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = '{_sql_id(equipment_id)}' ORDER BY date")

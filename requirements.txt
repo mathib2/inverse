@@ -1,12 +1,13 @@
-numpy
-scipy
-pysindy
-pint
-fastapi
-uvicorn
-streamlit
-pandas
-requests
-python-dotenv
-openai
-pytest
+# Pinned to the versions the test suite passes on (Python 3.14.4, Ubuntu 26.04).
+numpy==2.5.4
+scipy==1.18.1
+pysindy==2.1.0
+pint==0.26.2
+fastapi==0.162.0
+uvicorn==0.54.0
+streamlit==1.66.1
+pandas==3.1.0
+requests==2.34.2
+python-dotenv==1.2.4
+openai==3.37.0
+pytest==9.1.1

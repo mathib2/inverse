@@ -30,8 +30,10 @@ def p104_baseline(): return oscillator(c=2.0, seed=1)
 def p104_current(): return oscillator(c=2.8, seed=2)
 
 
-# trap: noisy, short, weakly damped. The 4-parameter fit has lower chi2 / AIC but NEGATIVE linear damping.
-def trap(): 
-    d = oscillator(c=0.15, seed=10, n=200, sx=0.04, sv=0.4)
+# trap: noisy, short, weakly damped. The 4-parameter fit has lower chi2 AND lower AIC but NEGATIVE linear damping.
+# Seed chosen by search with the initial state fitted for every candidate (seed 10 only qualified while the
+# linear model was forced to start at exactly [1, 0]).
+def trap():
+    d = oscillator(c=0.15, seed=68, n=200, sx=0.04, sv=0.4)
     d["sigma"] = 0.04
     return d
