@@ -1,0 +1,26 @@
+# INVERSE theme. Read by `streamlit run` from the repo root (scripts/run_demo.sh starts it there).
+[theme]
+base = "dark"
+primaryColor = "#6C8CFF"
+backgroundColor = "#0B0F17"
+secondaryBackgroundColor = "#141B28"
+textColor = "#E6EAF2"
+linkColor = "#8FA8FF"
+borderColor = "#263247"
+showWidgetBorder = true
+baseRadius = "0.75rem"
+buttonRadius = "0.6rem"
+greenColor = "#3FB97A"
+redColor = "#F06565"
+orangeColor = "#F2A33A"
+dataframeHeaderBackgroundColor = "#141B28"
+
+[theme.sidebar]
+backgroundColor = "#0F1520"
+secondaryBackgroundColor = "#172030"
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false

@@ -1,7 +1,13 @@
-"""INVERSE demo UI (Streamlit, :8501). Question -> live trace -> ledger -> validators -> verdict card -> Nightshift panel."""
-import os, sys, threading, time
+"""INVERSE demo UI (Streamlit, :8501). Plain-language front end: pick or type a question, watch the steps,
+read the result. Wording lives in ui/plain.py, page sections in ui/parts.py, theme in .streamlit/config.toml."""
+import getpass
+import os
+import subprocess
+import sys
+import threading
+import time
 
-import pandas as pd
+import requests
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -9,107 +15,161 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
 from inverse_core.clients.meterless import MeterlessClient, NightshiftOffline
+from inverse_core.clients.world import WorldClient
 from inverse_core.clients.zetaris import ZetarisClient
 from inverse_core.ledger import SidecarLedger
-from inverse_core.clients.world import WorldClient
 from inverse_core.orchestrator import Orchestrator
 
-st.set_page_config(page_title="INVERSE", layout="wide")
-COLORS = {"ACCEPT": "#1a7f37", "REJECT": "#b42318", "UNIDENTIFIABLE": "#b54708"}
-SCENARIOS = {
-    "Pump P-104: has it worn?": ("Pump P-104 vibration changed. What governs it now, and has it worn?", "P-104"),
-    "Rig T-200: better fit vs physics": ("Rig T-200 was reassembled. What governs its vibration, and has it worn?", "T-200"),
-    "Pump P-104: mass unknown": ("Pump P-104: we cannot measure the mass. What governs its vibration?", "P-104"),
-}
-st.session_state.setdefault("history", [])
-ledger, llm = SidecarLedger(), MeterlessClient()
+import parts
+import plain
 
-with st.sidebar:
-    st.subheader("Nightshift (Meterless)")
+st.set_page_config(page_title="INVERSE · physics-checked machine diagnosis", page_icon="⚙️", layout="wide",
+                   initial_sidebar_state="expanded")
+SIDECAR = "http://127.0.0.1:8100"
+MACHINES = sorted({s["equipment"] for s in plain.SCENARIOS.values()})
+ledger, llm = SidecarLedger(SIDECAR), MeterlessClient()
+ss = st.session_state
+ss.setdefault("history", [])
+ss.setdefault("scenario", "wear")
+ss.setdefault("question", plain.SCENARIOS["wear"]["question"])
+
+
+@st.cache_data(ttl=20, show_spinner=False)
+def health():
+    """Cached briefly: an offline Nightshift would otherwise add a timeout to every click."""
     h = llm.health()
-    st.markdown(f"**{h['status'].upper()}**" + (" 🟢" if h["status"] == "online" else " 🔴"))
-    st.caption(f"Route: `{llm.model}`")
-    if h["status"] != "online":
-        st.error("Nightshift unreachable. Start Nightshift on the laptop and reopen the SSH tunnel; runs are disabled.")
+    ai = {"status": h["status"], "route": llm.model, "n_models": len(h.get("models", [])), "detail": h.get("detail", "")}
     try:
         ZetarisClient().sql("SELECT 1 AS one")
-        st.markdown("**Zetaris** online 🟢")
+        data = {"ok": True}
     except Exception as e:
-        st.markdown("**Zetaris** offline 🔴"); st.caption(str(e)[:100])
-    st.divider()
-    eq_reset = st.selectbox("Reset H-MEM memory for", ["P-104", "T-200"])
-    if st.button("Reset memory (cold start)"):
-        st.success(f"deleted {ledger.reset(eq_reset)} ledger records")
+        data = {"ok": False, "detail": str(e)[:160]}
+    try:
+        requests.get(SIDECAR + "/healthz", timeout=3).raise_for_status()
+        mem = {"ok": True}
+    except Exception as e:
+        mem = {"ok": False, "detail": str(e)[:160]}
+    return {"ai": ai, "data": data, "memory": mem}
 
-st.title("INVERSE")
-st.caption("Turn sensor logs into a verified physics model, or an honest refusal. The LLM proposes; solvers and validators decide.")
-choice = st.radio("Scenario", list(SCENARIOS), horizontal=True)
-question = st.text_area("Question", SCENARIOS[choice][0], height=70)
-go = st.button("Run INVERSE", type="primary", disabled=h["status"] != "online")
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def ssh_target():
+    """user@tailnet-ip for the reconnect command, discovered at runtime so no address is hardcoded in the repo."""
+    try:
+        ip = subprocess.run(["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=3).stdout.split()[0]
+    except Exception:
+        ip = "<this-server>"
+    return f"{getpass.getuser()}@{ip}"
+
+
+def recheck():
+    health.clear()
+
+
+def pick(key):
+    ss.scenario, ss.question = key, plain.SCENARIOS[key]["question"]
+
+
+@st.dialog("Forget past results?")
+def confirm_reset(equipment):
+    st.markdown(f"INVERSE will forget everything it remembers about **{equipment}**, including the last check's "
+                "baseline. The next run starts from scratch. This can't be undone.")
+    c1, c2 = st.columns(2)
+    if c1.button(f"Forget {equipment}", type="primary", width="stretch"):
+        n = ledger.reset(equipment)
+        st.toast(f"Forgot {n} saved results for {equipment}")
+        st.rerun()
+    if c2.button("Keep them", width="stretch"):
+        st.rerun()
+
+
+h = health()
+ai_online = h["ai"]["status"] == "online"
+parts.css()
+
+with st.sidebar:
+    parts.connections(h, recheck, ssh_target(), ss.get("last_latency"))
+    st.divider()
+    st.markdown("### Memory")
+    eq_reset = st.selectbox("Machine", MACHINES, key="reset_eq")
+    if st.button("Forget past results…", icon=":material/delete_sweep:", width="stretch"):
+        confirm_reset(eq_reset)
+    st.caption("Do this before a demo so every run starts fresh.")
+
+parts.hero()
+parts.status_row(h)
+parts.how_it_works()
+parts.glossary()
+
+st.markdown("### 1 · Choose a question")
+parts.scenario_cards(ss.scenario, pick)
+question = st.text_area("Your question", key="question", height=80, help="Mention the machine by its ID: P-104 or T-200.")
+go = st.button("Run analysis", type="primary", icon=":material/play_arrow:", disabled=not ai_online or not question.strip())
+if not ai_online:
+    st.caption("Runs are paused because the AI is offline. See **AI** under Connections in the sidebar.")
 
 if go:
     events, box = [], {}
 
     def work():
         try:
-            box["v"] = Orchestrator(ZetarisClient(), ledger, llm, runs_dir=os.path.join(ROOT, "runs"), on_event=events.append, world=WorldClient()).run(question)
+            box["v"] = Orchestrator(ZetarisClient(), ledger, llm, runs_dir=os.path.join(ROOT, "runs"),
+                                    on_event=events.append, world=WorldClient(SIDECAR)).run(question)
         except Exception as e:
             box["err"] = e
 
-    th = threading.Thread(target=work, daemon=True); th.start()
-    live = st.empty()
-    while th.is_alive():
-        with live.container():
-            st.markdown("**Running…**")
-            st.dataframe(pd.DataFrame([{"t(s)": e["t"], "event": e["kind"], "detail": str({k: v for k, v in e.items() if k not in ("t", "kind", "prompt", "reply", "verdict")})[:140]} for e in events]), width='stretch', height=240)
-        time.sleep(0.7)
-    live.empty()
+    th = threading.Thread(target=work, daemon=True)
+    th.start()
+    with st.status("Analyzing… this usually takes about a minute.", expanded=True) as status:
+        shown = 0
+        while th.is_alive() or shown < len(events):
+            while shown < len(events):
+                line = plain.step(events[shown])
+                shown += 1
+                if line:
+                    st.markdown(f"- {line}")
+            time.sleep(0.4)
+        if "err" in box:
+            status.update(label="The analysis stopped", state="error", expanded=True)
+        else:
+            status.update(label="Analysis complete", state="complete", expanded=False)
     if "err" in box:
-        st.error(f"{type(box['err']).__name__}: {box['err']}")
+        title, fix = plain.error(box["err"], MACHINES)
+        st.error(f"**{title}.** {fix}")
+        if isinstance(box["err"], NightshiftOffline):
+            recheck()
     else:
         v = box["v"]
-        st.session_state["history"].append({"run": len(st.session_state["history"]) + 1, "equipment": v["equipment"], "verdict": v["verdict"],
-                                            "rounds": v["stats"]["rounds"], "fits": v["stats"]["fits"], "skipped_refuted": v["stats"]["skipped_refuted"], "llm_calls": v["stats"]["llm_calls"]})
-        st.session_state["last"] = v
+        ss.last, ss.events = v, list(events)
+        latencies = [e["latency_s"] for e in events if e.get("kind") == "llm" and e.get("latency_s") is not None]
+        if latencies:
+            ss.last_latency = latencies[-1]
+        ss.history.append({"Run": len(ss.history) + 1, "Machine": v["equipment"],
+                           "Result": plain.VERDICTS[v["verdict"]]["title"], "AI calls": v["stats"]["llm_calls"],
+                           "Models fitted": v["stats"]["fits"], "Skipped (remembered)": v["stats"]["skipped_refuted"]})
 
-v = st.session_state.get("last")
-if v:
-    c1, c2 = st.columns([1, 2])
-    with c1:
-        st.markdown(f"<div style='background:{COLORS[v['verdict']]};color:white;padding:14px 18px;border-radius:10px;font-size:26px;font-weight:700'>{v['verdict']}</div>", unsafe_allow_html=True)
-        st.markdown(f"**Action:** `{v['action']['type']}`  \n{v['action']['detail']}")
-        if v["model"]:
-            st.markdown("**Model:** `" + v["model"]["form"] + "`")
-            st.dataframe(pd.DataFrame([{"param": p["name"], "value": round(p["value"], 4), "95% CI": f"{p['ci95'][0]:.4g} to {p['ci95'][1]:.4g}", "unit": p["unit"]} for p in v["model"]["parameters"]]), hide_index=True)
-        st.caption("Not checked: " + "; ".join(v["not_checked"]))
-        st.caption("Falsifier: " + v["falsifier"])
-    with c2:
-        st.markdown("**Narrative (Nemotron via Nightshift)**")
-        st.write(v["narrative"])
-        if v["narrative_unverified_numbers"]:
-            st.warning("Numbers in the narrative not found in the verdict: " + ", ".join(v["narrative_unverified_numbers"]))
-        if v["injection_blocked"]:
-            st.warning("Injection guard withheld maintenance note(s): " + ", ".join(b["record_id"] for b in v["injection_blocked"]))
-        st.caption(f"Models used: {', '.join(v['models_used'])}  ·  trace: {v['run_dir']}")
-        if v.get("world_model"):
-            st.caption(f"World Model (shared state): {v['world_model']['entities']} entities, {v['world_model']['hypotheses']} hypotheses for {v['equipment']}")
-    st.markdown("#### Validator results (no LLM authority)")
-    rows = [{"validator": e["validator"], "passed": "✅" if e["passed"] else "❌", "evidence": e["detail"]} for e in v["evidence"]]
-    for x in v.get("vetoed", []):
-        for f in x["failed"]:
-            rows.append({"validator": f["validator"] + "  (VETOED " + x["form"][:34] + "…, rmse " + f"{x['rmse']:.4f})", "passed": "❌", "evidence": f["detail"]})
-    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
-
-st.markdown("#### Hypothesis ledger (Meterless H-MEM)")
-try:
-    eq = (v or {}).get("equipment") or SCENARIOS[choice][1]
-    L = [{"status": r["hypothesis"]["status"], "source": r["source"], "confidence": r["confidence"], "form": r["hypothesis"]["form"][:70],
-          "tests failed": ", ".join(r["hypothesis"].get("tests_failed", []))} for r in ledger.recall(eq)]
-    df = pd.DataFrame(L)
-    st.dataframe(df.style.map(lambda s: {"refuted": "background-color:#fee4e2", "supported": "background-color:#dcfae6", "unidentifiable": "background-color:#fef0c7"}.get(s, ""), subset=["status"]) if len(df) else df, width='stretch', hide_index=True)
-except Exception as e:
-    st.error("H-MEM sidecar unreachable: " + str(e)[:120])
-
-if st.session_state["history"]:
-    st.markdown("#### Run history (warm runs use memory)")
-    st.dataframe(pd.DataFrame(st.session_state["history"]), hide_index=True)
+st.markdown("### 2 · Result")
+v = ss.get("last")
+if not v:
+    parts.empty_result()
+else:
+    parts.verdict_banner(v)
+    parts.action_card(v)
+    parts.metrics(v)
+    parts.summary(v)
+    parts.limits(v)
+    t_checks, t_out, t_mem, t_behind = st.tabs(["Physics checks", "Ruled-out explanations", "Memory", "Behind the scenes"])
+    with t_checks:
+        parts.checks(v)
+    with t_out:
+        parts.ruled_out(v)
+    with t_mem:
+        try:
+            parts.memory(ledger.recall(v["equipment"]), v["equipment"])
+        except Exception:
+            st.error("**Memory is offline.** Its saved results can't be shown right now. See Connections in the sidebar.")
+    with t_behind:
+        parts.behind(v, ss.get("events", []))
+    if ss.history:
+        st.markdown("#### This session's runs")
+        parts.history(ss.history)
