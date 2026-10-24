@@ -1,19 +1,44 @@
-# Demo script (target 3:00, record with everything healthy; never use SAMPLE_MODE)
+# Demo script (target 3:30; three recorded segments, cut together)
 
-Before recording: Nightshift open on the laptop with the NVIDIA key and a Nemotron lane; laptop tunnel open (PowerShell); UI at http://localhost:8501 shows Nightshift 🟢 and Zetaris 🟢; click **Reset memory** for P-104 and T-200.
+The labels below are the ones on screen today. Timings are measured: a single-machine run takes 1.5 to 2.5 minutes with the deep Nemotron lane, a team run 5 to 8 minutes, so the video shows one live single-machine run and **replays** a saved team run (replay is instant and needs no model). Record each segment separately; speed up waits in the edit.
+
+**Before recording (once):** Nightshift open on its laptop with the NVIDIA key, the reverse tunnel open; in the sidebar every connection shows **Online**; **Forget past results…** for P-104 and T-200; the Markovian service up (`npm run markovian`); one saved team run already on disk (run the team example once beforehand, so **Replay a saved run** has it). Keep the browser at 125% zoom; the sidebar open.
+
+## Segment A: the single machine, live (about 1:45)
 
 | Time | Screen | Say |
 |---|---|---|
-| 0:00 | UI title | "A controls engineer needs to know what physically governs a machine, and whether it has worn, without trusting an LLM's guess. INVERSE: a verified physics model, or an honest refusal." |
-| 0:15 | Zetaris SQL Editor (`scripts/zetaris_join_demo.py` output or the join) | "Four fragments, one Zetaris join: samples, sensor specs, equipment registry, maintenance history. The sensor sigma and units from Zetaris feed the likelihood and the units validator." |
-| 0:35 | Scenario **Rig T-200**, Run | "Nemotron, through Meterless Nightshift, proposes model forms. SINDy proposes a more flexible one." |
-| 0:55 | Validator table | "The flexible model fits better, lower chi-square and AIC. But damping came out negative. The stability and energy validators veto it. No LLM judged that. The veto is written to the ledger with source validator." |
-| 1:20 | Ledger panel (H-MEM) | "Meterless H-MEM keeps the ledger. Trust is by source: an LLM can't overwrite a validator's refutation." |
-| 1:35 | **Run again** (warm) | "Same question again. The refuted model is recalled from memory and skipped: one round instead of two, fewer fits, fewer LLM calls." (point at Run history table) |
-| 1:55 | Scenario **Pump P-104**, Run | "Pump P-104. Damping 2.80 plus or minus 0.03. Last month's baseline recalled from H-MEM was 2.00. Maintenance flag: damping up 40 percent, 53 sigma." |
-| 2:20 | Scenario **mass unknown**, Run | "Now the mass is unknown. From free decay only the ratios are determined: Jacobian rank 2 of 3. The agent refuses before fitting, and names the measurement that would resolve it: a forced response with a known force." |
-| 2:40 | Injection note in the result / trace | "A maintenance note told the system to mark everything accepted. It was withheld before reaching any model." |
-| 2:50 | Nightshift Archive/run details | "Every call went through Nightshift to Nemotron. Proof is in the trace." |
-| 3:00 | End card | "INVERSE. The LLM proposes. Physics decides." |
+| 0:00 | Landing page, **Mode: Single machine** | "After a repair, a reliability engineer runs a release test and asks: what governs this machine now, and has it worn? INVERSE answers with a verified physics model, or an honest refusal. It never acts on an LLM's guess." |
+| 0:12 | Sidebar **Connections** | "Three sponsors do the work: sensor data comes through Zetaris, the AI is NVIDIA Nemotron through Meterless Nightshift, memory is Meterless H-MEM." |
+| 0:20 | **1 · Choose a question**, card **Rig T-200: the trap**, **Use this example**, **Run analysis** | "Rig T-200 was reassembled. Watch the progress lines: Nemotron proposes explanations, SINDy proposes a more flexible one, physics checks decide." |
+| 0:35 | Progress lines while it runs (cut the wait) | Read two lines aloud as they appear: *Ruled out: … Failed: Settles down, Loses energy* and *Passed every physics check: Simple spring-and-damper*. |
+| 1:00 | **2 · Result**, the banner and the highlighted card *Physics caught a better-looking wrong answer* | "The flexible model fit the data better. It also had negative damping, which is a machine that shakes harder on its own. Two validators vetoed it. No AI judged that." |
+| 1:15 | Tab **Physics checks** | "Six checks, plain calculations. The new one, *Predicts unseen data within its band*: fitted on the first half, band set on data the fit never saw, and it reports how much of the unseen tail fell inside. Measured, not promised." |
+| 1:30 | Tab **Memory** | "The veto is in Meterless H-MEM with source *validator*. An LLM claim cannot overwrite it." |
+| 1:38 | **Run analysis** again, then **This session's runs** | "Same question again: the ruled-out model is remembered and skipped, fewer fits, fewer AI calls." |
 
-Backup if a live run is slow: show `docs/evidence/traces/` and the saved verdicts.
+## Segment B: the refusal, live (about 0:35)
+
+| Time | Screen | Say |
+|---|---|---|
+| 0:00 | Card **Pump P-104, weight unknown**, **Run analysis** | "Now the mass is unknown. From free decay only ratios are determined." |
+| 0:10 | Result banner *Not enough information*, card **What to measure next** | "It refuses before fitting, and names the measurement that would resolve it: a forced response with a known force. Twenty out of twenty planted cases refuse; the forced version of the same data is identifiable twenty of twenty. That is in the evidence folder." |
+| 0:25 | Tab **Behind the scenes**, the blocked maintenance note | "A maintenance note told the system to mark everything accepted. It was withheld before it reached any model." |
+
+## Segment C: the team of experts, replayed (about 1:10)
+
+| Time | Screen | Say |
+|---|---|---|
+| 0:00 | Sidebar **Mode: Team of experts**; panel **Experts · customize the team** open for two seconds | "The same rule at team level. Experts are config, not code: physics, research, reasoning, a solver, a defensive code reviewer, and an architect that creates new experts when a task needs one." |
+| 0:12 | **1 · Goal and plan**, the example buttons, then **Replay a saved run (no model needed)** → **Replay** | "A lead plans, the experts review the plan, a Critic on a separate Nemotron lane checks every result. This run is replayed from its saved trace, so you see exactly what happened." |
+| 0:25 | The plan table (status column) | "Research looked up the registry, physics fitted the vibration, reasoning did the derivation, each with evidence." |
+| 0:35 | **3 · What each expert did**, expand the task with 2 attempts | "Here the Critic sent work back: the first answer claimed more than its evidence showed. The retry built on the verified part and passed." |
+| 0:50 | **4 · Trace** | "Every call shows the lane and the Nemotron model that served it; the engine events show H-MEM memory writes after review and, for long code reviews, Meterless Markovian running the review in bounded chunks." |
+| 1:00 | **2 · Answer** | "The answer cites every claim as task-and-evidence. What was not checked is listed. An unfinished task is reported word for word by code, never paraphrased." |
+| 1:08 | End card | "INVERSE. The LLM proposes. Physics decides. The team checks itself." |
+
+## Fallbacks
+
+- If Nightshift is offline on the day: Segments A and B from the saved traces in `docs/evidence/traces/` (narrate over the JSON), Segment C exactly as above (replay needs no model).
+- If a live run takes longer than two minutes, keep recording and cut the wait; the progress lines are the content.
+- Numbers to quote come from `docs/evidence/EVAL.md` and `docs/evidence/EVAL_LIVE.md`, never from memory.

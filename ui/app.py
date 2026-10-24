@@ -130,7 +130,7 @@ if go:
 
     th = threading.Thread(target=work, daemon=True)
     th.start()
-    with st.status("Analyzing… this usually takes about a minute.", expanded=True) as status:
+    with st.status("Analyzing… usually one to two minutes with the deep Nemotron lane.", expanded=True) as status:
         shown = 0
         while th.is_alive() or shown < len(events):
             while shown < len(events):

@@ -1,5 +1,8 @@
 # Changelog
 
+## Demo material (2026-10-24)
+- `docs/DEMO_SCRIPT.md` rewritten to the real UI labels and measured timings, with a replayed team segment and fallbacks; `docs/agent/NIGHTSHIFT_TUNNEL.md` (self-reconnecting tunnel for the laptop that hosts Nightshift); honest progress label on the single-machine page.
+
 ## Research-backed algorithms (2026-10-24)
 - Closed-form solution of the linear unforced oscillator in `simulate` (exact, much faster); split conformal prediction band on the unseen tail of every accepted fit (`inference/conformal.py`, reported in the verdict and the UI); Reflexion lessons per expert in H-MEM (`team/memory.py`, injected by the Lead); self-consistency plan voting (`--votes N`). References and locations in `docs/agent/ALGORITHMS.md`.
 
