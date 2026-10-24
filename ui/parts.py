@@ -74,8 +74,9 @@ def status_row(h):
 
 
 def how_it_works():
+    line = plain.provider_words()["model_line"]
     steps = [("Ask about a machine", "Pick an example below, or write your own question."),
-             ("The AI suggests explanations", "NVIDIA Nemotron proposes how the machine might be moving."),
+             ("The AI suggests explanations", f"{line[0].upper() + line[1:]} proposes how the machine might be moving."),
              ("Physics decides", "Each explanation has to pass physics checks. The AI can't overrule them.")]
     st.html('<div class="inv-steps">' + "".join(
         f'<div class="inv-step"><div class="n">{i}</div><b>{esc(t)}</b><span>{esc(d)}</span></div>'
@@ -84,7 +85,7 @@ def how_it_works():
 
 def glossary():
     with st.expander("What do these words mean?"):
-        for term, meaning in plain.GLOSSARY:
+        for term, meaning in plain.glossary_terms():
             st.markdown(f"**{term}**: {meaning}")
 
 
@@ -102,25 +103,23 @@ def scenario_cards(selected, on_pick):
 def connections(h, on_recheck, ssh_target, last_latency=None):
     st.markdown("### Connections")
     ai = h["ai"]
+    P = plain.provider_words()
     with st.container(border=True):
-        st.markdown("**AI** · Nightshift")
+        st.markdown(f"**AI** · {P['name']}")
         if ai["status"] == "online":
             st.badge("Online", icon=":material/check_circle:", color="green")
-            st.caption(f"Model route: `{ai['route']}`" + (f" · {ai['n_models']} models available" if ai.get("n_models") else ""))
+            st.caption(f"Model: `{ai['route']}`" + (f" · {ai['n_models']} models available" if ai.get("n_models") else "") + f" · on {P['where']}")
             if last_latency:
                 st.caption(f"Last AI reply took {last_latency} s")
         elif ai["status"] == "unauthorized":
             st.badge("Key rejected", icon=":material/key_off:", color="orange")
-            st.caption("Nightshift answered but refused INVERSE's access key. Copy the Runtime key from Nightshift's "
-                       "Console into `MODEL_API_KEY` in the server's `.env`, then restart the app.")
+            st.caption(P["key_rejected"])
         else:
             st.badge("Offline", icon=":material/cloud_off:", color="red")
-            st.caption("INVERSE can't reach Nightshift, the app that runs the AI. Runs are paused until it's back.")
+            st.caption(f"INVERSE can't reach {P['name']}, which runs the AI. Runs are paused until it's back.")
             with st.expander("How to reconnect", expanded=True):
-                st.markdown("1. On the computer that runs **Nightshift**, open the Nightshift app.\n"
-                            "2. On that computer, open PowerShell and run:")
-                st.code(f"ssh -N -R 8088:127.0.0.1:8088 {ssh_target}", language="bash")
-                st.markdown("3. Leave that window open, then press **Check again** below.")
+                for i, step in enumerate(P["offline_fix"], 1):
+                    st.markdown(f"{i}. {step.format(ssh_target=ssh_target)}")
     with st.container(border=True):
         st.markdown("**Sensor data** · Zetaris")
         if h["data"]["ok"]:
@@ -176,8 +175,11 @@ def metrics(v):
 def summary(v):
     with st.container(border=True):
         st.markdown("#### In plain words")
-        st.caption("Written by NVIDIA Nemotron through Nightshift. The AI explains the result; it doesn't decide it.")
+        st.caption(plain.written_by(v) + " The AI explains the result; it doesn't decide it.")
         st.markdown(v.get("narrative") or "_No summary was written._")
+        if v.get("narrative_replaced"):
+            st.info("The AI's summary was cut off or contradicted the verdict above, so it was discarded and INVERSE wrote this one "
+                    "from the verified numbers. That is the physics layer keeping the AI honest.", icon=":material/fact_check:")
         bad = v.get("narrative_unverified_numbers") or []
         if bad:
             st.warning("Double-check these numbers in the summary. They don't appear in the results: " + ", ".join(bad),
@@ -262,7 +264,7 @@ def behind(v, events):
     c[2].metric("Skipped (remembered)", s.get("skipped_refuted", "-"), border=True)
     c[3].metric("AI calls", s.get("llm_calls", "-"), border=True)
     st.caption(f"AI models used: {', '.join(v.get('models_used') or ['none'])} · "
-               f"Nightshift route: `{(v.get('nightshift') or {}).get('route', '?')}`")
+               f"{plain.provider_words()['name']} route: `{(v.get('nightshift') or {}).get('route', '?')}`")
     if v.get("world_model"):
         st.caption(f"Shared memory (Meterless World Model): {v['world_model']['entities']} records, "
                    f"{v['world_model']['hypotheses']} explanations for {v.get('equipment')}")

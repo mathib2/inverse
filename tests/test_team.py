@@ -8,7 +8,7 @@ from inverse_core.ledger import InMemoryLedger
 from inverse_core.team import critic as C
 from inverse_core.team.experts import UnsafeSQL, check_sql, safe_eval
 from inverse_core.team.expert import ExpertBudget, ExpertResult, NoEvidence, Task, require_evidence
-from inverse_core.team.lanes import Lanes
+from inverse_core.team.lanes import DEFAULTS as NEMOTRON_LANES, Lanes
 from inverse_core.team.lead import Lead
 from inverse_core.team.llmcall import Ctx
 from inverse_core.team.memory import TeamMemory
@@ -43,7 +43,8 @@ class FakeZetaris:
 
 
 def make_ctx(tmp_path, script, **kw):
-    lanes = Lanes(factory=lambda model: FakeLLM(model, script))
+    # The scripted model is addressed by Nemotron route ids whatever MODEL_PROVIDER the machine's .env sets (test_integration loads it).
+    lanes = Lanes(factory=lambda model: FakeLLM(model, script), mapping=dict(NEMOTRON_LANES))
     return Ctx(lanes, Trace(str(tmp_path)), Budget(max_llm_calls=40), zetaris=FakeZetaris(), guard=lambda n: (n, []), equipment=["P-104"], **kw)
 
 

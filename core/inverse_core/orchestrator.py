@@ -7,7 +7,7 @@ from . import analysis as A
 from .adapters import physical
 from .agents import critic, guard, planner, proposer, reporter
 from .budget import Budget
-from .clients.meterless import NightshiftOffline
+from .clients.meterless import NightshiftOffline, provider
 from .ledger import InMemoryLedger
 from .trace import Trace
 
@@ -33,9 +33,10 @@ class Orchestrator:
     def run(self, question):
         trace, budget = Trace(self.runs_dir, self.on_event), Budget(self.max_rounds, self.max_llm_calls)
         h = self.llm.health()
-        trace.event("nightshift_health", **{k: v for k, v in h.items() if k != "models"})
+        P = provider()                                                      # wording and recovery advice for MODEL_PROVIDER
+        trace.event("nightshift_health", provider=P["id"], **{k: v for k, v in h.items() if k not in ("models", "provider")})
         if h["status"] != "online":
-            raise NightshiftOffline(f"Nightshift is {h['status']}: {h.get('detail', '')}. Start Nightshift on the laptop and reopen the SSH tunnel.")
+            raise NightshiftOffline(f"{P['name']} is {h['status']}: {h.get('detail', '')}. {P['offline_short']}")
         models_used = []
 
         def note_model(m):
@@ -65,13 +66,15 @@ class Orchestrator:
             verdict = self._search(data, eq, notes, stats, trace, budget, note_model, run_id=trace.dir)
         text, bad, m = reporter.report(self.llm, trace, budget, verdict, question)
         note_model(m)
+        replaced = any(e["kind"] == "narrative_replaced" for e in trace.events)   # the model's summary was cut off or contradicted the verdict
         if verdict.get("prior_refutations"):                   # deterministic, not LLM-written: shared memory is the demo's proof
             text += "\n\n**Recalled from shared memory (World Model + H-MEM), not re-fitted:** " + "; ".join(
                 f"`{p['form'][:48]}` was refuted in an earlier run by " + ", ".join(f['validator'] for f in p['failed']) for p in verdict["prior_refutations"]) + "."
         stats["llm_calls"] = budget.llm_calls
         verdict.update({"question": question, "equipment": eq, "narrative": text, "narrative_unverified_numbers": bad,
                         "models_used": models_used, "injection_blocked": blocked, "run_dir": trace.dir,
-                        "nightshift": {"status": h["status"], "route": self.llm.model}})
+                        "narrative_replaced": replaced,
+                        "nightshift": {"status": h["status"], "route": self.llm.model, "provider": P["id"]}})
         verdict.pop("vetoed_entries", None)
         trace.event("verdict", verdict=verdict["verdict"], action=verdict["action"]["type"], stats=stats)
         return verdict

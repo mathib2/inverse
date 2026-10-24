@@ -85,10 +85,31 @@ GLOSSARY = [
     ("95% range", "The value is almost certainly inside this range, given how noisy the sensors are."),
     ("Times the uncertainty", "How far a change is beyond normal noise. Above 3 counts as a real change."),
     ("Physics check", "A calculation that tests an explanation against physical law. The AI can't overrule it."),
-    ("Nightshift", "The Meterless app that runs the AI (NVIDIA Nemotron) for INVERSE."),
     ("Zetaris", "The data platform that joins sensor readings, sensor specs, the equipment list and maintenance notes."),
     ("H-MEM", "Meterless memory. INVERSE remembers which explanations physics ruled out, so it skips them next time."),
 ]
+
+
+def provider_words() -> dict:
+    """Wording for the configured model provider (Nightshift, or a local server such as Ollama), from the client's table."""
+    from inverse_core.clients.meterless import provider
+    return provider()
+
+
+def glossary_terms() -> list[tuple[str, str]]:
+    P = provider_words()
+    entry = ("Nightshift", "The Meterless app that runs the AI (NVIDIA Nemotron) for INVERSE.") if P["id"] == "nightshift" \
+        else (P["name"], f"The model server INVERSE talks to: {P['model_line']}.")
+    return GLOSSARY + [entry]
+
+
+def written_by(v: dict) -> str:
+    """Who wrote the plain-language summary: the served model through the provider, or INVERSE itself."""
+    if v.get("narrative_replaced"):
+        return "Written by INVERSE from the verified result; the AI's own summary was not used."
+    P = provider_words()
+    models = ", ".join(v.get("models_used") or []) or "the configured model"
+    return f"Written by {models} through Nightshift." if P["id"] == "nightshift" else f"Written by {models} ({P['name']})."
 
 
 def check(name: str) -> tuple[str, str]:
@@ -200,7 +221,10 @@ def step(e: dict) -> str | None:
     """One line of live progress for a trace event, or None for events too technical to show."""
     k = e.get("kind")
     if k == "nightshift_health":
-        return "Connected to the AI (Nemotron, through Nightshift)" if e.get("status") == "online" else None
+        return f"Connected to the AI ({provider_words()['model_line']})" if e.get("status") == "online" else None
+    if k == "narrative_replaced":
+        return ("The AI's summary was cut off, so INVERSE wrote the plain-language summary itself" if "truncated" in (e.get("reason") or "")
+                else "The AI's summary contradicted the result, so INVERSE wrote the plain-language summary itself")
     if k == "plan":
         return f"Understood the question: machine {e.get('equipment')}" + ("" if e.get("mass_known", True) else ", weight unknown")
     if k == "zetaris_join":
@@ -235,7 +259,8 @@ def error(exc: Exception, known_equipment=()) -> tuple[str, str]:
     """(title, what to do) for a failed run."""
     name = type(exc).__name__
     if name == "NightshiftOffline":
-        return "The AI went offline", "INVERSE lost its connection to Nightshift. Reconnect it (see AI connection in the sidebar), then try again."
+        return "The AI went offline", (f"INVERSE lost its connection to {provider_words()['name']}, which runs the AI. "
+                                       "Reconnect it (see AI under Connections in the sidebar), then try again.")
     if name == "UnknownEquipment":
         ids = ", ".join(known_equipment) or "P-104, T-200"
         return "Which machine?", f"INVERSE doesn't know the machine in your question. Mention one of: {ids}."
