@@ -1,0 +1,2432 @@
+{
+ "meta": {
+  "date": "2026-10-24 05:55 UTC",
+  "machine": "<workstation> / Linux",
+  "seeds": 20,
+  "trap_seeds": 80,
+  "seconds": 1108.3
+ },
+ "wear_40pct": [
+  {
+   "seed": 0,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 54.2,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.001667068528529476,
+    "k": 0.0006304346434949082
+   },
+   "seconds": 11.14
+  },
+  {
+   "seed": 1,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 52.4,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0037508389262954,
+    "k": 4.3335358466833895e-06
+   },
+   "seconds": 13.46
+  },
+  {
+   "seed": 2,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 51.7,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0032301468681540857,
+    "k": 0.0007478562461045613
+   },
+   "seconds": 10.15
+  },
+  {
+   "seed": 3,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 53.1,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.005889979611099256,
+    "k": 0.0005271549468278636
+   },
+   "seconds": 11.32
+  },
+  {
+   "seed": 4,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 54.1,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.004337997422226213,
+    "k": 0.0004144599418089001
+   },
+   "seconds": 10.87
+  },
+  {
+   "seed": 5,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 53.7,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.008950884543105855,
+    "k": 0.00013156971428131216
+   },
+   "seconds": 11.55
+  },
+  {
+   "seed": 6,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 56.2,
+   "coverage": {
+    "c": false,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.012960055120951885,
+    "k": 0.00025350106685763764
+   },
+   "seconds": 11.07
+  },
+  {
+   "seed": 7,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 54.1,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.005342585027779798,
+    "k": 0.0010882581933672952
+   },
+   "seconds": 12.59
+  },
+  {
+   "seed": 8,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 54.3,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.00013614831895531715,
+    "k": 0.0010209139160296842
+   },
+   "seconds": 11.81
+  },
+  {
+   "seed": 9,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 52.1,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0035410760390908185,
+    "k": 0.00040915108322735704
+   },
+   "seconds": 11.88
+  },
+  {
+   "seed": 10,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 53.8,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0027950196858355413,
+    "k": 0.0011593375142975048
+   },
+   "seconds": 11.78
+  },
+  {
+   "seed": 11,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 52.2,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.005662461460770636,
+    "k": 0.00048729309117163667
+   },
+   "seconds": 10.42
+  },
+  {
+   "seed": 12,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 52.5,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.001265287591337229,
+    "k": 0.0021456273635226354
+   },
+   "seconds": 10.7
+  },
+  {
+   "seed": 13,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 53.0,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0003445232473306018,
+    "k": 0.00014900471791293057
+   },
+   "seconds": 10.93
+  },
+  {
+   "seed": 14,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 53.9,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.004808294586198565,
+    "k": 0.00014220075149054879
+   },
+   "seconds": 12.01
+  },
+  {
+   "seed": 15,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 53.9,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0006503635462278596,
+    "k": 0.0019601890556090497
+   },
+   "seconds": 10.58
+  },
+  {
+   "seed": 16,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 52.0,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.007086196739295765,
+    "k": 0.0019067822886555063
+   },
+   "seconds": 12.18
+  },
+  {
+   "seed": 17,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 52.6,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0021300889240031106,
+    "k": 0.00033136379066590394
+   },
+   "seconds": 10.91
+  },
+  {
+   "seed": 18,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 52.7,
+   "coverage": {
+    "c": false,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.00950447664123095,
+    "k": 0.000137242692515116
+   },
+   "seconds": 11.33
+  },
+  {
+   "seed": 19,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 53.2,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.004167213034657375,
+    "k": 0.000538088877429459
+   },
+   "seconds": 12.0
+  }
+ ],
+ "no_wear": [
+  {
+   "seed": 0,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.1,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.00032089039590887936,
+    "k": 0.0004345397461412404
+   },
+   "seconds": 11.05
+  },
+  {
+   "seed": 1,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.7,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0026609263205641387,
+    "k": 0.00013630477696850108
+   },
+   "seconds": 12.29
+  },
+  {
+   "seed": 2,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.5,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0007914546520805255,
+    "k": 0.0002678404587571492
+   },
+   "seconds": 11.64
+  },
+  {
+   "seed": 3,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.4,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0038870073120353954,
+    "k": 0.0002981008074581837
+   },
+   "seconds": 11.47
+  },
+  {
+   "seed": 4,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.9,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.00553461499758634,
+    "k": 0.00015610388686909004
+   },
+   "seconds": 11.2
+  },
+  {
+   "seed": 5,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 1.0,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.00590397848208446,
+    "k": 1.6942618568691614e-05
+   },
+   "seconds": 12.77
+  },
+  {
+   "seed": 6,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 2.7,
+   "coverage": {
+    "c": false,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.011709752966680753,
+    "k": 0.0005111992671822919
+   },
+   "seconds": 12.29
+  },
+  {
+   "seed": 7,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.5,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0030355550858502944,
+    "k": 0.0010899926054604237
+   },
+   "seconds": 11.71
+  },
+  {
+   "seed": 8,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 1.0,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.000579813914002747,
+    "k": 0.0004289105108658475
+   },
+   "seconds": 12.72
+  },
+  {
+   "seed": 9,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.6,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.003366899931618761,
+    "k": 6.808730765229143e-05
+   },
+   "seconds": 12.26
+  },
+  {
+   "seed": 10,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.6,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.002414298668022674,
+    "k": 0.0011120457284265228
+   },
+   "seconds": 11.89
+  },
+  {
+   "seed": 11,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 1.2,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.005589206908037991,
+    "k": 6.667939465273775e-05
+   },
+   "seconds": 9.97
+  },
+  {
+   "seed": 12,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.4,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0001961363641875824,
+    "k": 0.0014255390157126159
+   },
+   "seconds": 10.78
+  },
+  {
+   "seed": 13,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.5,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.002477184767588403,
+    "k": 0.0005653113776838836
+   },
+   "seconds": 11.45
+  },
+  {
+   "seed": 14,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 1.0,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0059127343967537715,
+    "k": 0.00011472891442380728
+   },
+   "seconds": 11.84
+  },
+  {
+   "seed": 15,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.3,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.00018142094305750867,
+    "k": 0.0011629044534784327
+   },
+   "seconds": 10.73
+  },
+  {
+   "seed": 16,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 1.9,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.007234060761500349,
+    "k": 0.0009789301572834573
+   },
+   "seconds": 12.13
+  },
+  {
+   "seed": 17,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.2,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0026691905257214543,
+    "k": 2.8077636670360562e-05
+   },
+   "seconds": 10.53
+  },
+  {
+   "seed": 18,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.7,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.006831289366688642,
+    "k": 5.877618301738607e-05
+   },
+   "seconds": 12.67
+  },
+  {
+   "seed": 19,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": false,
+   "direction": null,
+   "sigmas": 0.4,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.002521339505135778,
+    "k": 0.00032785560177600815
+   },
+   "seconds": 13.78
+  }
+ ],
+ "small_wear_5pct": [
+  {
+   "seed": 0,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 8.9,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 8.111409767504119e-05,
+    "k": 0.00046085185707454455
+   },
+   "seconds": 9.92
+  },
+  {
+   "seed": 1,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 7.9,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0028718164733321757,
+    "k": 0.00012764724838106644
+   },
+   "seconds": 13.24
+  },
+  {
+   "seed": 2,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 8.0,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0010706703859311585,
+    "k": 0.00031439090812725114
+   },
+   "seconds": 11.24
+  },
+  {
+   "seed": 3,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 9.0,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.004171477173412644,
+    "k": 0.00032628461243930926
+   },
+   "seconds": 12.18
+  },
+  {
+   "seed": 4,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 9.5,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.005475786446073737,
+    "k": 0.00010041116659863292
+   },
+   "seconds": 11.03
+  },
+  {
+   "seed": 5,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 9.5,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.006366697002125094,
+    "k": 7.332779520652366e-07
+   },
+   "seconds": 13.06
+  },
+  {
+   "seed": 6,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 11.4,
+   "coverage": {
+    "c": false,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.012038780301315131,
+    "k": 0.0004424717387664145
+   },
+   "seconds": 11.94
+  },
+  {
+   "seed": 7,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 9.1,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0033623434986010787,
+    "k": 0.0011204177808036774
+   },
+   "seconds": 13.37
+  },
+  {
+   "seed": 8,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 9.5,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0005033640974694804,
+    "k": 0.0004891788943322694
+   },
+   "seconds": 11.81
+  },
+  {
+   "seed": 9,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 8.0,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.003439349063466704,
+    "k": 9.818947358311903e-05
+   },
+   "seconds": 12.24
+  },
+  {
+   "seed": 10,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 9.2,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0025174206589000697,
+    "k": 0.0011341312631437007
+   },
+   "seconds": 11.76
+  },
+  {
+   "seed": 11,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 7.3,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.005640933142421095,
+    "k": 1.6351878049931655e-05
+   },
+   "seconds": 10.16
+  },
+  {
+   "seed": 12,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 8.9,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0003538433157419212,
+    "k": 0.0015241546893739156
+   },
+   "seconds": 11.33
+  },
+  {
+   "seed": 13,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 8.9,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0022186212580528014,
+    "k": 0.0005314672389985731
+   },
+   "seconds": 12.14
+  },
+  {
+   "seed": 14,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 9.5,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.005801220942041792,
+    "k": 0.00013866774955062055
+   },
+   "seconds": 12.47
+  },
+  {
+   "seed": 15,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 8.9,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 5.3119369342100175e-05,
+    "k": 0.0012642491735171291
+   },
+   "seconds": 11.22
+  },
+  {
+   "seed": 16,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 6.7,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.007296141302712621,
+    "k": 0.0010904043310597444
+   },
+   "seconds": 12.01
+  },
+  {
+   "seed": 17,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 8.7,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0026362695582070658,
+    "k": 1.0103617930354857e-05
+   },
+   "seconds": 12.06
+  },
+  {
+   "seed": 18,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 7.9,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0072496016548528885,
+    "k": 6.721037094990834e-05
+   },
+   "seconds": 11.69
+  },
+  {
+   "seed": 19,
+   "baseline_verdict": "ACCEPT",
+   "verdict": "ACCEPT",
+   "flagged": true,
+   "direction": "up",
+   "sigmas": 8.3,
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "rel_err": {
+    "c": 0.0027374415266089884,
+    "k": 0.00035186362794064507
+   },
+   "seconds": 12.76
+  }
+ ],
+ "trap": [
+  {
+   "seed": 0,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.82
+  },
+  {
+   "seed": 1,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 3.84
+  },
+  {
+   "seed": 2,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.7
+  },
+  {
+   "seed": 3,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.39
+  },
+  {
+   "seed": 4,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.32
+  },
+  {
+   "seed": 5,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.58
+  },
+  {
+   "seed": 6,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.32
+  },
+  {
+   "seed": 7,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": false
+   },
+   "seconds": 4.69
+  },
+  {
+   "seed": 8,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.54
+  },
+  {
+   "seed": 9,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.29
+  },
+  {
+   "seed": 10,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": false
+   },
+   "seconds": 3.3
+  },
+  {
+   "seed": 11,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": false,
+    "k": true
+   },
+   "seconds": 4.49
+  },
+  {
+   "seed": 12,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.49
+  },
+  {
+   "seed": 13,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.1
+  },
+  {
+   "seed": 14,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.46
+  },
+  {
+   "seed": 15,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.41
+  },
+  {
+   "seed": 16,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.87
+  },
+  {
+   "seed": 17,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.81
+  },
+  {
+   "seed": 18,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": false
+   },
+   "seconds": 6.19
+  },
+  {
+   "seed": 19,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.5
+  },
+  {
+   "seed": 20,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 3.86
+  },
+  {
+   "seed": 21,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.54
+  },
+  {
+   "seed": 22,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.21
+  },
+  {
+   "seed": 23,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.11
+  },
+  {
+   "seed": 24,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.3
+  },
+  {
+   "seed": 25,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.68
+  },
+  {
+   "seed": 26,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 3.93
+  },
+  {
+   "seed": 27,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.03
+  },
+  {
+   "seed": 28,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.88
+  },
+  {
+   "seed": 29,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.14
+  },
+  {
+   "seed": 30,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 3.55
+  },
+  {
+   "seed": 31,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": false,
+    "k": true
+   },
+   "seconds": 4.09
+  },
+  {
+   "seed": 32,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.19
+  },
+  {
+   "seed": 33,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.44
+  },
+  {
+   "seed": 34,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 3.7
+  },
+  {
+   "seed": 35,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": false,
+    "k": true
+   },
+   "seconds": 5.32
+  },
+  {
+   "seed": 36,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.26
+  },
+  {
+   "seed": 37,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.28
+  },
+  {
+   "seed": 38,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.59
+  },
+  {
+   "seed": 39,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.25
+  },
+  {
+   "seed": 40,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.26
+  },
+  {
+   "seed": 41,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.36
+  },
+  {
+   "seed": 42,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.35
+  },
+  {
+   "seed": 43,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.8
+  },
+  {
+   "seed": 44,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.18
+  },
+  {
+   "seed": 45,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 3.73
+  },
+  {
+   "seed": 46,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.59
+  },
+  {
+   "seed": 47,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.71
+  },
+  {
+   "seed": 48,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.49
+  },
+  {
+   "seed": 49,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": false,
+    "k": true
+   },
+   "seconds": 3.78
+  },
+  {
+   "seed": 50,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.69
+  },
+  {
+   "seed": 51,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.01
+  },
+  {
+   "seed": 52,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.41
+  },
+  {
+   "seed": 53,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 3.77
+  },
+  {
+   "seed": 54,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.81
+  },
+  {
+   "seed": 55,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.28
+  },
+  {
+   "seed": 56,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.27
+  },
+  {
+   "seed": 57,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.38
+  },
+  {
+   "seed": 58,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.22
+  },
+  {
+   "seed": 59,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.94
+  },
+  {
+   "seed": 60,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 6.03
+  },
+  {
+   "seed": 61,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.6
+  },
+  {
+   "seed": 62,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.02
+  },
+  {
+   "seed": 63,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": false,
+    "k": true
+   },
+   "seconds": 4.25
+  },
+  {
+   "seed": 64,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.73
+  },
+  {
+   "seed": 65,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.19
+  },
+  {
+   "seed": 66,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.09
+  },
+  {
+   "seed": 67,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.89
+  },
+  {
+   "seed": 68,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.8
+  },
+  {
+   "seed": 69,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 3.7
+  },
+  {
+   "seed": 70,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.55
+  },
+  {
+   "seed": 71,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.39
+  },
+  {
+   "seed": 72,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.46
+  },
+  {
+   "seed": 73,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 3.53
+  },
+  {
+   "seed": 74,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.39
+  },
+  {
+   "seed": 75,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.13
+  },
+  {
+   "seed": 76,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": true,
+   "bait_fit_better": true,
+   "vetoed_by": [
+    "energy",
+    "stability"
+   ],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.55
+  },
+  {
+   "seed": 77,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.01
+  },
+  {
+   "seed": 78,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 4.23
+  },
+  {
+   "seed": 79,
+   "verdict": "ACCEPT",
+   "accepted": "m*x'' + c*x' + k*x = F(t)",
+   "wrong_model_accepted": false,
+   "negative_damping_vetoed": false,
+   "bait_fit_better": false,
+   "vetoed_by": [],
+   "coverage": {
+    "c": true,
+    "k": true
+   },
+   "seconds": 5.72
+  }
+ ],
+ "refusal": [
+  {
+   "seed": 0,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.17
+  },
+  {
+   "seed": 1,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.18
+  },
+  {
+   "seed": 2,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.17
+  },
+  {
+   "seed": 3,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.15
+  },
+  {
+   "seed": 4,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.18
+  },
+  {
+   "seed": 5,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.18
+  },
+  {
+   "seed": 6,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.2
+  },
+  {
+   "seed": 7,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.17
+  },
+  {
+   "seed": 8,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.14
+  },
+  {
+   "seed": 9,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.14
+  },
+  {
+   "seed": 10,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.17
+  },
+  {
+   "seed": 11,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.14
+  },
+  {
+   "seed": 12,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.12
+  },
+  {
+   "seed": 13,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.13
+  },
+  {
+   "seed": 14,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.14
+  },
+  {
+   "seed": 15,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.13
+  },
+  {
+   "seed": 16,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.15
+  },
+  {
+   "seed": 17,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.12
+  },
+  {
+   "seed": 18,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.14
+  },
+  {
+   "seed": 19,
+   "verdict": "UNIDENTIFIABLE",
+   "refused_before_fitting": true,
+   "next_measurement": "forced response: known force 1 N at 1.5 Hz (apply a known force input and log it",
+   "forced_is_identifiable": true,
+   "seconds": 2.14
+  }
+ ],
+ "summary": {
+  "wear flagged when damping rose 40%": "100% (20 of 20)",
+  "false alarm when nothing changed": "0% (0 of 20)",
+  "small wear (+5%) flagged": "100% (20 of 20)",
+  "wrong (negative-damping) model accepted on trap data": "0% (0 of 80)",
+  "trap data where the bait fit better and was still vetoed": "39% (31 of 80)",
+  "trap data with a negative-damping model vetoed": "39% (31 of 80)",
+  "trap verdicts": {
+   "ACCEPT": 80,
+   "REJECT": 0,
+   "UNIDENTIFIABLE": 0
+  },
+  "mass unknown: refused before any fit": "100% (20 of 20)",
+  "mass unknown but forced: identifiable": "100% (20 of 20)",
+  "95% interval for c contains the planted value": "93% (56 of 60)",
+  "95% interval for k contains the planted value": "100% (60 of 60)",
+  "95% intervals (c and k) cover truth on accepted trap fits": "90% (72 of 80)",
+  "median relative error of c / k on accepted fits": "0.34% / 0.041%",
+  "median seconds per analysis": 4.8
+ }
+}
