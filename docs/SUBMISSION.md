@@ -32,3 +32,4 @@ Deadline: **Tue 27 Oct 2026, 23:45 UTC** (6:45 PM Central). Track: **03, Reasoni
 6. One saved team run on the workstation for the replay segment.
 7. Video recorded (1 to 4 minutes) and the deck exported to PDF.
 8. `README.md` test count and the three scenario numbers match the live app.
+9. Watch mode running on the workstation for the demo (`~/.local/bin/inverse-watch status`), with one autonomous team run saved for the replay segment, its conversation visible.

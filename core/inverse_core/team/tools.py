@@ -7,9 +7,11 @@ from __future__ import annotations
 import fnmatch
 import os
 import re
+import threading
 
 import requests
 
+from .expert import ExpertBudget, Task
 from .experts import check_sql, safe_eval
 
 SECRET_GLOBS = (".env", ".env.*", "*.pem", "*.key", "id_*", "*.p12", "*.pfx", "secrets.toml", "*.kdbx")
@@ -17,6 +19,9 @@ SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", "runs", "vendor", "
 TEXT_EXT = {".py", ".md", ".txt", ".yaml", ".yml", ".toml", ".json", ".ts", ".js", ".sh", ".cfg", ".ini", ".sql", ".html", ".css", ".example"}
 CODE_EXT = {".py", ".ts", ".js", ".sh", ".yaml", ".yml", ".toml", ".cfg", ".ini"}
 MAX_FILE_CHARS, MAX_HITS, MAX_LIST = 8000, 40, 300
+CODE_TOOLS = {"scan", "read_file", "grep", "list_files"}      # an expert holding any of these reviews code: scope-checked by the Lead, not consultable
+CONSULT_BUDGET = {"tool_calls": 3, "tokens": 20000, "seconds": 120}   # what a consulted expert may spend answering one question
+_consult = threading.local()                                   # nesting guard: a consulted expert does not consult another one
 
 # Deterministic weak-spot rules (name, severity, regex, what a hit means). The model triages hits; it cannot invent one.
 SCAN_RULES = [
@@ -55,12 +60,15 @@ class Tools:
         "grep": ("Regex search across repository files. args: {pattern, path?, glob?}", ("pattern",)),
         "scan": ("Deterministic weak-spot scan of repository code: fixed rules, each with a severity. args: {path?}", ()),
         "memory": ("What the team already found or ruled out in earlier tasks and runs. args: {}", ()),
+        "ask_expert": ("Ask another expert of the team one question and get its answer with evidence (it spends part of the run budget). args: {expert, question}", ("expert", "question")),
+        "post_message": ("Leave a short note for another expert (or \"all\") that they see with their next task. args: {to, text}", ("to", "text")),
+        "read_messages": ("Notes, questions and results other experts addressed to you or to all in this run. args: {}", ()),
     }
 
-    def __init__(self, ctx, allowed=None):
+    def __init__(self, ctx, allowed=None, owner=""):
         self.ctx, self.root = ctx, os.path.realpath(getattr(ctx, "root", ".") or ".")
         self.allowed = [t for t in (allowed or list(self.SPECS)) if t in self.SPECS]
-        self.memory = None
+        self.memory, self.owner, self.task_id = None, owner, None            # set per task by the expert that holds this toolbox
 
     def describe(self):
         return "\n".join(f"- {n}: {self.SPECS[n][0]}" for n in self.allowed)
@@ -180,6 +188,64 @@ class Tools:
 
     def _calc(self, expr):
         return {"expr": str(expr), "value": safe_eval(str(expr))}
+
+    # --- talking to other experts ---------------------------------------------------------------------------------------------
+    def _team(self):
+        reg = getattr(self.ctx, "registry", None)
+        if reg is None:
+            raise ToolError("no expert registry is attached to this run")
+        return reg
+
+    def _bus(self):
+        bus = getattr(self.ctx, "bus", None)
+        if bus is None:
+            from .bus import Bus
+            bus = self.ctx.bus = Bus()
+        return bus
+
+    def _ask_expert(self, expert, question):
+        """Runs another expert on one question with a small budget and returns its answer with evidence. The exchange goes on the
+        message bus and into the trace. Not allowed: itself, an expert that reviews code or builds experts (those take tasks only from
+        the lead, after its scope check), and a second level of consultation."""
+        reg, name, me = self._team(), str(expert), self.owner or "an expert"
+        if name not in reg.experts:
+            raise ToolError(f"no expert named {name!r} on the team (known: {', '.join(reg.names())})")
+        if name == self.owner:
+            raise ToolError("an expert cannot consult itself")
+        target = reg.experts[name]
+        if set(getattr(target, "tools", None) or []) & CODE_TOOLS or reg.configs[name].get("kind") == "architect":
+            raise ToolError(f"{name} reviews code or builds experts and takes tasks only from the lead")
+        if getattr(_consult, "depth", 0) >= 1:
+            raise ToolError("a consulted expert cannot consult another one (one level deep)")
+        bus = self._bus()
+        bus.post(me, name, question, type="question", task=self.task_id)
+        _consult.depth = getattr(_consult, "depth", 0) + 1
+        try:
+            res = target.run(Task(f"{self.task_id or me}>{name}", str(question), name), self.memory, ExpertBudget(**CONSULT_BUDGET))
+        except Exception as e:                                                # the consulted expert's failure is the caller's tool error, never the run's
+            why = f"{type(e).__name__}: {str(e)[:160]}"
+            bus.post(name, me, "could not answer: " + why, type="answer", task=self.task_id)
+            self.ctx.trace.event("consult", **{"from": me, "to": name, "question": str(question)[:200], "ok": False, "error": why})
+            raise ToolError(f"{name} could not answer: {why}")
+        finally:
+            _consult.depth -= 1
+        bus.post(name, me, res.answer, type="answer", task=self.task_id, confidence=res.confidence)
+        self.ctx.trace.event("consult", **{"from": me, "to": name, "question": str(question)[:200], "ok": True, "confidence": res.confidence,
+                                            "evidence": len(res.evidence)})
+        return {"expert": name, "answer": res.answer, "confidence": res.confidence, "evidence": [str(e.get("detail") or "")[:200] for e in res.evidence[:4]],
+                "not_checked": [str(n) for n in res.not_checked[:4]]}
+
+    def _post_message(self, to, text):
+        """A note another expert sees with its next task in this run (everyone, with "all")."""
+        to = str(to)
+        if to != "all" and to not in self._team().experts:
+            raise ToolError(f"no expert named {to!r} on the team (use a name or \"all\")")
+        m = self._bus().post(self.owner or "an expert", to, str(text), type="note", task=self.task_id)
+        return {"delivered_to": to, "message": m["n"]}
+
+    def _read_messages(self):
+        return {"messages": [{k: m.get(k) for k in ("from", "to", "type", "task", "text")} for m in self._bus().inbox(self.owner or "", limit=12)]}
+
 
     def _memory(self):
         if self.memory is None:

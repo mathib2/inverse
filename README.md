@@ -18,11 +18,12 @@ After a repair or reassembly, a reliability engineer runs a release test on a ma
 | Criterion | Evidence |
 |---|---|
 | Impact | The user and the decision are above. What that is worth: a wear decision with calibrated uncertainty instead of a guess, and a refusal that says what to measure next. `docs/evidence/EVAL.md`: wear flagged 20 of 20 times when planted, 0 false alarms in 20, refusal 20 of 20 when the data cannot answer. |
-| Technical | `core/inverse_core/`: identifiability by SVD of the sigma-whitened log-parameter Jacobian before any fit; whitened least squares with the initial state as nuisance parameters; Laplace intervals with Birge scaling; six validators; held-out rollouts. Measured interval coverage 93-100% (`docs/evidence/EVAL.md`). 80+ tests, CI on every push. |
+| Technical | `core/inverse_core/`: identifiability by SVD of the sigma-whitened log-parameter Jacobian before any fit; whitened least squares with the initial state as nuisance parameters; Laplace intervals with Birge scaling; six validators; held-out rollouts. Measured interval coverage 93-100% (`docs/evidence/EVAL.md`). 146 tests, CI on every push. |
 | Innovation | Refusal before fitting with the resolving experiment named; a better-fitting model vetoed on physics grounds (0 of 80 trap seeds accepted a negative-damping model); experts that review the plan; a lead that creates an expert when none fits; code-review findings that must point at a real line or are dropped. |
 | Demo | `docs/DEMO_SCRIPT.md` (three segments: a live single-machine run, the refusal, a replayed team run), saved runs replayable in the UI without a model, traces with the served model per call in `docs/evidence/traces/`. Keeping the AI reachable: `docs/agent/NIGHTSHIFT_TUNNEL.md`. |
 | Product & UX | One wording layer (`ui/plain.py`, tests fail on jargon), three one-click scenarios, live progress in plain sentences, a plan you can edit before it runs, an experts panel to change the team without code. |
 | Sponsor tech | The table below and `docs/SPONSORS.md`: every sponsor has a code path, a test and an evidence file. |
+| Unattended operation | `scripts/watch.py` checks Zetaris for new data, runs the physics check, escalates a wear flag, a rejection or a refusal to the team with a goal written by rule, and keeps a manifest per run; inside a run the experts talk through a message bus and can consult each other (`ask_expert`). `docs/agent/AUTONOMY.md`; tests in `tests/test_watch.py` and `tests/test_bus.py`. |
 
 ## What it does (three seeded, reproducible scenarios)
 
@@ -124,6 +125,13 @@ In the UI choose **Mode → Team of experts**: make a plan, edit it in the table
 - **Speed:** independent tasks of a plan level run at the same time (`--parallel`, default 2); the same read-only query is sent to Zetaris once per run; the linear model is solved in closed form.
 - Lanes (`fast`, `deep`, `critic`) map to Nemotron routes in `team/lanes.py`; override with `LANE_*` in `.env`. The serving model of every call is in `runs/<ts>/trace.jsonl`.
 - Team memory lives in H-MEM (`team:shared`); **Forget past results** clears it too. Evidence: `docs/agent/ENGINE_EVIDENCE.md`.
+
+## Runs on its own (watch mode), and the experts talk to each other
+
+`scripts/watch.py` keeps INVERSE working with nobody at the keyboard. Every `WATCH_INTERVAL` seconds (30 minutes by default) it asks Zetaris whether a machine has new sensor data (dataset, row count, last timestamp), runs the physics check on each one that has, and applies one fixed rule: a wear flag, a rejection or a refusal starts a team run with a goal written from the verdict; a clean ACCEPT is logged and left alone. People and the UI can queue goals for the team (`queue/goals.jsonl`, the **Runs on its own** panel, or `scripts/watch.py --queue "..."`); queued goals are taken first. Each run gets a `manifest.json` (what, why, how it ended), the loop writes a heartbeat and a log under `state/`, a run interrupted by a crash is marked and its goal re-queued once, and the memory sidecars are started again if they stop answering. Nothing acts on equipment: it reads, analyses and writes files (and posts to `WATCH_WEBHOOK` if set). On the workstation `~/.local/bin/inverse-watch start|stop|status|log` runs it in tmux. Details: `docs/agent/AUTONOMY.md`.
+
+Inside a team run the experts talk through a message bus (`core/inverse_core/team/bus.py`): every accepted result is announced to the team, the Critic's notes are addressed to the expert they concern, and a tool-using expert can `ask_expert` another one a question (one level deep, with a small budget), `post_message` a note, or `read_messages`. Each expert sees the messages addressed to it with its next task, marked as data from teammates, not instructions. Messages are saved in `runs/<ts>/messages.jsonl` and in the trace, and the UI shows the conversation of any run, live or replayed.
+
 
 ## Honest limitations
 

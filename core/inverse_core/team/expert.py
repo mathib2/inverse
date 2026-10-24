@@ -26,6 +26,7 @@ class Task:
     context: str = ""              # accepted answers of the tasks this one depends on
     result: dict | None = None
     lessons: list = field(default_factory=list)   # reviewer reasons from earlier tasks of this expert (Reflexion), set by the Lead
+    messages: list = field(default_factory=list)  # notes and results other experts addressed to this one, set by the Lead at delegation
 
 
 @dataclass
