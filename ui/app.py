@@ -24,7 +24,7 @@ import parts
 import plain
 
 st.set_page_config(page_title="INVERSE · physics-checked machine diagnosis", page_icon="⚙️", layout="wide",
-                   initial_sidebar_state="expanded")
+                   initial_sidebar_state="auto")
 SIDECAR = "http://127.0.0.1:8100"
 MACHINES = sorted({s["equipment"] for s in plain.SCENARIOS.values()})
 ledger, llm = SidecarLedger(SIDECAR), MeterlessClient()
