@@ -35,5 +35,6 @@ def build(zetaris, ledger, world=None, root=".", runs_dir="runs", on_event=None,
     ctx = Ctx(lanes, trace, Budget(max_llm_calls=max_llm_calls, max_seconds=max_seconds), zetaris=zetaris, physics_runner=physics,
               guard=guard.sanitize, equipment=equipment, root=root, markovian=markovian)
     registry = Registry(ctx, os.path.join(root, "experts"), root)
+    ctx.registry = registry                                           # the architect's tools act on it
     memory = TeamMemory(ledger)
     return Lead(ctx, registry, memory, Critic(ctx)), ctx

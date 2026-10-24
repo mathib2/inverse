@@ -1,0 +1,8 @@
+name: architect
+kind: architect
+role: "Designs, creates and tests a new expert when the team lacks one for a task: give it the need, it returns the name of a tested expert to delegate to."
+system_prompt_file: prompts/architect.md
+tools: [list_experts, design_expert, create_expert, test_expert, memory]
+model_lane: deep
+budget: {tool_calls: 8, tokens: 120000, seconds: 480}
+enabled: true

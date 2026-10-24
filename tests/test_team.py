@@ -74,7 +74,7 @@ def test_plan_round_trips_through_disk(tmp_path):
 def test_registry_loads_yaml_and_disabled_expert_is_absent(tmp_path):
     ctx = make_ctx(tmp_path, lambda m, msgs: "{}")
     reg = Registry(ctx, os.path.join(ROOT, "experts"), ROOT)
-    assert set(reg.names()) == {"physics", "research", "reasoning", "solver", "vulnerability"}
+    assert set(reg.names()) == {"physics", "research", "reasoning", "solver", "vulnerability", "architect"}
     d = tmp_path / "experts"
     d.mkdir()
     (d / "a.yaml").write_text("name: a\nkind: reasoning\nrole: r\nmodel_lane: fast\nenabled: false\n")

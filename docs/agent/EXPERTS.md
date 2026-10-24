@@ -31,6 +31,7 @@ A config error (unknown kind, tool or lane, bad name, non-positive budget) is re
 - **research**: read-only SQL on Zetaris through a guard (single SELECT, known tables only); every claim cites a query, numbers are checked against the rows.
 - **reasoning**: decompose, solve, and recompute every calculation with `safe_eval`; a mismatch triggers one repair turn and is visible to the Critic.
 - **custom**: a bounded tool loop defined only by its config: prompt, tools, lane, budget. One tool call per reply; every tool result is evidence; numbers in the answer that no tool produced lower the confidence and are listed under *not checked*. `solver` is one.
+- **architect**: designs, creates and tests a new expert when the team lacks one. Its tools act on the registry (`list_experts`, `design_expert`, `create_expert`, `test_expert`); what it creates is a `custom` expert with a fixed budget, held to the same scopes and review as any other, and the UI can keep it. The lead may plan a task for an expert that does not exist yet, as long as it depends on the architect's task; when that task's turn comes the Lead checks the expert was created and fails the task clearly otherwise.
 - **vulnerability**: defensive code review of **this repository**. The deterministic `scan` runs first; the model triages its hits and may read code; every finding it reports is then checked against the file (inside the repo, line exists, snippet on that line) and dropped otherwise. Unknown severities are lowered, never raised.
 
 ## Tools (`core/inverse_core/team/tools.py`)
