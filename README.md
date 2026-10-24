@@ -125,6 +125,13 @@ In the UI choose **Mode → Team of experts**: make a plan, edit it in the table
 - Lanes (`fast`, `deep`, `critic`) map to Nemotron routes in `team/lanes.py`; override with `LANE_*` in `.env`. The serving model of every call is in `runs/<ts>/trace.jsonl`.
 - Team memory lives in H-MEM (`team:shared`); **Forget past results** clears it too. Evidence: `docs/agent/ENGINE_EVIDENCE.md`.
 
+## Runs on its own (watch mode), and the experts talk to each other
+
+`scripts/watch.py` keeps INVERSE working with nobody at the keyboard. Every `WATCH_INTERVAL` seconds (30 minutes by default) it asks Zetaris whether a machine has new sensor data (dataset, row count, last timestamp), runs the physics check on each one that has, and applies one fixed rule: a wear flag, a rejection or a refusal starts a team run with a goal written from the verdict; a clean ACCEPT is logged and left alone. People and the UI can queue goals for the team (`queue/goals.jsonl`, the **Runs on its own** panel, or `scripts/watch.py --queue "..."`); queued goals are taken first. Each run gets a `manifest.json` (what, why, how it ended), the loop writes a heartbeat and a log under `state/`, a run interrupted by a crash is marked and its goal re-queued once, and the memory sidecars are started again if they stop answering. Nothing acts on equipment: it reads, analyses and writes files (and posts to `WATCH_WEBHOOK` if set). On the workstation `~/.local/bin/inverse-watch start|stop|status|log` runs it in tmux. Details: `docs/agent/AUTONOMY.md`.
+
+Inside a team run the experts talk through a message bus (`core/inverse_core/team/bus.py`): every accepted result is announced to the team, the Critic's notes are addressed to the expert they concern, and a tool-using expert can `ask_expert` another one a question (one level deep, with a small budget), `post_message` a note, or `read_messages`. Each expert sees the messages addressed to it with its next task, marked as data from teammates, not instructions. Messages are saved in `runs/<ts>/messages.jsonl` and in the trace, and the UI shows the conversation of any run, live or replayed.
+
+
 ## Honest limitations
 
 - **Data is synthetic** (fixed seeds, documented in `data/README.md`); the trap case is constructed (seed 68 was chosen by search; the full trap occurs in 31 of 80 seeds and the wrong model was accepted in 0 of 80). No real plant data was used.

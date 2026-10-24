@@ -1,5 +1,9 @@
 # Changelog
 
+## Runs on its own, and the experts talk (2026-10-24)
+- Watch mode (`scripts/watch.py`, `core/inverse_core/watch.py`): a loop on the workstation checks Zetaris for new sensor data per machine, runs the physics check, decides by rule whether the team is needed (wear flag, rejection, refusal) and runs it with a goal written from the verdict; a manifest per run, a heartbeat, a log, a goal queue people and the UI can write to, recovery of interrupted runs, and a sidecar check. `~/.local/bin/inverse-watch` keeps it running in tmux on the workstation.
+- A message bus (`team/bus.py`): accepted results, the Critic's notes, questions and answers go on `runs/<ts>/messages.jsonl` and the trace; each expert sees the messages addressed to it with its next task. New tools `ask_expert` (consult another expert, one level deep, small budget), `post_message` and `read_messages`; the Solver holds them. The UI shows the conversation of every run and a watch-mode panel.
+
 ## Faster runs (2026-10-24)
 - The Lead runs a plan level by level and executes independent tasks concurrently (default two at a time; `--parallel`); Trace and Budget are thread-safe; a per-run SQL cache shared by the Research expert and the tool layer; plain progress lines for both.
 

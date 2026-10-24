@@ -10,15 +10,15 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from ..budget import BudgetExceeded
+from .bus import Bus
 from .critic import Critic
 from .custom import scope_check
 from .expert import ExpertBudget, Task
 from .llmcall import BadReply, ask
 from .plan import Plan, PlanError
 from .registry import ConfigError
-from .tools import Tools
+from .tools import CODE_TOOLS, Tools
 
-CODE_TOOLS = {"scan", "read_file", "grep", "list_files"}      # any expert that can read code is held to the defensive, own-code scope
 
 PLAN_SYSTEM = """You are the lead of a team of experts. Decompose the user's goal into at most 5 tasks and assign each to ONE expert.
 Delegate by what each task needs. Use depends_on when a task needs another task's result. Do not use an expert you did not list or define.
@@ -49,6 +49,8 @@ class Lead:
         self.ctx, self.registry, self.memory = ctx, registry, memory
         self.critic = critic or Critic(ctx)
         self.max_attempts, self.plan_lane, self.compose_lane = max_attempts, plan_lane, compose_lane
+        self.bus = getattr(ctx, "bus", None) or Bus()                         # the experts' conversation: results, reviews, questions, answers
+        ctx.bus = self.bus
 
     def plan(self, goal, collaborate=False, votes=1):
         """votes > 1 samples that many plans at temperature 0.7 and keeps the most common task/expert structure
@@ -233,7 +235,9 @@ class Lead:
         for attempt in range(1, self.max_attempts + 1):
             task.attempts, task.status = attempt, "running"
             budget = self.registry.budget_for(task.expert)
-            self.ctx.trace.event("delegate", task=task.id, expert=task.expert, attempt=attempt, lane=expert.lane, feedback=task.feedback or None)
+            task.messages = [m for m in self.bus.inbox(task.expert) if not (m.get("type") == "result" and m.get("task") in task.depends_on)]
+            self.ctx.trace.event("delegate", task=task.id, expert=task.expert, attempt=attempt, lane=expert.lane, feedback=task.feedback or None,
+                                 messages=len(task.messages) or None)
             try:
                 res = expert.run(task, self.memory, budget)
             except BudgetExceeded as e:
@@ -284,12 +288,15 @@ class Lead:
             reason = str(review.get("reason") or "")
             if review["verdict"] == "accept":
                 task.status, task.feedback = "done", ""
+                self.bus.post(task.expert, "all", res.answer, type="result", task=task.id, confidence=res.confidence)
                 for f in res.findings:                                        # shared memory only holds what survived review
                     self._mem("add_finding", f"{task.expert}: {str(f.get('claim', ''))[:200]}", f.get("evidence") or [], source=f.get("source", "fitter"),
                               confidence=f.get("confidence", 0.7), expert=task.expert)
                 if res.findings:
                     self.ctx.trace.event("memory_write", task=task.id, findings=len(res.findings))
                 return
+            if reason:                                                        # the reviewer's note goes on the bus, addressed to the expert
+                self.bus.post("critic", task.expert, reason, type="review", task=task.id, verdict=review["verdict"])
             if review.get("by") == "llm" and reason:                         # a reviewer's reason is a lesson for this expert's next tasks
                 self._mem("add_lesson", task.expert, f"{task.goal[:80]}: {reason[:200]}")
             if review["verdict"] == "reject":

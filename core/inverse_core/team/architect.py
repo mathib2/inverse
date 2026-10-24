@@ -11,7 +11,7 @@ from .expert import ExpertBudget, Task
 from .memory import TeamMemory
 from .tools import ToolError, Tools
 
-GRANTABLE = ("run_sql", "calc", "list_files", "read_file", "grep", "scan", "memory")
+GRANTABLE = ("run_sql", "calc", "list_files", "read_file", "grep", "scan", "memory", "ask_expert", "post_message")
 NEW_BUDGET = {"tool_calls": 6, "tokens": 40000, "seconds": 240}
 
 
@@ -81,7 +81,7 @@ class ArchitectExpert(CustomExpert):
 
     def __init__(self, ctx, name, role, prompt, lane, tools):
         super().__init__(ctx, name, role, prompt, lane, tools)
-        self.toolbox = ArchitectTools(ctx, tools)
+        self.toolbox = ArchitectTools(ctx, tools, owner=name)
 
 
 KINDS = {"architect": ArchitectExpert}

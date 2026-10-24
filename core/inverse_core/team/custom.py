@@ -49,7 +49,7 @@ class CustomExpert(BaseExpert):
 
     def __init__(self, ctx, name, role, prompt, lane, tools):
         super().__init__(ctx, name, role, prompt, lane, tools)
-        self.toolbox = Tools(ctx, tools)
+        self.toolbox = Tools(ctx, tools, owner=name)
 
     def _system(self):
         return (self.prompt or self.role) + self.TAIL + self.toolbox.describe()
@@ -97,7 +97,7 @@ class CustomExpert(BaseExpert):
         return f"\nPREVIOUS ATTEMPT (keep what still holds, fix what the reviewer named): answer: {prev.get('answer', '')[:600]}\nits evidence: {ev}"
 
     def run(self, task, memory, budget):
-        self.toolbox.memory = memory
+        self.toolbox.memory, self.toolbox.task_id = memory, task.id
         evidence = []
         j, models = self._loop([{"role": "system", "content": self._system()}, {"role": "user", "content": self._task_text(task) + self._previous(task)}], budget, evidence)
         answer = str(j.get("answer") or "")                                   # null stays empty, and the Lead asks again
@@ -131,7 +131,7 @@ class VulnerabilityExpert(CustomExpert):
             self.ctx.trace.event("refused_scope", agent=self.name, task=task.id, reason=why)
             memory.refute(f"{self.name}: {task.goal[:160]}", "refused: " + why, source="validator", confidence=1.0, expert=self.name)
             return ExpertResult("Refused. " + why, [{"type": "policy", "source": "scope", "detail": "REFUSED: " + why}], 0.0, [], ["the task itself"], [])
-        self.toolbox.memory = memory
+        self.toolbox.memory, self.toolbox.task_id = memory, task.id
         scan = self.toolbox.call("scan", {"path": self._scan_path(task)}, budget, who=self.name)          # deterministic first, always
         evidence = [{"type": "tool", "source": "scan", "result": scan,
                      "detail": "ERROR " + scan["error"] if scan.get("error") else f"{scan.get('total', 0)} pattern hits in {scan.get('files_scanned', 0)} files"}]

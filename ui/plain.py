@@ -322,6 +322,14 @@ def team_step(e: dict) -> str | None:
         return f"{task} rejected: {e.get('reason')}"
     if k == "task_skipped":
         return f"{task} skipped: it needed a task that did not finish"
+    if k == "message":
+        who, to, text, kind = e.get("from"), e.get("to"), str(e.get("text") or "")[:140], e.get("type")
+        if kind == "review":                                                  # the Critic line already says why
+            return None
+        verb = {"question": f"asked {to}", "answer": f"answered {to}", "result": "told the team", "note": f"left {to} a note"}.get(kind, f"wrote to {to}")
+        return f"{who} {verb}: {text}"
+    if k == "consult":
+        return f"{e.get('from')} consulted {e.get('to')}" + (" and got an answer" if e.get("ok") else ", who could not answer")
     if k == "compose":
         n = e.get("unfinished") or 0
         return "The lead wrote the final answer" + (f" ({n} task{'s' if n != 1 else ''} unfinished)" if n else "")

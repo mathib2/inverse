@@ -9,6 +9,7 @@ import time
 import pandas as pd
 import streamlit as st
 
+import autonomy
 import parts
 import plain
 from inverse_core.clients.world import WorldClient
@@ -36,7 +37,7 @@ KIND_HELP = {"physics": "the physics-checked pipeline, unchanged", "research": "
              "architect": "designs, creates and tests a new expert when the team lacks one"}
 NEW = {"name": "", "kind": "custom", "role": "", "tools": ["run_sql", "calc", "memory"], "model_lane": "fast", "budget": {}, "enabled": True}
 TRACE_KINDS = ("llm", "delegate", "tool", "critic", "retry", "stuck", "escalate", "task_failed", "task_rejected", "refused_scope", "plan_review",
-               "expert_created", "memory_write", "llm_parse_error")
+               "expert_created", "memory_write", "llm_parse_error", "message", "consult")
 
 
 def _run_in_thread(fn):
@@ -196,7 +197,15 @@ def _results(plan, out, events, run_dir):
             if t.feedback:
                 st.caption(f"Last feedback: {t.feedback}")
 
-    st.markdown("### 4 · Trace")
+    st.markdown("### 4 · What the experts said to each other")
+    msgs = [e for e in events if e["kind"] == "message"]
+    if not msgs:
+        st.caption("No messages in this run: each expert worked from the lead's task alone.")
+    for m in msgs:
+        icon = {"question": "❓", "answer": "💬", "result": "📣", "review": "🧐", "note": "📝"}.get(m.get("type"), "💬")
+        st.markdown(f"{icon} **{m.get('from')} → {m.get('to')}**" + (f" · {m.get('task')}" if m.get("task") else "") + f": {str(m.get('text') or '')[:400]}")
+
+    st.markdown("### 5 · Trace")
     ev = [e for e in events if e["kind"] in TRACE_KINDS]
     st.dataframe(pd.DataFrame([{"t (s)": e["t"], "event": e["kind"], "task": e.get("task", ""), "lane": e.get("lane", ""), "model": e.get("model", ""),
                                 "detail": str(e.get("reason") or e.get("verdict") or e.get("tool") or e.get("name") or e.get("agent") or "")[:140]} for e in ev]),
@@ -213,6 +222,8 @@ def render(ledger, ai_online, sidecar, health=None):
         parts.status_row(health)
     with st.expander("Experts · customize the team", icon=":material/groups:"):
         experts_editor(lanes)
+    with st.expander("Runs on its own · watch mode", icon=":material/autorenew:"):
+        autonomy.render(ROOT)
 
     st.markdown("### 1 · Goal and plan")
     cols = st.columns(len(EXAMPLES))
