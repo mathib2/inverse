@@ -66,8 +66,9 @@ def test_lead_puts_results_and_reviews_on_the_bus_and_delivers_them_with_the_nex
 
     def script(model, messages):
         system, user = messages[0]["content"], messages[-1]["content"]
-        if system.startswith("You are the Reasoning expert"):
-            return json.dumps({"steps": [{"claim": "c", "calc": "2*3", "expect": 6}], "answer": "six is 6", "confidence": 0.9, "assumptions": []})
+        if system.startswith("You are the Reasoning expert"):                                   # a retry must not repeat itself verbatim
+            again = "REVIEWER SENT THIS BACK" in user
+            return json.dumps({"steps": [{"claim": "c", "calc": "2*3", "expect": 6}], "answer": "six is 6, shown as 2*3" if again else "six is 6", "confidence": 0.9, "assumptions": []})
         if system.startswith("You are the Solver"):
             seen.append(user)
             return json.dumps({"answer": "noted", "confidence": 0.6, "assumptions": [], "not_checked": []})
@@ -84,7 +85,7 @@ def test_lead_puts_results_and_reviews_on_the_bus_and_delivers_them_with_the_nex
     assert [(m["from"], m["to"], m["type"]) for m in ctx.bus.all()] == [("critic", "reasoning", "review"), ("reasoning", "all", "result")]
     t2 = Task("T2", "take note", "solver")                                                  # no dependency: the result reaches it as a message
     lead._execute(t2)
-    assert t2.status == "done" and len(t2.messages) == 1 and t2.messages[0]["text"] == "six is 6"
+    assert t2.status == "done" and len(t2.messages) == 1 and t2.messages[0]["text"] == "six is 6, shown as 2*3"
     assert "MESSAGES FROM TEAMMATES" in seen[0] and "six is 6" in seen[0] and "show the arithmetic" not in seen[0]
     assert os.path.exists(os.path.join(ctx.trace.dir, "messages.jsonl"))
     assert [e.get("messages") for e in events(ctx, "delegate")] == [None, None, 1]

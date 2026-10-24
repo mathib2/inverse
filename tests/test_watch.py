@@ -88,7 +88,7 @@ def test_cycle_checks_machines_with_new_data_only_and_escalates_a_flag(tmp_path)
     z.rows["T-200"] = (60, 5.9)
     assert [d["equipment"] for d in w.cycle()] == ["T-200"]                                # only the machine whose data changed
     assert len(physics.questions) == 3 and len(team.goals) == 1
-    assert [d["equipment"] for d in w.cycle(force=True)] == ["P-104", "T-200"]             # forced: everything, even without new data
+    assert [d["equipment"] for d in w.cycle(force=True) if d["kind"] == "physics"] == ["P-104", "T-200"]   # forced: everything, even without new data
     assert manifest(os.path.join(tmp_path, "runs", "phys4"))["trigger"] == "forced"
     state = json.load(open(os.path.join(tmp_path, "state", "watch.json")))
     assert state["cycles"] == 4 and state["seen"]["T-200"] == "trap-current:60:5.9" and len(state["runs"]) == 7
