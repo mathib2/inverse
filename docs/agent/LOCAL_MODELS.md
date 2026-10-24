@@ -6,8 +6,8 @@ follow the setting.
 
 | `MODEL_PROVIDER` | What runs the AI | When to use it |
 |---|---|---|
-| `nightshift` (default) | Meterless Nightshift on a Windows laptop, reached through an SSH reverse tunnel (`docs/agent/NIGHTSHIFT_TUNNEL.md`); NVIDIA Nemotron routes | The sponsor path: the demo recording and the live evaluation |
-| `ollama` | Ollama in Docker on the workstation itself, free local models on the CPU | Development, tests against a real model, unattended runs: nothing depends on a laptop or on credits |
+| `nightshift` | Meterless Nightshift on a Windows laptop, reached through an SSH reverse tunnel (`docs/agent/NIGHTSHIFT_TUNNEL.md`); NVIDIA Nemotron routes | The sponsor path: the demo recording and the live evaluation |
+| `ollama` (default) | Ollama in Docker on the workstation itself, free local models on the CPU | Development, tests against a real model, unattended runs: nothing depends on a laptop or on credits |
 | `openai` | Any other OpenAI-compatible server named in `MODEL_BASE_URL` | Whatever you have |
 
 ## The lab (set up 2026-10-24)

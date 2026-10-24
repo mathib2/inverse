@@ -63,7 +63,7 @@ PROVIDERS = {
 
 
 def provider_id() -> str:
-    return (os.environ.get("MODEL_PROVIDER") or "nightshift").strip().lower()
+    return (os.environ.get("MODEL_PROVIDER") or "ollama").strip().lower()          # local by default; nightshift is the sponsor path
 
 
 def provider() -> dict:

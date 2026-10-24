@@ -1,4 +1,5 @@
 name: reasoning
+callsign: Euler
 kind: reasoning
 role: "Decompose a hard question into steps, solve it, and self-check every calculation. Use for derivations, estimates and comparing results."
 system_prompt_file: prompts/reasoning.md

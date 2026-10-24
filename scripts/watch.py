@@ -18,6 +18,18 @@ from inverse_core.watch import Watcher  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNS = os.path.join(ROOT, "runs")
+MISSIONS = os.path.join(ROOT, "missions.yaml")
+
+
+def load_missions():
+    """Standing missions the crew runs on its own (missions.yaml at the repository root)."""
+    try:
+        import yaml
+        with open(MISSIONS) as f:
+            rows = yaml.safe_load(f) or []
+    except (OSError, ValueError):
+        return []
+    return [m for m in rows if isinstance(m, dict) and m.get("name") and m.get("goal")]
 SIDECARS = {8100: "/healthz", 8101: "/healthz"}
 
 
@@ -80,7 +92,7 @@ def main():
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(8)
 
-    w = Watcher(z, physics, team, root=ROOT, interval=a.interval, equipment=a.equipment, log=lambda s: print(s, flush=True),
+    w = Watcher(z, physics, team, root=ROOT, interval=a.interval, equipment=a.equipment, missions=load_missions(), log=lambda s: print(s, flush=True),
                 webhook=os.environ.get("WATCH_WEBHOOK"), services=services)
     try:
         w.loop(once=a.once, force=a.force)

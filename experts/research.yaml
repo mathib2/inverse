@@ -1,4 +1,5 @@
 name: research
+callsign: Scout
 kind: research
 role: "Look facts up in the Zetaris data (equipment registry, sensor specs, maintenance history, samples) and cite every claim to a query."
 system_prompt_file: prompts/research.md

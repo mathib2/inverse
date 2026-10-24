@@ -1,4 +1,5 @@
 name: solver
+callsign: Ada
 kind: custom
 role: "Solve hard multi-step problems that mix facts and calculations: looks up what each step needs, computes every number with the calculator, and checks it against what the team already knows."
 system_prompt_file: prompts/solver.md
