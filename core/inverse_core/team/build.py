@@ -5,6 +5,7 @@ import os
 
 from ..agents import guard
 from ..budget import Budget
+from ..clients.markovian import MarkovianClient
 from ..orchestrator import Orchestrator
 from ..trace import Trace
 from .critic import Critic
@@ -23,8 +24,16 @@ def build(zetaris, ledger, world=None, root=".", runs_dir="runs", on_event=None,
     def physics(question):                                            # the single-agent pipeline, unchanged, on its own lane client
         return Orchestrator(zetaris, ledger, lanes.client("deep"), runs_dir=runs_dir, world=world).run(question)
 
+    markovian = None
+    try:                                                              # Meterless Markovian service (markovian/serve.ts), if it is running
+        mk = MarkovianClient(os.environ.get("MARKOVIAN_URL", "http://127.0.0.1:8101"), timeout=120)
+        mk.health()
+        markovian = mk
+    except Exception:
+        pass
+    trace.event("engines", hmem=type(ledger).__name__, markovian=markovian is not None)
     ctx = Ctx(lanes, trace, Budget(max_llm_calls=max_llm_calls, max_seconds=max_seconds), zetaris=zetaris, physics_runner=physics,
-              guard=guard.sanitize, equipment=equipment, root=root)
+              guard=guard.sanitize, equipment=equipment, root=root, markovian=markovian)
     registry = Registry(ctx, os.path.join(root, "experts"), root)
     memory = TeamMemory(ledger)
     return Lead(ctx, registry, memory, Critic(ctx)), ctx

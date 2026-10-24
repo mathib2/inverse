@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "setup": "mkdir -p vendor && rm -rf vendor/hmem vendor/world-model && cp -r ${METERLESS_REPO:-$HOME/vendor/Meterless}/engines/hmem/reference vendor/hmem && cp -r ${METERLESS_REPO:-$HOME/vendor/Meterless}/engines/world-model/reference vendor/world-model && (cd vendor/hmem && npm install --no-audit --no-fund) && (cd vendor/world-model && npm install --no-audit --no-fund)",
-    "start": "tsx server.ts"
+    "setup": "mkdir -p vendor && rm -rf vendor/hmem vendor/world-model && cp -r ${METERLESS_REPO:-$HOME/vendor/Meterless}/engines/hmem/reference vendor/hmem && cp -r ${METERLESS_REPO:-$HOME/vendor/Meterless}/engines/world-model/reference vendor/world-model && (cd vendor/hmem && npm install --no-audit --no-fund) && (cd vendor/world-model && npm install --no-audit --no-fund) && rm -rf vendor/markovian && cp -r ${METERLESS_REPO:-$HOME/vendor/Meterless}/engines/markovian/reference vendor/markovian && rm -rf vendor/markovian/node_modules",
+    "start": "tsx server.ts",
+    "markovian": "tsx markovian/serve.ts"
   },
   "devDependencies": {
     "tsx": "^4.19.0"

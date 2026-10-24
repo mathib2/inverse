@@ -11,10 +11,11 @@ class BadReply(ValueError):
 class Ctx:
     """What an expert needs from the host app. Built once per run and passed to the registry."""
 
-    def __init__(self, lanes, trace, budget, zetaris=None, physics_runner=None, guard=None, equipment=(), root="."):
+    def __init__(self, lanes, trace, budget, zetaris=None, physics_runner=None, guard=None, equipment=(), root=".", markovian=None):
         self.lanes, self.trace, self.budget = lanes, trace, budget
         self.zetaris, self.physics_runner, self.guard, self.equipment = zetaris, physics_runner, guard, list(equipment)
         self.root = root                                                      # the repository experts may read (code we own)
+        self.markovian = markovian                                            # Meterless Markovian client when the service is up, else None
 
 
 def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False):
@@ -28,7 +29,7 @@ def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=Fals
     if ebudget:
         ebudget.charge_tokens(r.get("usage"))
     ctx.trace.event("llm", agent=who, lane=lane, model=r.get("model"), latency_s=r.get("latency_s"), finish=r.get("finish_reason"))
-    out = {"text": r["text"], "model": r.get("model")}
+    out = {"text": r["text"], "model": r.get("model"), "usage": r.get("usage")}
     if json_reply:
         try:
             out["json"] = extract_json(r["text"])
