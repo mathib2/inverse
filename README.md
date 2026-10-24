@@ -48,7 +48,7 @@ Every step: JSONL trace in runs/<ts>/ · every veto: H-MEM ledger, source=valida
 | **Meterless H-MEM** | The hypothesis ledger across runs (Node sidecar over the real reference implementation). Refutations persist; trust is by source, so a validator's veto cannot be overwritten by an LLM claim. Passes its conformance suite (`docs/evidence/hmem-conformance.txt`, 13/13). |
 | **Meterless Nightshift** | The only LLM provider. All calls go through its OpenAI-compatible Runtime (`core/inverse_core/clients/meterless.py`), with the required headers, retry and a fail-fast health indicator. |
 | **NVIDIA Nemotron** | Proposer, Critic and Reporter run on Nemotron lanes through Nightshift. The serving model reported by each response is stored in every trace (`docs/evidence/traces/`, `models_used` in the verdict). |
-| Dev tooling | Claude Code on the team's OptiPlex. The Cursor requirement was waived by the organizers (**TODO: add announcement date before submitting**). |
+| Dev tooling | Claude Code on the team's OptiPlex. The Cursor requirement was waived by the organizers. |
 
 Not integrated: Markovian and Scout Intent. The injection guard (`agents/guard.py`) is a **heuristic stand-in**; the Scout Intent engine is not integrated.
 
