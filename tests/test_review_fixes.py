@@ -2,14 +2,11 @@
 import json
 import os
 
-import numpy as np
 import pytest
-from scipy.integrate import solve_ivp
 from test_markovian import FakeMarkovian, repo2
 from test_team import FakeZetaris, events, make_ctx
 from test_team_experts import repo
 
-from inverse_core import models as M
 from inverse_core.budget import BudgetExceeded
 from inverse_core.clients.markovian import ensure_marker
 from inverse_core.ledger import InMemoryLedger
