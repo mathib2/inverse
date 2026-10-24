@@ -45,6 +45,10 @@ All read-only, all charged to the expert's budget, every call traced (`tool` eve
 | `scan` | fixed weak-spot rules with severities | code and config files; `tests/` skipped |
 | `memory` | what the team found or ruled out | H-MEM, namespace `team:shared` |
 
+## Long reviews through Markovian
+
+When the Markovian service is up (`npm run markovian` in `services/meterless-sidecar`, port 8101) and a review touches two or more files, the vulnerability expert runs it as a Meterless Markovian chain: one bounded chunk per file (the scan hits plus the code around them), a compressed carryover state between chunks instead of the whole history, findings verified per chunk, and the H-MEM team memory injected into the first chunk. The trace records `markovian_start`, one `markovian_chunk` per file and `markovian_done` with the engine's estimated savings and the measured Nightshift usage. Without the service the expert falls back to its single tool loop.
+
 ## Collaboration on the plan
 
 With `--collaborate` (CLI) or the UI toggle, each expert that has a task reviews the plan from its own seat before anything runs: the physics expert by rule, the others on their own lane with their own prompt. An expert may reword **only its own tasks**; the lead applies the changes, records a `plan_review` event (what changed, what is missing) and re-validates the plan. The user still edits and approves the plan in the UI.
