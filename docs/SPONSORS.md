@@ -30,7 +30,7 @@ Details and file:line pointers: `docs/agent/ENGINE_EVIDENCE.md`.
 
 **Where:** `core/inverse_core/team/lanes.py` (`fast`, `deep`, `critic` map to Nemotron routes, overridable with `LANE_*`), `agents/proposer.py`, `agents/critic.py`, `agents/reporter.py`, `team/lead.py`.
 
-**Evidence:** every trace records the served model per call (`llm` events, `models_used`); today's live single-agent runs show Nemotron-proposed candidates reaching the fit (`survivor` events for `llm_*` forms). Nightshift's router may serve a different Nemotron model than the lane asked for; the trace tells the truth.
+**Evidence:** every trace records the served model per call (`llm` events, `models_used`) and the Proposer's prompt and reply. What the committed traces (`docs/evidence/traces/`) show, honestly: the SINDy library (linear and full nonlinear forms) is fitted in round 1, and a Nemotron proposal reaches the fit only when it is a term combination the library did not already try (`analysis.evaluate` skips forms already fitted; a form string never carries an `llm_` prefix, that is only the model's internal name). In those traces every proposal was either unparseable (traced as `proposer_parse_error`) or a repeat of a library form, so no survivor came from a proposal. The Proposer and the Critic now ask the runtime for one JSON object (`response_format: json_object`), which removes the parse errors seen there. Nightshift's router may serve a different Nemotron model than the lane asked for; the trace tells the truth.
 
 ## Cursor (build)
 

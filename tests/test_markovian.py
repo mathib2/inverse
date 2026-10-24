@@ -129,3 +129,7 @@ def test_reference_engine_drives_a_three_chunk_chain(markovian_server):
             assert r["step"] == i + 1 and r["carryover"].startswith(f"COMPLETED: f{i}")
     assert r["done"] and r["status"] == "completed" and len(r["chunks"]) == 3 and r["measured"] == {"prompt_tokens": 300, "completion_tokens": 30, "calls": 3}
     assert r["chunks"][1]["carryover_in"].startswith("COMPLETED: f1") and r["chunk_config"]["carryoverTokens"] == 600
+
+
+def test_client_default_url_is_the_markovian_service_not_the_hmem_sidecar():
+    assert MarkovianClient().url == "http://127.0.0.1:8101"

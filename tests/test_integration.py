@@ -95,3 +95,15 @@ def test_team_memory_on_hmem_survives_runs_and_breaks_without_engine(sidecar):
     _kill(proc); time.sleep(0.5)
     with pytest.raises(requests.exceptions.RequestException):
         TeamMemory(L.SidecarLedger(url)).refuted()
+
+
+def test_sidecar_answers_400_to_a_malformed_body_and_stays_alive(sidecar):
+    """One bad POST used to kill the only memory process (JSON.parse with no try/catch)."""
+    url, p = sidecar
+    r = requests.post(url + "/ledger/hypotheses", data=b"{not json", headers={"content-type": "application/json"}, timeout=5)
+    assert r.status_code == 400 and "bad JSON body" in r.json()["error"]
+    r = requests.post(url + "/ledger/hypotheses", json={"equipment": "E"}, timeout=5)        # parses, but no hypothesis: an error for that request only
+    assert r.status_code == 500
+    assert requests.get(url + "/healthz", timeout=3).json()["ok"] is True and p.poll() is None
+    assert requests.post(url + "/ledger/hypotheses", json={"equipment": "E", "hypothesis": {"form": "f", "status": "refuted"}, "source": "validator",
+                                                             "confidence": 0.9}, timeout=5).status_code == 200

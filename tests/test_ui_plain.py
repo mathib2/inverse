@@ -95,3 +95,8 @@ def test_team_progress_lines_are_plain(tmp_path):
     assert any(line.startswith("T1 sent back by a fixed rule") for line in lines) and any("will be retried" in line for line in lines)
     assert lines[-1].startswith("The lead wrote the final answer")
     assert [line for line in lines if any(r in line for r in RAW)] == []
+
+
+def test_the_unknown_mass_limit_is_said_plainly():
+    title, what = plain.error(NotImplementedError("Mass is unknown but identifiable from this data; fitting with a free mass is not implemented."))
+    assert title == "Not supported in this version" and "registry" in what and "NotImplementedError" not in what
