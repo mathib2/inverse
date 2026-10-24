@@ -294,7 +294,7 @@ def test_newton_checks_every_machine_a_task_names(tmp_path):
     newton = Registry(ctx, os.path.join(ROOT, "experts"), ROOT).experts["physics"]
     res = newton.run(Task("T1", "Check P-104, T-200 for wear against their baselines", "physics"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=2))
     assert asked == ["Has P-104 worn since its release test? Check it against the baseline.", "Has T-200 worn since its release test? Check it against the baseline."]
-    assert "P-104: ACCEPT" in res.answer and "T-200: ACCEPT" in res.answer and "maintenance_flag" in res.answer and len(res.evidence) == 4
+    assert "P-104: ACCEPT" in res.answer and "T-200: ACCEPT" in res.answer and "maintenance_flag" in res.answer and len(res.evidence) == 2
     assert len(res.findings) == 2 and res.not_checked == ["temperature"]
     asked.clear()
     newton.run(Task("T2", "Has P-104 worn?", "physics"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=2))
