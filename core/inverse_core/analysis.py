@@ -6,7 +6,7 @@ import numpy as np
 
 from . import validators as V
 from .adapters import physical
-from .inference import drift as D, fit as F, identifiability as I, next_measurement as N, selection as S
+from .inference import conformal as C, drift as D, fit as F, identifiability as I, next_measurement as N, selection as S
 from .models import COEF_UNITS, linear
 from .validators.validity import regime
 
@@ -84,6 +84,8 @@ def finalize(data, equipment, ledger, fitted, vetoed, stats, baseline=None, extr
                 "stats": stats, "models_used": list(models_used), "vetoed": [_summ(e) for e in vetoed]}
     best = min(fitted, key=lambda e: (e["bic"], e["heldout_rmse"]))
     model, f = best["model"], best["fit"]
+    conf = C.band(model, f["theta"], best.get("data", data))                # distribution-free band on the unseen tail; reported, not a veto
+    conf_items = [{"validator": "conformal", "passed": True, "detail": C.describe(conf)}] if conf else []
     ledger.record(equipment, {"form": model.form(), "status": "supported", "bic": best["bic"], "heldout_rmse": best["heldout_rmse"]}, "validator", 0.9)
     now = {n: (float(v), float(s)) for n, v, s in zip(model.free, f["theta"], f["sd"])}
     baseline = baseline or ledger.baseline(equipment)
@@ -96,8 +98,8 @@ def finalize(data, equipment, ledger, fitted, vetoed, stats, baseline=None, extr
         action = {"type": "none", "detail": "no parameter drift beyond uncertainty" if baseline else "no baseline available", "drift": drifts}
     return {**base, "verdict": "ACCEPT",
             "model": {"form": model.form(), "parameters": _params(model, f), "rmse": f["rmse"], "bic": best["bic"], "heldout_rmse": best["heldout_rmse"],
-                      "reduced_chi2": f["chi2_red"], "initial_state": f["y0"]},
-            "evidence": [{"validator": v["validator"], "passed": v["passed"], "detail": v["evidence"]} for v in best["validators"]] + list(extra_evidence),
+                      "reduced_chi2": f["chi2_red"], "initial_state": f["y0"], "conformal": conf},
+            "evidence": [{"validator": v["validator"], "passed": v["passed"], "detail": v["evidence"]} for v in best["validators"]] + conf_items + list(extra_evidence),
             "tests_failed": [], "not_checked": ["nonlinear damping above the sampled frequency range", "temperature dependence", "forced operation (data is free decay)"],
             "falsifier": "a no-input rollout whose energy rises, or held-out data the model mispredicts beyond noise",
             "regime": regime(data), "action": action, "stats": stats, "models_used": list(models_used),

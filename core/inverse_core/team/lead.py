@@ -49,23 +49,58 @@ class Lead:
         self.critic = critic or Critic(ctx)
         self.max_attempts, self.plan_lane, self.compose_lane = max_attempts, plan_lane, compose_lane
 
-    def plan(self, goal, collaborate=False):
+    def plan(self, goal, collaborate=False, votes=1):
+        """votes > 1 samples that many plans at temperature 0.7 and keeps the most common task/expert structure
+        (self-consistency, Wang et al. 2022): a majority over samples is more reliable than one greedy decode."""
         prompt = PLAN_SYSTEM.format(experts="\n".join(f"- {n}: {r}" for n, r in self.registry.roles().items()),
                                     equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(Tools.SPECS))
         msgs = [{"role": "system", "content": prompt}, {"role": "user", "content": goal}]
+        if votes > 1:
+            plan = self._vote(goal, msgs, votes)
+            if plan is not None:
+                return self.review_plan(plan) if collaborate else plan
         err = ""
         for _ in range(2):
             out = ask(self.ctx, self.plan_lane, msgs, "lead_plan", json_reply=True)
             try:
-                for spec in (out["json"].get("new_experts") or [])[:2]:
-                    self._create_expert(spec)
-                plan = Plan.from_dict({"goal": goal, "tasks": out["json"]["tasks"][:5]}).validate(self.registry.names(), self.creators())
+                plan = self._parse_plan(goal, out["json"])
                 self.ctx.trace.event("plan", goal=goal, tasks=[t.__dict__ | {"result": None} for t in plan.tasks], model=out["model"])
                 return self.review_plan(plan) if collaborate else plan
             except (PlanError, ConfigError, KeyError, TypeError, AttributeError) as e:
                 err = str(e)
                 msgs += [{"role": "assistant", "content": out["text"]}, {"role": "user", "content": "Invalid plan: " + err + ". Return corrected JSON."}]
         raise PlanError("the planner could not produce a valid plan: " + err)
+
+    def _parse_plan(self, goal, j):
+        for spec in (j.get("new_experts") or [])[:2]:
+            self._create_expert(spec)
+        return Plan.from_dict({"goal": goal, "tasks": j["tasks"][:5]}).validate(self.registry.names(), self.creators())
+
+    @staticmethod
+    def signature(plan):
+        """What a plan is, structurally: which expert does how many tasks, and how many dependencies each has."""
+        return tuple(sorted((t.expert, len(t.depends_on)) for t in plan.tasks))
+
+    def _vote(self, goal, msgs, votes):
+        samples, invalid = [], 0
+        for i in range(votes):
+            out = ask(self.ctx, self.plan_lane, msgs, f"lead_plan_sample{i + 1}", json_reply=True, temperature=0.7)
+            try:
+                samples.append((self._parse_plan(goal, out["json"]), out["model"]))
+            except (PlanError, ConfigError, KeyError, TypeError, AttributeError, ValueError):
+                invalid += 1
+        if not samples:
+            self.ctx.trace.event("plan_votes", samples=0, invalid=invalid, chosen=None)
+            return None
+        counts = {}
+        for p, _ in samples:
+            counts[self.signature(p)] = counts.get(self.signature(p), 0) + 1
+        best = max(counts.items(), key=lambda kv: kv[1])[0]
+        plan, model = next((p, m) for p, m in samples if self.signature(p) == best)
+        self.ctx.trace.event("plan_votes", samples=len(samples), invalid=invalid, agreement=counts[best],
+                             signatures=[" ".join(f"{e}:{d}" for e, d in s) for s in counts], chosen=" ".join(f"{e}:{d}" for e, d in best))
+        self.ctx.trace.event("plan", goal=goal, tasks=[t.__dict__ | {"result": None} for t in plan.tasks], model=model, votes=votes)
+        return plan
 
     def creators(self):
         """Experts that can create experts (the architect kind): a plan may assign a task to a not-yet-existing expert if it depends on them."""
@@ -147,6 +182,9 @@ class Lead:
                 self.memory.refute(f"{task.expert}: {task.goal[:160]}", "refused: " + why, source="validator", confidence=1.0, expert=task.expert)
                 self.ctx.trace.event("task_rejected", task=task.id, reason=task.feedback)
                 return
+        task.lessons = self.memory.lessons(task.expert)                      # what reviewers told this expert before (Reflexion)
+        if task.lessons:
+            self.ctx.trace.event("lessons", task=task.id, expert=task.expert, count=len(task.lessons))
         last, repeats = None, 0
         for attempt in range(1, self.max_attempts + 1):
             task.attempts, task.status = attempt, "running"
@@ -200,6 +238,8 @@ class Lead:
                 if res.findings:
                     self.ctx.trace.event("memory_write", task=task.id, findings=len(res.findings))
                 return
+            if review["by"] == "llm":                                       # a reviewer's reason is a lesson for this expert's next tasks
+                self.memory.add_lesson(task.expert, f"{task.goal[:80]}: {review['reason'][:200]}")
             if review["verdict"] == "reject":
                 task.status, task.feedback = "rejected", review["reason"]
                 self.memory.refute(f"{task.expert}: {res.answer[:200]}", review["reason"], source="llm_critic" if review["by"] == "llm" else "validator",

@@ -18,13 +18,15 @@ class Ctx:
         self.markovian = markovian                                            # Meterless Markovian client when the service is up, else None
 
 
-def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False):
+def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False, temperature=None):
     """json_reply asks the runtime for one JSON object and parses it; a reply that still cannot be parsed is traced
     (first 300 characters) before the error propagates, so a failed run explains itself."""
     ctx.budget.charge_llm()
     kw = {"max_tokens": max_tokens} if max_tokens else {}
     if json_reply:
         kw["json_object"] = True
+    if temperature is not None:
+        kw["temperature"] = temperature
     r = ctx.lanes.client(lane).chat(messages, **kw)
     if ebudget:
         ebudget.charge_tokens(r.get("usage"))

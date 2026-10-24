@@ -53,6 +53,7 @@ CHECKS = {
     "validity": ("Stays in the tested range", "Predictions stay within the movements that were actually measured."),
     "fit_quality": ("Matches the data", "What's left over looks like ordinary sensor noise."),
     "identifiability": ("Data can answer the question", "The measurements pin down every number being asked for."),
+    "conformal": ("Predicts unseen data within its band", "Fitted on the first half, band set on the next fifth; the share of the unseen last 30% inside the 90% band is reported."),
     "falsifier:early_split_refit": ("Predicts data it hasn't seen", "Trained on the first half, it predicts the second half."),
     "falsifier:long_horizon_energy": ("Long-run energy test", "Simulated 20 times longer, its energy still never rises."),
     "falsifier:larger_release": ("Bigger-push test", "Started from a 1.5 times bigger movement, it stays stable."),
