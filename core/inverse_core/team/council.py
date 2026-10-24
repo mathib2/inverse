@@ -116,7 +116,7 @@ class Council:
             self._event("proposal_dropped", by=by, reason=f"{p['id']} was already {self.proposals[p['id']]['status']}", id=p["id"])
             return None
         e = self._write({"v": "P", **p})
-        self._event("proposal_filed", id=p["id"], by=p["by"], kind=p["k"], target=p["t"], what=p["w"], support=1)
+        self._event("proposal_filed", id=p["id"], by=p["by"], k=p["k"], target=p["t"], what=p["w"], support=1)
         return self.proposals[p["id"]]
 
     def support(self, id, by):
