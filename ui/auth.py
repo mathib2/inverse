@@ -8,7 +8,6 @@ import secrets
 import time
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 COOKIE, DAYS, ITERATIONS = "inverse_session", 7, 200_000
 _FAILS = {"n": 0}                                                             # failed sign-ins since the last success, process-wide
@@ -73,7 +72,7 @@ def _write_cookie(value, max_age):
     """Set (or clear, with max_age 0) the session cookie from the page itself; the component iframe shares the page's origin."""
     script = (f"<script>(function(){{var c='{COOKIE}={value}; path=/; max-age={max_age}; SameSite=Lax';"
               "try{window.parent.document.cookie=c;}catch(e){try{document.cookie=c;}catch(e2){}}})();</script>")
-    components.html(script, height=0)
+    st.iframe(script, height=1)                                           # a same-origin iframe: its script may set the page's cookie
 
 
 def require():
