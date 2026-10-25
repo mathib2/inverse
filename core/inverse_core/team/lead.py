@@ -151,7 +151,7 @@ class Lead:
             plan.tasks[0].expert, _ = "solver", changes.append(f"{plan.tasks[0].id}: -> solver (a summary needs the shared memory)")
             if "memory" not in plan.tasks[0].goal.lower():
                 plan.tasks[0].goal += " Use the shared memory tool first."
-        if CALC_WORDS.search(plan.goal) and "reasoning" in names and not any(t.expert in ("reasoning", "solver") for t in plan.tasks) and len(plan.tasks) < 5:
+        if CALC_WORDS.search(plan.goal) and "reasoning" in names and plan.tasks and all(t.expert == "research" for t in plan.tasks) and len(plan.tasks) < 5:   # lookups only
             deps = [t.id for t in plan.tasks]
             plan.tasks.append(Task(f"T{len(plan.tasks) + 1}", f"Using the accepted results from the earlier tasks, answer this in plain words: {plan.goal}", "reasoning", deps))
             changes.append(f"{plan.tasks[-1].id}: reasoning added (the goal asks for a computation)")
