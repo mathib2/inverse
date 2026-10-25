@@ -1,3 +1,7 @@
-import os
+import pytest
 
-os.environ.setdefault("INVERSE_IGNORE_LOCAL_EXPERTS", "1")   # the suite never sees a checkout's experts.local overrides
+
+@pytest.fixture(autouse=True)
+def _own_local_experts(tmp_path, monkeypatch):
+    """Every test gets its own experts.local, so a checkout's live overrides (the council's, the UI's) never reach the suite."""
+    monkeypatch.setenv("INVERSE_EXPERTS_LOCAL", str(tmp_path / "experts.local"))

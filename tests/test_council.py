@@ -221,7 +221,7 @@ def test_rules_file_proposals_from_what_a_run_showed(tmp_path):
 def test_self_serving_changes_need_a_second_backer_and_rule_filed_ones_too(tmp_path):
     def script(model, messages):
         system = messages[0]["content"]
-        if system.startswith("You are the council's reviewer"):
+        if system.startswith("You are the council's reviewer") or "The council asks whether these changes to YOU" in system:
             agenda = json.loads(messages[-1]["content"])["agenda"]
             return json.dumps({"votes": {p["id"]: "accept" for p in agenda}})
         raise AssertionError(system[:40])
