@@ -1,7 +1,7 @@
 """The crew page: the default and simplest view. Give the crew a goal and watch the agents plan, work, check each other and
 talk; see what Warden does on its own; replay any past mission. The running mission lives in this module, not in one browser
-session, so a click, a rerun or a page refresh re-attaches to it instead of losing it. No plan editing and no settings here:
-those are under Advanced."""
+session, and the page follows it from a fragment that redraws itself, so a click, a rerun or a page reload re-attaches to it
+instead of losing it. No plan editing and no settings here: those are under Advanced."""
 import os
 import time
 
@@ -49,8 +49,8 @@ def _say(e, configs):
     return line.replace("The lead", crew_name("lead")).replace("the lead", crew_name("lead")).replace("the reviewer", crew_name("critic"))
 
 
-def _clock(t0):
-    secs = int(time.time() - t0)
+def _clock(t0, t1=None):
+    secs = int((t1 or time.time()) - t0)
     return f"{secs // 60} min {secs % 60:02d} s" if secs >= 60 else f"{secs} s"
 
 
@@ -75,38 +75,43 @@ def _label(live, configs):
     return f"{who} · {len(ended)} of {total} tasks finished · {clock}"
 
 
+def _ended(live):
+    """The mission is over: keep its answer for this browser session, remember how it ended, free the slot."""
+    ss = st.session_state
+    live.setdefault("t1", time.time())
+    if LIVE.get("run") is live:
+        LIVE.pop("run", None)
+    box = live["box"]
+    if "err" in box:
+        ss.crew_error = (box["err"], live["ctx"].equipment)
+    elif live["holder"].get("plan") is not None:
+        ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = box["v"], live["holder"]["plan"], live["ctx"].trace.dir, list(live["events"]), False
+    ss.crew_last = {"stopped": bool(live.get("stopping")), "took": _clock(live["t0"], live["t1"])}
+
+
 def _live(live, configs):
-    """Follow the running mission: the plain lines as they come, a label that says who is on what and for how long, and a Stop
-    button. Runs again on every rerun or refresh until the thread ends, so nothing is lost when the page reloads."""
-    th, events = live["thread"], live["events"]
-    c1, c2 = st.columns([5, 1])
-    c1.caption(f"Mission: {live['goal'][:140]}")
-    if c2.button("Stop", key="crew_stop", width="stretch", disabled=live.get("stopping", False),
-                 help="The step in progress finishes; nothing new starts. What did not finish is listed in the answer, verbatim."):
-        live["stopping"] = True
-        live["ctx"].stop.set()
-    label = _label(live, configs)
-    with st.status(label, expanded=True) as status:
-        shown, tick = 0, 0
-        while th.is_alive() or shown < len(events):
-            while shown < len(events):
-                line = _say(events[shown], configs)
-                shown += 1
+    """Follow the running mission without blocking the page: a fragment that redraws every two seconds with the plain lines so
+    far, a label that says who is on what and for how long, and a Stop button. A rerun or a page reload lands here again."""
+    th = live["thread"]
+
+    def body():
+        c1, c2 = st.columns([5, 1])
+        c1.caption(f"Mission: {live['goal'][:140]}")
+        if c2.button("Stop", key="crew_stop", width="stretch", disabled=live.get("stopping", False),
+                     help="The step in progress finishes; nothing new starts. What did not finish is listed in the answer, verbatim."):
+            live["stopping"] = True
+            live["ctx"].stop.set()
+        alive = th.is_alive()
+        with st.status(_label(live, configs) if alive else "Mission over", state="running" if alive else "complete", expanded=True):
+            for e in live["events"][:]:
+                line = _say(e, configs)
                 if line:
                     st.markdown(f"- {line}")
-            tick += 1
-            if tick % 3 == 0:                                                 # the label and its clock about once a second, not on every poll
-                new = _label(live, configs)
-                if new != label:
-                    status.update(label=new)
-                    label = new
-            time.sleep(0.4)
-        box = live["box"]
-        if "err" in box:
-            status.update(label=f"The mission stopped after {_clock(live['t0'])}", state="error", expanded=True)
-        else:
-            status.update(label=("Mission stopped early" if live.get("stopping") else "Mission complete") + f" · {_clock(live['t0'])}", state="complete", expanded=False)
-    return box
+        if not alive:
+            _ended(live)
+            st.rerun(scope="app")
+
+    st.fragment(run_every="2s" if th.is_alive() else None)(body)()
 
 
 def crew_cards(configs):
@@ -186,7 +191,7 @@ def render(ledger, ai_online, sidecar, health=None):
     elif running:
         st.caption("A mission is running. It keeps running if you leave or reload this page; stop it, or wait for it to finish, before starting another.")
     if st.button("Go", type="primary", icon=":material/play_arrow:", disabled=not ai_online or not data_online or not goal.strip() or running):
-        for k in ("crew_out", "crew_plan", "crew_dir", "crew_replay", "crew_events"):
+        for k in ("crew_out", "crew_plan", "crew_dir", "crew_replay", "crew_events", "crew_error", "crew_last"):
             ss.pop(k, None)
         ss.crew_autoloaded = True
         events, holder = [], {}
@@ -207,15 +212,16 @@ def render(ledger, ai_online, sidecar, health=None):
         th, box = team._run_in_thread(mission)
         live = LIVE["run"] = {"thread": th, "box": box, "holder": holder, "events": events, "ctx": ctx, "goal": goal, "t0": time.time()}
 
-    if live:                                                                  # started here, by another tab, or before a reload: follow it to the end
-        box = _live(live, configs)
-        if LIVE.get("run") is live:
-            LIVE.pop("run", None)
-        if "err" in box:
-            title, what = plain.error(box["err"], live["ctx"].equipment)
-            st.error(f"**{title}.** {what}")
-        elif live["holder"].get("plan") is not None:
-            ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = box["v"], live["holder"]["plan"], live["ctx"].trace.dir, list(live["events"]), False
+    if live:                                                                  # started here, from another tab, or before a reload: follow it to the end
+        _live(live, configs)
+    elif ss.get("crew_error"):
+        err, equipment = ss.crew_error
+        title, what = plain.error(err, equipment)
+        st.error(f"**The mission stopped: {title}.** {what}")
+    elif ss.get("crew_last"):
+        last = ss.crew_last
+        st.success(f"Mission complete after {last['took']}." if not last["stopped"] else
+                   f"Mission stopped early after {last['took']}: what did not finish is listed under the answer, verbatim.")
 
     if not ss.get("crew_out") and not ss.get("crew_autoloaded"):              # first visit: show the newest finished mission, not an empty page
         ss.crew_autoloaded = True
@@ -244,5 +250,6 @@ def render(ledger, ai_online, sidecar, health=None):
     pick = c1.selectbox("Saved missions", runs, format_func=lambda r: f"{r['when']} · {r['goal'][:90]}", key="crew_pick", label_visibility="collapsed")
     if c2.button("Show", icon=":material/history:", width="stretch") and team._load_run(pick["dir"]):
         ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = ss.team_out, ss.team_plan, ss.team_dir, ss.team_events, True
+        ss.pop("crew_last", None)
         st.toast(f"Showing the mission from {pick['when']} at the top of the page")
         st.rerun()
