@@ -68,13 +68,14 @@ def test_lead_puts_results_and_reviews_on_the_bus_and_delivers_them_with_the_nex
         system, user = messages[0]["content"], messages[-1]["content"]
         if system.startswith("You are the Reasoning expert"):                                   # a retry must not repeat itself verbatim
             again = "REVIEWER SENT THIS BACK" in user
-            return json.dumps({"steps": [{"claim": "c", "calc": "2*3", "expect": 6}], "answer": "six is 6, shown as 2*3" if again else "six is 6", "confidence": 0.9, "assumptions": []})
+            return json.dumps({"steps": [{"claim": "c", "calc": "2*3", "expect": 6}], "answer": "six is 6, shown as 2*3" if again else "six is 6, as the manual says", "confidence": 0.9, "assumptions": []})
         if system.startswith("You are the Solver"):
             seen.append(user)
             return json.dumps({"answer": "noted", "confidence": 0.6, "assumptions": [], "not_checked": []})
         if system.startswith("You are an adversarial reviewer"):
             critic.append(1)
-            return json.dumps({"verdict": "revise", "reason": "show the arithmetic"} if len(critic) == 1 else {"verdict": "accept", "reason": "fine"})
+            return json.dumps({"verdict": "revise", "problems": [{"quote": "as the manual says", "why": "show the arithmetic"}], "reason": "show the arithmetic"}
+                              if len(critic) == 1 else {"verdict": "accept", "reason": "fine"})    # the objection quotes unsupported words, so it stands
         raise AssertionError(system[:40])
 
     ctx = make_ctx(tmp_path, script)

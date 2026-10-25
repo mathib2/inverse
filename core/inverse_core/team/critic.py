@@ -83,7 +83,7 @@ def check_problems(problems, answer, evidence):
     what code can check, the words around them are phrasing. Returns (kept, dropped), each a list of {"quote", "why", "check"}."""
     kept, dropped = [], []
     hay, ev_text = _fold(answer), _fold(json.dumps(evidence, default=str))
-    for p in (problems or [])[:MAX_PROBLEMS + 2]:
+    for p in (problems or [])[:8]:
         if isinstance(p, str):
             p = {"quote": p}
         if not isinstance(p, dict):

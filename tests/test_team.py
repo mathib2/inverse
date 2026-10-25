@@ -197,7 +197,7 @@ def test_stuck_detector_forces_strategy_change_then_escalates(tmp_path):
         if sys.startswith("You are the Reasoning expert"):
             return json.dumps({"steps": [{"claim": "c", "calc": "1+1", "expect": 2}], "answer": "same answer", "confidence": 0.9, "assumptions": []})
         if sys.startswith("You are an adversarial reviewer"):
-            return json.dumps({"verdict": "revise", "reason": "not convincing"})
+            return json.dumps({"verdict": "revise", "problems": [{"quote": "same answer", "why": "not convincing"}], "reason": "not convincing"})
         raise AssertionError(sys[:40])
     ctx = make_ctx(tmp_path, stuck)
     lead = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()), max_attempts=5)
@@ -212,7 +212,7 @@ def test_rejected_task_is_written_to_team_memory(tmp_path):
         sys = messages[0]["content"]
         if sys.startswith("You are the Reasoning expert"):
             return json.dumps({"steps": [{"claim": "c", "calc": "2*3", "expect": 6}], "answer": "bad idea", "confidence": 0.9, "assumptions": []})
-        return json.dumps({"verdict": "reject", "reason": "approach cannot work"})
+        return json.dumps({"verdict": "reject", "problems": [{"quote": "bad idea", "why": "approach cannot work"}], "reason": "approach cannot work"})
     ctx = make_ctx(tmp_path, rej)
     mem = TeamMemory(InMemoryLedger())
     Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), mem)._execute(Task("T1", "think", "reasoning"))
