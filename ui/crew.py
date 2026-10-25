@@ -45,8 +45,8 @@ def _say(e, configs):
     line = plain.team_step(e)
     if not line:
         return None
-    line = rename(line, configs)
-    return line.replace("The lead", crew_name("lead")).replace("the lead", crew_name("lead")).replace("the reviewer", crew_name("critic"))
+    line = line.replace("The lead", crew_name("lead")).replace("the lead", crew_name("lead")).replace("the reviewer", crew_name("critic"))
+    return rename(line, configs)                                              # roles first, then identifiers, so "The lead" never becomes "The Atlas"
 
 
 def _clock(t0, t1=None):
@@ -102,11 +102,11 @@ def _live(live, configs):
             live["stopping"] = True
             live["ctx"].stop.set()
         alive = th.is_alive()
-        with st.status(_label(live, configs) if alive else "Mission over", state="running" if alive else "complete", expanded=True):
-            for e in live["events"][:]:
-                line = _say(e, configs)
-                if line:
-                    st.markdown(f"- {line}")
+        box = st.status(_label(live, configs) if alive else "Mission over", state="running" if alive else "complete", expanded=True)
+        for e in live["events"][:]:                                           # not a `with` block: leaving one marks the status complete
+            line = _say(e, configs)
+            if line:
+                box.markdown(f"- {line}")
         if not alive:
             _ended(live)
             st.rerun(scope="app")
@@ -210,7 +210,8 @@ def render(ledger, ai_online, sidecar, health=None):
             return lead.compose(plan, ctx.trace.dir)
 
         th, box = team._run_in_thread(mission)
-        live = LIVE["run"] = {"thread": th, "box": box, "holder": holder, "events": events, "ctx": ctx, "goal": goal, "t0": time.time()}
+        LIVE["run"] = {"thread": th, "box": box, "holder": holder, "events": events, "ctx": ctx, "goal": goal, "t0": time.time()}
+        st.rerun()                                                            # draw the page with Go disabled and the live view attached
 
     if live:                                                                  # started here, from another tab, or before a reload: follow it to the end
         _live(live, configs)
