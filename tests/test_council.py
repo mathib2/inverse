@@ -71,7 +71,11 @@ def test_wire_parses_caps_and_refuses_what_it_cannot_apply():
     assert same["id"] == p["id"]                                                            # the same idea has the same id, whoever files it
     assert wire.parse_proposal({"k": "magic", "t": "x", "w": "do things"}, "a")[1].startswith("unknown kind")
     assert wire.parse_proposal({"k": "cfg", "t": "research", "w": "more calls", "p": {"budget.tool_calls": 99}}, "a")[1] == "budget.tool_calls must be between 1 and 16"
-    assert wire.parse_proposal({"k": "cfg", "t": "research", "w": "give it the scan tool", "p": {"tools+": "scan"}}, "a")[1].startswith("tool 'scan' cannot be granted")
+    assert wire.parse_proposal({"k": "cfg", "t": "research", "w": "give it the scan tool", "p": {"tools+": "scan"}}, "a")[1].startswith("tool 'scan' is not one the council may grant")
+    assert wire.parse_proposal({"k": "cfg", "t": "research", "w": "take its data tool away", "p": {"tools-": "run_sql"}}, "a")[0]["p"] == {"tools-": "run_sql"}
+    assert wire.parse_proposal({"k": "mission", "t": "data check", "w": "run it twice a day", "p": {"every": 12}}, "a")[0]["t"] == "data_check"
+    v, _ = wire.parse_votes({"votes": {"P-000001": "accept", "P-000002": "reject: no evidence", "P-000003": "y|n:reason|r:change|?", "P-000004": "Approve."}}, ["P-000001", "P-000002", "P-000003", "P-000004"])
+    assert v["P-000001"] == ("y", "") and v["P-000002"] == ("n", "no evidence") and v["P-000003"] == ("?", "") and v["P-000004"] == ("y", "")
     assert wire.parse_proposal({"k": "cfg", "t": "research", "w": "add a rule", "p": {"enabled": False}}, "a")[1].startswith("patch key 'enabled' is not allowed")
     assert wire.parse_proposal({"k": "note", "t": "shared", "w": "x" * 500}, "a")[0]["w"] == "x" * 140                # too long is truncated, never refused
     assert wire.parse_proposal({"k": "note", "w": "remember that T-200 has no baseline"}, "scout")[0]["t"] == "shared"
@@ -136,15 +140,16 @@ def test_a_session_votes_in_batches_decides_by_rule_and_applies_reversible_effec
     ctx, lead = crew(tmp_path, script)
     c, reg, mem, world = ctx.council, lead.registry, lead.memory, FakeWorld()
     a = c.file({"k": "cfg", "t": "research", "w": "raise the tool-call budget to 8", "y": "ran out", "p": {"budget.tool_calls": 8}}, by="solver")
-    b = c.file({"k": "mission", "t": "digest", "w": "run the digest every 6 hours", "y": "memory grows", "p": {"name": "digest", "every": 6, "goal": "Summarize what we know."}}, by="reasoning")
-    n = c.file({"k": "note", "t": "shared", "w": "remember that T-200 has no baseline", "y": "seen in T2"}, by="research")
+    b = c.file({"k": "mission", "t": "digest", "w": "run the digest every 6 hours", "y": "memory grows", "p": {"name": "digest", "every": 6, "goal": "Summarize what we know."}}, by="human")
+    n = c.file({"k": "note", "t": "shared", "w": "remember that T-200 has no baseline", "y": "seen in T2", "e": ["T2.E1"]}, by="research")
     m = c.file({"k": "cfg", "t": "reasoning", "w": "use a bigger model", "y": "would be nicer", "p": {"model_lane": "deep"}}, by="reasoning")
     k = c.file({"k": "code", "t": "repo", "w": "add a retry to the zetaris client", "y": "timeouts"}, by="solver")
     assert c.due() == "5 proposals are open"
     rec = c.session(ctx, reg, mem, world, reason="test")
-    assert calls == ["vera", "owner", "owner"] and rec["calls"] == 3                            # Vera once, then each affected agent once
+    assert calls == ["vera", "owner"] and rec["calls"] == 2                                     # Vera once, then the one affected agent that did not file it
     d = {x["id"]: x["d"] for x in rec["decisions"]}
     assert d[a["id"]] == "adopt" and d[b["id"]] == "adopt" and d[n["id"]] == "adopt" and d[m["id"]] == "reject" and d[k["id"]] == "needs_human"
+    assert c.proposals[b["id"]]["decision"]["r"] == "Vera yes"                                # a person filed it, so it needed no second backer
     assert reg.configs["research"]["budget"]["tool_calls"] == 8 and os.path.exists(tmp_path / "experts.local" / "research.yaml")   # applied and reloaded
     assert next(x for x in load_missions(str(tmp_path)) if x["name"] == "digest")["every"] == 6
     assert any("T-200 has no baseline" in f["form"] for f in mem.findings())
@@ -169,7 +174,7 @@ def test_rails_and_abstentions_never_adopt_without_a_vote(tmp_path):
     c, reg, mem = ctx.council, lead.registry, lead.memory
     jump = c.file({"k": "cfg", "t": "research", "w": "raise the tool-call budget to 16", "y": "more", "p": {"budget.tool_calls": 16}}, by="solver")
     forge = c.file({"k": "cfg", "t": "architect", "w": "give the architect a bigger budget", "y": "x", "p": {"budget.tool_calls": 10}}, by="solver")
-    note = c.file({"k": "note", "t": "shared", "w": "something worth remembering", "y": "y"}, by="research")
+    note = c.file({"k": "note", "t": "shared", "w": "something worth remembering", "y": "y", "e": ["T1.E1"]}, by="research")
     rec = c.session(ctx, reg, mem, None, reason="asked", by="human")
     d = {x["id"]: x for x in rec["decisions"]}
     assert d[jump["id"]]["d"] == "reject" and "half at most" in d[jump["id"]]["r"]              # by code, no model asked
@@ -211,3 +216,50 @@ def test_rules_file_proposals_from_what_a_run_showed(tmp_path):
     keep = next(p for p in c.open() if p["k"] == "agent")
     assert keep["by"] == "rule:keep" and keep["p"]["config"]["name"] == "unit_converter"
     assert c.observe(plan, ev, run="runs/20261024-1") == []                                   # the same proposals are not filed twice
+
+
+def test_self_serving_changes_need_a_second_backer_and_rule_filed_ones_too(tmp_path):
+    def script(model, messages):
+        system = messages[0]["content"]
+        if system.startswith("You are the council's reviewer"):
+            agenda = json.loads(messages[-1]["content"])["agenda"]
+            return json.dumps({"votes": {p["id"]: "accept" for p in agenda}})
+        raise AssertionError(system[:40])
+
+    ctx, lead = crew(tmp_path, script)
+    c, reg, mem = ctx.council, lead.registry, lead.memory
+    mine = c.file({"k": "cfg", "t": "reasoning", "w": "give myself the deep lane", "y": "harder tasks", "p": {"model_lane": "deep"}}, by="reasoning")
+    rule = c.file({"k": "cfg", "t": "research", "w": "raise the tool-call budget to 8", "y": "ran out", "p": {"budget.tool_calls": 8}}, by="rule:budget")
+    rec = c.session(ctx, reg, mem, None, reason="asked", by="human")
+    d = {x["id"]: x for x in rec["decisions"]}
+    assert d[mine["id"]]["d"] == "defer" and "second backer" in d[mine["id"]]["r"] and rec["calls"] == 2    # Vera, and research as the owner of the rule's change
+    assert d[rule["id"]]["d"] == "defer" and "second backer" in d[rule["id"]]["r"]
+    c.support(rule["id"], "solver")
+    c.last_session = 0
+    rec = c.session(ctx, reg, mem, None, reason="asked", by="human")
+    assert {x["id"]: x["d"] for x in rec["decisions"]}[rule["id"]] == "adopt" and reg.configs["research"]["budget"]["tool_calls"] == 8
+
+
+def test_prompt_and_tool_grants_and_new_missions_become_task_cards_unless_a_person_filed_them(tmp_path):
+    ctx, lead = crew(tmp_path, lambda m, msgs: json.dumps({"votes": {}}))
+    c, reg, mem = ctx.council, lead.registry, lead.memory
+    p1 = c.file({"k": "cfg", "t": "research", "w": "add a sentence to its prompt", "y": "y", "p": {"system_prompt+": "Always cite the row count."}}, by="solver")
+    p2 = c.file({"k": "mission", "t": "night_check", "w": "add a night check every hour", "y": "y", "p": {"name": "night_check", "every": 1, "goal": "Check everything."}}, by="solver")
+    p3 = c.file({"k": "agent", "t": "helper", "w": "keep the helper agent", "y": "y", "p": {"config": {"name": "helper", "kind": "custom", "role": "r", "tools": ["calc"]}}}, by="solver")
+    rec = c.session(ctx, reg, mem, None, reason="asked", by="human")
+    d = {x["id"]: x for x in rec["decisions"]}
+    assert d[p1["id"]]["d"] == "needs_human" and d[p2["id"]]["d"] == "needs_human" and d[p3["id"]]["d"] == "reject" and rec["calls"] == 0
+    cards = open(tmp_path / "council" / "human.md").read()
+    assert p1["id"] in cards and p2["id"] in cards and not os.path.exists(tmp_path / "missions.local.yaml")
+
+
+def test_the_book_survives_a_bad_line_and_a_second_filing_from_another_process(tmp_path):
+    ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
+    c = ctx.council
+    p = c.file({"k": "note", "t": "shared", "w": "a note worth keeping", "y": "y", "e": ["T1.E1"]}, by="research")
+    with open(c.book_path, "a") as f:
+        f.write("{this line was cut off\n")
+    other = CO.Council(str(tmp_path))                                                    # another process: same book, its own state
+    other.file({"k": "note", "t": "shared", "w": "a note worth keeping", "y": "y"}, by="solver")
+    assert other.skipped == 1 and other.proposals[p["id"]]["backers"] == ["research", "solver"]
+    assert c.open()[0]["backers"] == ["research", "solver"]                                 # the first process sees the new backer on its next look

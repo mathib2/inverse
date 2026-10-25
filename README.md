@@ -3,6 +3,8 @@
 **Eight agents on one computer, on local models, with no cloud. Give them a goal, or let them find their own: they plan, do the work, check each other, talk to each other, and answer with evidence, or say plainly what they could not check.**
 Open Agent Hackathon 2026 · Track 03 (Reasoning Architecture) · Zetaris + Meterless + NVIDIA Nemotron
 
+**Why it matters.** A small engineering or operations team with one workstation, data it cannot send to a cloud and no budget for API credits still needs to know what its data says, whether its own code has holes, and what it has already ruled out. INVERSE gives that team a crew that works unattended on that workstation: it checks the data when it changes, reviews the repository every day, keeps a memory with a trust order, answers with citations or says plainly what it could not check, and improves its own configuration through a council that people can read and undo. Every decision is a file a person can replay. `docs/evidence/` holds real missions and a real council session.
+
 | Agent | What they do |
 |---|---|
 | **Atlas** | plans the mission, hands out the tasks, writes the answer with citations |
@@ -14,7 +16,7 @@ Open Agent Hackathon 2026 · Track 03 (Reasoning Architecture) · Zetaris + Mete
 | **Sentinel** | reviews our own code for weaknesses; every finding is checked against the file and line |
 | **Forge** | designs, builds and test-drives a new agent when the crew lacks one |
 
-Names, tools and how they talk: `docs/CREW.md`. How they run unattended: `docs/agent/AUTONOMY.md`. Where each sponsor technology does real work: `docs/SPONSORS.md`.
+Names, tools and how they talk: `docs/CREW.md`. The council: `docs/COUNCIL.md`. How they run unattended: `docs/agent/AUTONOMY.md`. Where each sponsor technology does real work: `docs/SPONSORS.md`. Real missions and a council session to read without installing anything: `docs/evidence/`. What the team still plans to improve: `docs/IMPROVEMENT_PLAN.md`.
 
 ## What you see
 
@@ -54,7 +56,7 @@ Shared findings, refuted claims and reviewer lessons live in Meterless H-MEM acr
 |---|---|
 | **Zetaris** | The only data path: Scout and Ada query the equipment registry, sensor specifications, maintenance history and samples through `run_sql` and the SQL guard (`team/experts.py: check_sql`); maintenance notes pass the injection guard before any model sees them; Warden's "new data" is a Zetaris query. Setup: `scripts/setup_zetaris.py`, `zetaris/sql/`. |
 | **Meterless** | Nightshift: the provider on the sponsor path (same client, `clients/meterless.py`). H-MEM: shared memory with a trust order and reviewer lessons (`services/meterless-sidecar/server.ts`, `ledger.py`, `team/memory.py`). World Model: shared entities through the sidecar (`clients/world.py`); see `docs/SPONSORS.md` for its current use. Markovian: Sentinel's long code reviews run as bounded chunks with a compressed carryover (`services/meterless-sidecar/markovian/`, `team/custom.py`). |
-| **NVIDIA Nemotron** | `nemotron-mini` (Nemotron-Mini-4B-Instruct) runs every agent locally through Ollama; on the Nightshift path the lanes map to Nemotron routes. The served model of every call is in the trace. |
+| **NVIDIA Nemotron** | With the default configuration every agent's model calls run on `nemotron-mini` (Nemotron-Mini-4B-Instruct) through Ollama; a lane can be pointed at another local model (`LANE_CRITIC`), and on the Nightshift path the lanes map to Nemotron routes. The served model of every call is in the trace. |
 | **Cursor** | Written with Claude Code; Cursor is installed on the team's laptop. Declared honestly in `docs/SPONSORS.md`. |
 
 ## Setup
@@ -65,8 +67,10 @@ cp .env.example .env                       # Zetaris URL and key, MODEL_PROVIDER
 (cd services/meterless-sidecar && npm install && npm run setup)   # vendors the Meterless reference engines
 python scripts/setup_zetaris.py            # REST tables, cache, views (idempotent)
 scripts/run_sidecars.sh                    # H-MEM/World Model (8100) and Markovian (8101)
-PYTHONPATH=core .venv/bin/streamlit run ui/app.py --server.port 8501
+PYTHONPATH=core .venv/bin/streamlit run ui/app.py --server.port 8501 --server.address 127.0.0.1
 ```
+
+The UI listens on loopback only. To reach it from another machine, use an SSH tunnel (`ssh -L 8501:127.0.0.1:8501 <user>@<server>`) or `tailscale serve --bg 8501` on a tailnet.
 
 ## Usage
 
@@ -85,4 +89,4 @@ PYTHONPATH=core .venv/bin/streamlit run ui/app.py --server.port 8501
 
 ## License
 
-MIT, see `LICENSE`.
+Apache-2.0, see `LICENSE`. The Meterless reference engines vendored by `npm run setup` into `services/meterless-sidecar/vendor/` are Apache-2.0 too.

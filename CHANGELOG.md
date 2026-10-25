@@ -1,5 +1,11 @@
 # Changelog
 
+> Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
+> Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
+
+## Review fixes (2026-10-25)
+- From the pre-submission review: votes read in a small model's own words; a second backer for self-serving or rule-filed changes; prompt addenda, granted tools, new missions and unevidenced notes become task cards or are rejected; the book replays incrementally and survives bad lines; the guard scrubs every column; Spark built-ins forbidden in SQL; plan review cannot copy the example; Critic verdicts normalised; a tool loop that overruns its budget fails honestly; client defaults and MODEL_TIMEOUT; Warden re-reads missions, retries a failed new-data mission once and plans fixed-text missions by rule; the datasets generator stands alone; evidence committed under docs/evidence/.
+
 ## The council (2026-10-24)
 - CW/1 (`team/wire.py`): one small JSON object per message with short keys and hard caps; verbs P, S, V, D, X; kinds cfg, mission, note, agent, code with a per-kind patch whitelist; content-addressed ids merge the same idea into one proposal with backers.
 - `team/council.py`: filing is free (a `propose` list in an agent's reply, the `propose`/`support` tools, two rules in the Lead, people); sessions happen only by rule, at most once an hour, bounded to four model calls; Vera votes on the whole agenda in one call, the agent a change concerns votes on its own items; a fixed rule decides; effects are applied by code with undo (experts.local, missions.local.yaml, shared memory, kept agents, task cards for people). Book, trace events, bus messages and World Model entities for every step. Warden holds a session when one is due.
