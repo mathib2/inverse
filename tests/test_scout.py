@@ -144,7 +144,8 @@ def test_a_reviewers_reject_is_retried_once_with_the_quote_and_only_kept_problem
     def script(model, messages):
         system = messages[0]["content"]
         if system.startswith("You are the Reasoning expert"):
-            return json.dumps({"steps": [{"claim": "c", "calc": "2*3", "expect": 6}], "answer": "six is 6, as the manual says", "confidence": 0.9, "assumptions": []})
+            again = "REVIEWER SENT THIS BACK" in messages[-1]["content"]
+            return json.dumps({"steps": [{"claim": "c", "calc": "2*3", "expect": 6}], "answer": "six is 6, shown as 2*3" if again else "six is 6, as the manual says", "confidence": 0.9, "assumptions": []})
         if system.startswith("You are an adversarial reviewer"):
             n["critic"] += 1
             if n["critic"] == 1:

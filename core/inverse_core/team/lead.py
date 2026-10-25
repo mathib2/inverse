@@ -330,7 +330,7 @@ class Lead:
         task.lessons = self._mem("lessons", task.expert) or []               # what reviewers told this expert before (Reflexion)
         if task.lessons:
             self.ctx.trace.event("lessons", task=task.id, expert=task.expert, count=len(task.lessons))
-        last, repeats = None, 0
+        last, repeats, rejected_once = None, 0, ""
         for attempt in range(1, self.max_attempts + 1):
             if attempt > 1 and self.stopped():
                 task.status, task.feedback = "failed", "stopped by a person before another attempt; the last note was: " + task.feedback
@@ -367,6 +367,11 @@ class Lead:
             task.result = res.to_dict()
             self.ctx.trace.event("expert_result", task=task.id, expert=task.expert, confidence=res.confidence, evidence=len(res.evidence),
                                  models=res.models_used, tool_calls=budget.tool_calls, tokens=budget.tokens)
+            if last is not None and _norm(res.answer) == last and rejected_once:   # the same answer after a reviewer's reject: the reject stands
+                task.status, task.feedback = "rejected", rejected_once
+                self._mem("refute", f"{task.expert}: {res.answer[:200]}", rejected_once, source="llm_critic", expert=task.expert)
+                self.ctx.trace.event("task_rejected", task=task.id, reason=rejected_once)
+                return
             if last is not None and _norm(res.answer) == last:
                 repeats += 1
                 self.ctx.trace.event("stuck", task=task.id, repeats=repeats)
@@ -406,8 +411,9 @@ class Lead:
             kept = review.get("problems") or []
             if review.get("by") == "llm" and kept:                             # only an objection that checked out becomes a lesson, in its checkable words
                 self._mem("add_lesson", task.expert, (f"{task.goal[:80]}: " + "; ".join(f"\u00ab{str(k.get('quote'))[:80]}\u00bb {k.get('why') or k.get('check')}" for k in kept[:2]))[:240])
-            if review["verdict"] == "reject" and review.get("by") == "llm" and attempt < self.max_attempts:
+            if review["verdict"] == "reject" and review.get("by") == "llm" and attempt == 1 and self.max_attempts > 1:   # once: a second reject is final
                 self.ctx.trace.event("reject_retried", task=task.id, reason=reason[:200])   # a 4B reviewer's reject is a strong revise: one more try with the quote
+                rejected_once = reason
             elif review["verdict"] == "reject":
                 task.status, task.feedback = "rejected", reason
                 self._mem("refute", f"{task.expert}: {res.answer[:200]}", reason, source="llm_critic" if review.get("by") == "llm" else "validator",
