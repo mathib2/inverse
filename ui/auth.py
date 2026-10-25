@@ -87,7 +87,7 @@ def require():
     if token and check_token(token, user, key):                               # a device signed in earlier, within the week
         ss.authed = True
         return
-    box = st.empty()
+    signed_in, box = False, st.empty()
     with box.container():
         _, col, _ = st.columns([1, 2, 1])
         with col.container(border=True):
@@ -102,13 +102,16 @@ def require():
                     time.sleep(min(2 ** (_FAILS["n"] - 2), 20))
                 if u.strip() == user and check_password(p, stored):
                     _FAILS["n"] = 0
-                    ss.authed = True
-                    _write_cookie(sign(user, time.time() + DAYS * 86400, key), DAYS * 86400)
-                    box.empty()
-                    return
-                _FAILS["n"] += 1
-                st.error("Wrong user or password.")
+                    signed_in = True
+                else:
+                    _FAILS["n"] += 1
+                    st.error("Wrong user or password.")
             st.caption("This device stays signed in for 7 days. Sign out from the sidebar.")
+    if signed_in:
+        box.empty()
+        ss.authed = True
+        _write_cookie(sign(user, time.time() + DAYS * 86400, key), DAYS * 86400)   # outside the box: the page keeps the iframe, so its script runs
+        return
     st.stop()
 
 
@@ -121,5 +124,8 @@ def sign_out_button():
         if token:
             _REVOKED.add(token)
         st.session_state.pop("authed", None)
-        _write_cookie("", 0)
-        st.rerun()
+        _write_cookie("", 0)                                                  # no rerun here: the page must keep the iframe long enough to clear the cookie
+        st.info("Signed out on this device.")
+        if st.button("Sign in again", type="primary"):
+            st.rerun()
+        st.stop()
