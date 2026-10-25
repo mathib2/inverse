@@ -1,7 +1,29 @@
 # INVERSE: a crew of local AI agents that work, check each other, talk, and run on their own
 
+[![tests](https://github.com/mathib2/inverse/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/mathib2/inverse/actions/workflows/tests.yml) · unit tests need no model and no network · Apache-2.0
+
 **Eight agents on one computer, on local models, with no cloud. Give them a goal, or let them find their own: they plan, do the work, check each other, talk to each other, and answer with evidence, or say plainly what they could not check.**
 Open Agent Hackathon 2026 · Track 03 (Reasoning Architecture) · Zetaris + Meterless + NVIDIA Nemotron
+
+<!-- Screenshots go here (item 9 of docs/IMPROVEMENT_PLAN.md): the crew page during a mission and the council section.
+![The crew page during a mission](docs/img/crew.png)
+![The council: open proposals, the form, decisions](docs/img/council.png)
+-->
+
+```text
+ a person, or Warden on its own ─goal─▶ Atlas plans at most five tasks, one agent each, with dependencies
+                  ┌──────────────┬──────────────┼──────────────┬──────────────┐
+                Scout          Euler           Ada         Sentinel         Forge
+           read-only SQL  calculator on  tools; asks    scans our own  builds a new
+           on Zetaris,    every step,    the others,    code, file     agent when
+           cites queries  recomputes     one level deep and line       none fits
+                  └──────────────┴──────────────┼──────────────┴──────────────┘
+ Vera, on her own lane: fixed rules first, then only objections that quote the answer ─▶ sent back with the quote, or accepted
+ Atlas writes the answer from accepted results only, citing [T1.E2]; what did not finish is listed verbatim, by code
+ findings → shared memory (Meterless H-MEM, trust order) · proposals → the council · every step → runs/<ts>/, replayable
+```
+
+**Read next:** [The crew](docs/CREW.md) · [The council](docs/COUNCIL.md) · [On its own](docs/agent/AUTONOMY.md) · [Local models](docs/agent/LOCAL_MODELS.md) · [Sponsor technology](docs/SPONSORS.md) · [Evidence: real missions and a council session](docs/evidence/) · [Demo script](docs/DEMO_SCRIPT.md) · [Submission](docs/SUBMISSION.md) · [Improvement plan](docs/IMPROVEMENT_PLAN.md) · [Changelog](CHANGELOG.md)
 
 **Why it matters.** A small engineering or operations team with one workstation, data it cannot send to a cloud and no budget for API credits still needs to know what its data says, whether its own code has holes, and what it has already ruled out. INVERSE gives that team a crew that works unattended on that workstation: it checks the data when it changes, reviews the repository every day, keeps a memory with a trust order, answers with citations or says plainly what it could not check, and improves its own configuration through a council that people can read and undo. Every decision is a file a person can replay. `docs/evidence/` holds real missions and a real council session.
 
@@ -15,8 +37,6 @@ Open Agent Hackathon 2026 · Track 03 (Reasoning Architecture) · Zetaris + Mete
 | **Ada** | multi-step problems with tools; asks the others when a step needs them |
 | **Sentinel** | reviews our own code for weaknesses; every finding is checked against the file and line |
 | **Forge** | designs, builds and test-drives a new agent when the crew lacks one |
-
-Names, tools and how they talk: `docs/CREW.md`. The council: `docs/COUNCIL.md`. How they run unattended: `docs/agent/AUTONOMY.md`. Where each sponsor technology does real work: `docs/SPONSORS.md`. Real missions and a council session to read without installing anything: `docs/evidence/`. What the team still plans to improve: `docs/IMPROVEMENT_PLAN.md`.
 
 ## What you see
 
