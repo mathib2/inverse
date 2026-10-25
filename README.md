@@ -92,6 +92,10 @@ PYTHONPATH=core .venv/bin/streamlit run ui/app.py --server.port 8501 --server.ad
 
 The UI listens on loopback only. To reach it from another machine, use an SSH tunnel (`ssh -L 8501:127.0.0.1:8501 <user>@<server>`) or `tailscale serve --bg 8501` on a tailnet.
 
+**From a phone.** Install the Tailscale app on the phone, sign in to the same tailnet, and open `http://<machine-name>:8501` (the workstation's MagicDNS name or tailnet address). Traffic between the phone and the workstation is encrypted by the tailnet; nothing is opened to the internet.
+
+**Sign-in page.** `python scripts/set_password.py root` asks for a password twice and writes `UI_USER` and a salted hash (`UI_PASSWORD_HASH`) into `.env`; nothing secret is in the repository. Restart the UI and every visitor gets a sign-in page first; a device stays signed in for a week, **Sign out** in the sidebar ends that early, and a wrong password slows the next try. Without `UI_PASSWORD_HASH` there is no sign-in page.
+
 ## Usage
 
 - The crew page: a goal and **Go**; **On its own**: queue a goal for Warden.

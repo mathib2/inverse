@@ -16,10 +16,12 @@ from inverse_core.clients.meterless import MeterlessClient  # noqa: E402
 from inverse_core.clients.zetaris import ZetarisClient  # noqa: E402
 from inverse_core.ledger import SidecarLedger  # noqa: E402
 
+import auth  # noqa: E402
 import parts  # noqa: E402
 import plain  # noqa: E402
 
 st.set_page_config(page_title="INVERSE · a crew of local AI agents", page_icon="⚙️", layout="wide", initial_sidebar_state="auto")
+auth.require()                                                                # with UI_PASSWORD_HASH in .env, a sign-in page comes first
 SIDECAR = "http://127.0.0.1:8100"
 ledger, llm = SidecarLedger(SIDECAR), MeterlessClient()
 ss = st.session_state
@@ -85,6 +87,7 @@ with st.sidebar:
     if st.button("Forget what the crew remembers…", icon=":material/delete_sweep:", width="stretch"):
         confirm_reset()
     st.caption("Shared findings and refuted claims live in H-MEM across missions. Do this before a demo so every mission starts fresh.")
+    auth.sign_out_button()
 
 if mode == "Advanced":
     import team

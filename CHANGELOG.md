@@ -3,6 +3,9 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## Sign-in page (2026-10-25)
+- `ui/auth.py`: with `UI_PASSWORD_HASH` in `.env` (written by `scripts/set_password.py`, a salted PBKDF2 hash, never the password), the UI shows a sign-in page first; a signed cookie keeps a device signed in for a week; **Sign out** in the sidebar revokes it; a wrong password slows the next try. Phone access through the tailnet is documented in the README.
+
 ## README first screen (2026-10-25)
 - The tests badge, a ten-line diagram of a mission and a "Read next" links block at the top of the README; a marked place for the two screenshots.
 
