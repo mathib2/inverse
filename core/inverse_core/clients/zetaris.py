@@ -34,7 +34,8 @@ class ZetarisClient:
         r = requests.post(self.url + "/sql-editor/sqls/run", timeout=self.timeout,
                           headers={"Authorization": "Bearer " + self.key, "X-Org-ID": self.org, "X-Request-ID": str(uuid.uuid4())},
                           json={"queryId": str(uuid.uuid4()), "sql": statement, "source": "SqlEditor", "limit": limit})
-        r.raise_for_status()
+        if r.status_code >= 400:                                              # the body names the bad column or table: the agent needs that, not just "400"
+            raise requests.HTTPError(f"{r.status_code} {r.reason}: {r.text[:300].strip()}", response=r)
         j = r.json()
         return [dict(zip(j["headers"], row)) for row in j["data"]]
 

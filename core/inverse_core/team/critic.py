@@ -48,6 +48,9 @@ def deterministic(result):
     if any(_detail(e).startswith("REFUSED") for e in evidence) and not any(e.get("type") == "sql" and not _detail(e).startswith("REFUSED") for e in evidence):
         why = next(_detail(e) for e in evidence if _detail(e).startswith("REFUSED"))
         return "revise", f"every query was refused by the SQL guard ({why[9:]}); write a read-only SELECT on the listed tables"
+    errors = [e for e in evidence if _detail(e).startswith("ERROR")]
+    if errors and not any(e.get("type") == "sql" and not _detail(e).startswith(("ERROR", "REFUSED")) for e in evidence):
+        return "revise", f"every query failed ({_detail(errors[0])[6:160]}); use only the listed tables and columns and quote text values such as 'P-104'"
     mism = [e for e in evidence if "MISMATCH" in _detail(e)]
     if mism:
         return "revise", "a calculation does not match its expected value: " + str(mism[0].get("source", ""))
@@ -77,13 +80,29 @@ def _words(s):
     return {w for w in re.findall(r"[a-z][a-z0-9_-]{3,}", _fold(s)) if w not in STOP}
 
 
+def _values(evidence):
+    """The evidence's values as one lowercase text: rows, results and details, never the query or tool call that produced them
+    (a claim is not supported by the words of its own SELECT)."""
+    out = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            [walk(v) for k, v in o.items() if k not in ("source", "sql")]
+        elif isinstance(o, (list, tuple)):
+            [walk(v) for v in o]
+        elif o is not None and not isinstance(o, bool):
+            out.append(str(o))
+    walk(evidence)
+    return _fold(" ".join(out))
+
+
 def check_problems(problems, answer, evidence):
     """Each objection tested by code. One is kept only when its quote is copied from the answer and the evidence does not
     cover it: a number in the quote is missing from the evidence, or, for a quote without numbers, fewer than half of its
     content words appear anywhere in the evidence. A quote whose numbers are all in the evidence is covered: the numbers are
     what code can check, the words around them are phrasing. Returns (kept, dropped), each a list of {"quote", "why", "check"}."""
     kept, dropped = [], []
-    hay, ev_text = _fold(answer), _fold(json.dumps(evidence, default=str))
+    hay, ev_text = _fold(answer), _values(evidence)
     for p in (problems or [])[:8]:
         if isinstance(p, str):
             p = {"quote": p}

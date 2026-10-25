@@ -47,6 +47,7 @@ def _norm(s):
 
 
 CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|vulnerab\w*|exploit\w*)\b", re.I)
+CALC_WORDS = re.compile(r"\b(compute|calculate|derive|deriv\w+|multipl\w+|times|divide\w*|convert\w*|weight|force|torque|energy|frequency|damping|ratio|percent\w*|average|mean|formula|equation)\b", re.I)
 SUMMARY_WORDS = re.compile(r"\b(summari[sz]e|digest|what (do|does) (we|the crew|the team) know|found so far|ruled out|still unchecked)\b", re.I)
 
 
@@ -64,9 +65,10 @@ def rule_plan(goal, names, equipment):
     if CODE_WORDS.search(goal) and not machines:
         add("vulnerability", goal)
     elif machines:
-        add("research", f"From the registry, the sensor specifications and the maintenance history: what do we know about {' and '.join(machines)}, "
-                        f"what was done to {'them' if len(machines) > 1 else 'it'} and when, and how much sensor data is there?")
-        add("reasoning", f"Using the accepted results from the earlier tasks, answer this in plain words: {goal}", deps=[t.id for t in tasks])
+        add("research", f"With read-only queries on the registry, the sensor specifications, the maintenance history and the sample tables for "
+                        f"{' and '.join(machines)}, answer: {goal}")
+        if CALC_WORDS.search(goal):                                           # a lookup ends with Scout; a computation goes on to Euler
+            add("reasoning", f"Using the accepted results from the earlier tasks, answer this in plain words: {goal}", deps=[t.id for t in tasks])
     elif SUMMARY_WORDS.search(goal):
         add("solver", goal + " Use the shared memory tool first.")
     if not tasks:

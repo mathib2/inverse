@@ -73,7 +73,11 @@ class Tools:
         self.memory, self.owner, self.task_id = None, owner, None            # set per task by the expert that holds this toolbox
 
     def describe(self):
-        return "\n".join(f"- {n}: {self.SPECS[n][0]}" for n in self.allowed)
+        text = "\n".join(f"- {n}: {self.SPECS[n][0]}" for n in self.allowed)
+        if "run_sql" in self.allowed:                                           # the same value-annotated schema the research expert gets
+            from .experts import SCHEMA
+            text += "\n" + SCHEMA
+        return text
 
     def call(self, name, args, budget, who=""):
         """Runs one tool. Unknown or disallowed tools and bad arguments come back as {"error": ...} so the model can recover;
