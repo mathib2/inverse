@@ -49,6 +49,7 @@ def _norm(s):
 CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|vulnerab\w*|exploit\w*)\b", re.I)
 CALC_WORDS = re.compile(r"\b(compute|calculate|derive|deriv\w+|multipl\w+|times|divide\w*|convert\w*|weight|force|torque|energy|frequency|damping|ratio|percent\w*|average|mean|formula|equation"
                         r"|why|whether|should|needs?|compare\w*|explain|assess\w*|diagnos\w+|recommend\w*|judge)\b", re.I)   # a computation or a judgement: Euler after Scout
+LOOKUP_WORDS = re.compile(r"^\W*(how many|how much|list|what is|what are|what was|which|when|show|name|give me)", re.I)   # a plain lookup: Scout alone
 SUMMARY_WORDS = re.compile(r"\b(summari[sz]e|digest|what (do|does) (we|the crew|the team) know|found so far|ruled out|still unchecked)\b", re.I)
 
 
@@ -68,7 +69,7 @@ def rule_plan(goal, names, equipment):
     elif machines:
         add("research", f"With read-only queries on the registry, the sensor specifications, the maintenance history and the sample tables for "
                         f"{' and '.join(machines)}, answer: {goal}")
-        if CALC_WORDS.search(goal):                                           # a lookup ends with Scout; a computation or a judgement goes on to Euler
+        if CALC_WORDS.search(goal) or not LOOKUP_WORDS.search(goal):          # a plain lookup ends with Scout; anything else goes on to Euler
             add("reasoning", f"Using the accepted results from the earlier tasks, answer this in plain words: {goal}", deps=[t.id for t in tasks])
     elif SUMMARY_WORDS.search(goal):
         add("solver", goal + " Use the shared memory tool first.")

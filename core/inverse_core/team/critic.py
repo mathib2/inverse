@@ -87,7 +87,10 @@ def _values(evidence):
 
     def walk(o):
         if isinstance(o, dict):
-            [walk(v) for k, v in o.items() if k not in ("source", "sql")]
+            for k, v in o.items():
+                if k not in ("source", "sql"):                                # column names describe the values; the SELECT text does not
+                    out.append(str(k))
+                    walk(v)
         elif isinstance(o, (list, tuple)):
             [walk(v) for v in o]
         elif o is not None and not isinstance(o, bool):
