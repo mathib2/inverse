@@ -118,7 +118,7 @@ def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produce
     calls = []
     def greedy(model, messages):
         calls.append([m["content"][:30] for m in messages if m["role"] == "user"])
-        return json.dumps({"tool": "calc", "args": {"expr": "1"}})
+        return json.dumps({"tool": "calc", "args": {"expr": str(len(calls))}})                    # a new expression each time: not a repeated call
     ctx2 = make_ctx(tmp_path / "runs2", greedy, root=str(tmp_path))
     with pytest.raises(BudgetExceeded, match="tool-call budget 3 exceeded"):                     # told to answer, it asked for a tool again: the task fails honestly
         CustomExpert(ctx2, "s", "r", "p", "fast", ["calc"]).run(Task("T1", "x", "s"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=3))
