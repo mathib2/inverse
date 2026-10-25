@@ -42,6 +42,32 @@ obs.maintenance_table(record_id text like 'M-001', equipment_id text, date text 
 obs.p104_baseline_samples, obs.p104_current_samples, obs.trap_current_samples(dataset_id text, t number in seconds, x number, v number): use COUNT(*), MIN, MAX or AVG on these, never SELECT *.
 Examples of the dialect: SELECT COUNT(*) AS n FROM obs.p104_baseline_samples | SELECT sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = 'P-104' AND quantity = 'x' | SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date | SELECT equipment_id FROM obs.equipment_table WHERE baseline_dataset = 'none'"""
 ALLOWED_TABLES = {"equipment_table", "sensors_table", "maintenance_table", "p104_baseline_samples", "p104_current_samples", "trap_current_samples"}
+CONCEPTS = [                                                                  # a word in the task -> the column that answers it (one table each)
+    (re.compile(r"\b(sampling|sample rate|rate|hz|hertz|frequency)\b", re.I), "sensors_table", "sampling_hz"),
+    (re.compile(r"\b(noise|sigma|uncertaint\w*)\b", re.I), "sensors_table", "sigma"),
+    (re.compile(r"\bunits?\b", re.I), "sensors_table", "unit"),
+    (re.compile(r"\b(mass|weigh\w*|kg)\b", re.I), "equipment_table", "mass_kg"),
+    (re.compile(r"\bbaseline\b", re.I), "equipment_table", "baseline_dataset"),
+    (re.compile(r"\bcurrent dataset\b", re.I), "equipment_table", "current_dataset"),
+    (re.compile(r"\b(when|dates?|performed)\b", re.I), "maintenance_table", "date"),
+    (re.compile(r"\b(notes?|what was done|work|summary|describ\w*)\b", re.I), "maintenance_table", "note"),
+]
+_SELECT = re.compile(r"^\s*SELECT\s+(?P<cols>.+?)\s+FROM\s+obs\.(?P<table>\w+)(?P<rest>.*)$", re.I | re.S)
+
+
+def complete_columns(sql, goal):
+    """A 4B model often selects one column when the task asks for two ('sampling rate and noise level' -> SELECT sigma). When a
+    plain SELECT names columns of a table, add the columns the task's words call for and the query lacks. Returns (sql, added)."""
+    m = _SELECT.match(sql or "")
+    if not m or "(" in m.group("cols") or m.group("cols").strip() == "*":
+        return sql, []
+    cols = [c.strip() for c in m.group("cols").split(",")]
+    have = {re.split(r"\s+as\s+|\s+", c.strip(), flags=re.I)[0].lower() for c in cols}
+    added = [col for pat, table, col in CONCEPTS if table == m.group("table").lower() and col not in have and pat.search(goal or "")]
+    added = list(dict.fromkeys(added))
+    if not added:
+        return sql, []
+    return f"SELECT {', '.join(cols + added)} FROM obs.{m.group('table')}{m.group('rest')}", added
 FORBIDDEN = re.compile(r"\b(insert|update|delete|drop|create|alter|truncate|merge|grant|cache|call|exec)\b|;|--|/\*"
                        r"|\b(reflect|java_method|input_file_name|transform|current_user|exec_java)\s*\(", re.I)   # Spark built-ins that reach the JVM
 
@@ -98,6 +124,9 @@ class ResearchExpert(BaseExpert):
             except UnsafeSQL as e:
                 evidence.append({"type": "sql", "source": str(sql)[:200], "detail": f"REFUSED: {e}"})
                 continue
+            sql, added = complete_columns(sql, task.goal)
+            if added:                                                                 # the task asked for these too; the model left them out
+                self.ctx.trace.event("sql_completed", expert=self.name, task=task.id, added=added, sql=sql[:160])
             budget.charge_tool()
             cache = getattr(self.ctx, "sql_cache", None)
             try:

@@ -101,3 +101,14 @@ def test_a_value_the_rows_contain_is_never_not_available():
     res["answer"] = "The sampling rate is 100 Hz and the noise level is 0.01."
     assert C.deterministic(res) is None
 
+def test_a_query_that_forgets_a_column_the_task_asks_for_gets_it_added():
+    from inverse_core.team.experts import complete_columns
+    goal = "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?"
+    sql, added = complete_columns("SELECT sigma FROM obs.sensors_table WHERE equipment_id = 'P-104' AND quantity = 'x'", goal)
+    assert sql == "SELECT sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = 'P-104' AND quantity = 'x'" and added == ["sampling_hz"]
+    assert complete_columns("SELECT sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = 'P-104'", goal) == ("SELECT sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = 'P-104'", [])
+    assert complete_columns("SELECT COUNT(*) AS n FROM obs.p104_baseline_samples", goal)[1] == []                          # aggregates are left alone
+    assert complete_columns("SELECT record_id FROM obs.maintenance_table WHERE equipment_id = 'P-104'", "List the maintenance records for P-104 with their dates and what was done.") \
+        == ("SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104'", ["date", "note"])
+    assert complete_columns("SELECT * FROM obs.equipment_table", "mass of P-104")[1] == []
+
