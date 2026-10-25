@@ -19,6 +19,9 @@ dataframeHeaderBackgroundColor = "#141B28"
 backgroundColor = "#0F1520"
 secondaryBackgroundColor = "#172030"
 
+[server]
+address = "127.0.0.1"            # local only; reach it from elsewhere through an SSH tunnel or `tailscale serve`
+
 [client]
 toolbarMode = "minimal"
 

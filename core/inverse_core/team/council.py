@@ -45,24 +45,41 @@ class Council:
         os.makedirs(os.path.join(self.dir, "sessions"), exist_ok=True)
         os.makedirs(os.path.join(self.dir, "undo"), exist_ok=True)
         self.book_path = os.path.join(self.dir, "book.jsonl")
-        self.proposals, self.sessions, self.last_session = {}, [], 0.0
+        self.proposals, self.sessions, self.last_session, self._offset, self.skipped = {}, [], 0.0, 0, 0
         self._replay()
 
     # --- the book: append-only, replayed into state ------------------------------------------------------------------------
     def _replay(self):
+        """Reads the lines written since the last replay (every process that holds a Council appends to the same book)."""
         try:
-            with open(self.book_path) as f:
-                for raw in f:
-                    if raw.strip():
-                        self._apply_event(json.loads(raw))
-        except (OSError, ValueError):
-            pass
+            with open(self.book_path, "rb") as f:
+                f.seek(self._offset)
+                chunk = f.read()
+        except OSError:
+            return
+        if not chunk.endswith(b"\n") and b"\n" in chunk:                      # a line still being written: keep it for next time
+            chunk = chunk[: chunk.rfind(b"\n") + 1]
+        elif not chunk.endswith(b"\n"):
+            return
+        self._offset += len(chunk)
+        for raw in chunk.decode("utf-8", "replace").splitlines():
+            if not raw.strip():
+                continue
+            try:
+                self._apply_event(json.loads(raw))
+            except (ValueError, KeyError, TypeError):
+                self.skipped += 1                                            # one bad line never hides the rest of the book
 
     def _apply_event(self, e):
         v = e.get("v")
         if v == "P":
-            p = {k: e[k] for k in ("id", "k", "t", "w", "y", "e", "p", "by", "run")}
-            p.update({"status": "open", "backers": [e["by"]], "filed": e.get("at"), "updated": e.get("at"), "defers": 0, "notes": [], "effect": None})
+            if e.get("id") in self.proposals:                                  # filed again by another process: a backer, not a reset
+                p = self.proposals[e["id"]]
+                if e.get("by") not in p["backers"]:
+                    p["backers"].append(e.get("by"))
+                return
+            p = {k: e.get(k) for k in ("id", "k", "t", "w", "y", "e", "p", "by", "run")}
+            p.update({"status": "open", "backers": [e.get("by")], "filed": e.get("at"), "updated": e.get("at"), "defers": 0, "notes": [], "effect": None})
             self.proposals[p["id"]] = p
         elif v == "S" and e.get("id") in self.proposals:
             p = self.proposals[e["id"]]
@@ -73,7 +90,10 @@ class Council:
             self.proposals[e["id"]]["status"] = "withdrawn"
         elif v == "D" and e.get("id") in self.proposals:
             p = self.proposals[e["id"]]
-            p["status"] = {"adopt": "adopted", "reject": "rejected", "defer": "deferred", "expire": "expired", "needs_human": "needs_human"}[e["d"]]
+            status = {"adopt": "adopted", "reject": "rejected", "defer": "deferred", "expire": "expired", "needs_human": "needs_human"}.get(e.get("d"))
+            if status is None:
+                return
+            p["status"] = status
             p["updated"] = e.get("at")
             if e["d"] == "defer":
                 p["defers"] += 1
@@ -89,9 +109,12 @@ class Council:
             self.last_session = float(e.get("ts") or 0)
 
     def _write(self, e):
+        self._replay()                                                        # see what other processes appended first
         e = {**e, "at": e.get("at") or _now()}
+        line = wire.line(e) + "\n"
         with open(self.book_path, "a") as f:
-            f.write(wire.line(e) + "\n")
+            f.write(line)
+        self._offset += len(line.encode("utf-8"))
         self._apply_event(e)
         return e
 
@@ -106,7 +129,9 @@ class Council:
     # --- filing: free, any time -------------------------------------------------------------------------------------------
     def file(self, obj, by, run=""):
         """Returns the proposal (new or backed) or None; a bad message is dropped with a trace event, never an error."""
+        self._replay()
         p, problem = wire.parse_proposal(obj, by, run)
+        self.last_problem = problem
         if p is None:
             self._event("proposal_dropped", by=by, reason=problem, preview=str(obj)[:160])
             return None
@@ -137,13 +162,14 @@ class Council:
         return p
 
     def open(self):
+        self._replay()
         return [p for p in self.proposals.values() if p["status"] in ("open", "deferred")]
 
     # --- when to meet: code rules, never a model ---------------------------------------------------------------------------
     def due(self, now=None, forced=False):
         """Why a session should happen now, or None."""
         now = time.time() if now is None else now
-        items = self.open()
+        items = self.open()                                                   # open() replays the book first
         if not items:
             return None
         if forced:
@@ -189,6 +215,15 @@ class Council:
             rec["note"] = "nothing open"
             self._write(rec)
             return rec
+        try:
+            return self._session(ctx, registry, memory, world, reason, sid, agenda, rec)
+        except Exception as e:                                                # a session always ends and is always recorded
+            rec["note"] = f"aborted: {type(e).__name__}: {str(e)[:160]}"
+            self._event("council_done", s=sid, calls=rec["calls"], note=rec["note"])
+            self._write(rec)
+            return rec
+
+    def _session(self, ctx, registry, memory, world, reason, sid, agenda, rec):
         self._event("council_session", s=sid, reason=reason, items=[p["id"] for p in agenda])
         self._say("all", f"council session {sid}: {len(agenda)} proposal(s) on the agenda ({reason})", type="note")
         budget, votes = Budget(max_llm_calls=MAX_CALLS, max_seconds=MAX_SECONDS), {}
@@ -199,7 +234,7 @@ class Council:
             rec["calls"] += 1
             owners = {}
             for p in asked:
-                if p["k"] in ("cfg",) and p["t"] in registry.experts:
+                if p["k"] == "cfg" and p["t"] in registry.experts and p["by"] != p["t"]:     # the proposer does not vote on its own change
                     owners.setdefault(p["t"], []).append(p)
             for name, items in list(owners.items())[:2]:
                 expert = registry.experts[name]
@@ -207,12 +242,15 @@ class Council:
                 rec["calls"] += 1
         for p in agenda:
             d, why, v = self._decide(p, rails[p["id"]], votes)
+            applied = None
+            if d == "adopt":
+                applied = self.apply(p, registry, memory)
+                if not applied:
+                    why += " (the change could not be applied; see the book)"
             self._write({"v": "D", "id": p["id"], "d": d, "r": why, "by": "rule", "s": sid, "votes": v})
             self._event("council_decision", s=sid, id=p["id"], decision=d, reason=why, votes=v)
             rec["decisions"].append({"id": p["id"], "d": d, "r": why})
-            if d == "adopt":
-                self.apply(p, registry, memory)
-            elif d == "needs_human":
+            if d == "needs_human":
                 self._human_card(p, why)
             self._say("all" if d == "adopt" else p["by"], f"{p['id']} {d}: {p['w']} ({why})", type="note" if d != "adopt" else "result")
             self._world(world, sid, p, d, v)
@@ -230,51 +268,68 @@ class Council:
         try:
             budget.charge_llm()
             out = ask(ctx, lane, [{"role": "system", "content": system}, {"role": "user", "content": wire.line({"agenda": payload})}], who,
-                      max_tokens=240, json_reply=True)
+                      max_tokens=800, json_reply=True)
             votes, problem = wire.parse_votes(out["json"], ids)
             if problem:
                 self._event("council_vote_unreadable", who=who, reason=problem, preview=(out.get("text") or "")[:160])
             return votes
-        except (BudgetExceeded, BadReply, KeyError, TypeError, ValueError) as e:
+        except Exception as e:                                                # an offline model or a cut reply is an abstention, never an aborted session
             self._event("council_vote_unreadable", who=who, reason=f"{type(e).__name__}: {str(e)[:120]}")
             return {i: ("?", "") for i in ids}
 
     def _rails(self, p, registry):
-        """What is never adopted automatically, checked by code before any vote. Returns a reason, or None when the item may be voted on."""
+        """What is never adopted automatically, checked by code before any vote. Returns None (votable), or ("reject"|"needs_human", reason)."""
+        human = p["by"] == "human"
         if p["k"] == "code":
-            return "code changes are for people: filed as a task card"
+            return "needs_human", "code changes are for people: filed as a task card"
         if p["k"] == "cfg":
             c = registry.configs.get(p["t"])
             if not c:
-                return f"no agent named {p['t']}"
+                return "reject", f"no agent named {p['t']}"
             if c.get("kind") == "architect" or "list_experts" in (c.get("tools") or []):
-                return "the architect's configuration is not changed by the council"
+                return "reject", "the architect's configuration is not changed by the council"
+            tools = list(c.get("tools") or [])
             for k, v in p["p"].items():
                 if k.startswith("budget."):
                     cur = (c.get("budget") or {}).get(k.split(".", 1)[1])
                     if cur and not 0.5 * cur <= v <= 1.5 * cur:
-                        return f"{k} may move by half at most per decision (now {cur})"
+                        return "reject", f"{k} may move by half at most per decision (now {cur})"
                 if k == "system_prompt+" and str(c.get("system_prompt") or "").count("[council]") >= MAX_PROMPT_ADDENDA:
-                    return f"{p['t']} already has {MAX_PROMPT_ADDENDA} council addenda"
+                    return "reject", f"{p['t']} already has {MAX_PROMPT_ADDENDA} council addenda"
+                if k == "tools-" and (v not in tools or len(tools) <= 1 or (v in wire.CODE_TOOLS and set(tools) & wire.CODE_TOOLS)):
+                    return "reject", f"{p['t']} keeps its {v} tool (an agent is never left without tools, and a code reviewer keeps its code tools)"
+                if k in ("system_prompt+", "tools+") and not human:
+                    return "needs_human", f"{k} on {p['t']} is for people to adopt: filed as a task card"
         if p["k"] == "mission":
             names = {m["name"] for m in load_missions(self.root)}
-            if "name" in p["p"] and p["p"]["name"] not in names and len(names) >= MAX_MISSIONS:
-                return f"the crew already has {MAX_MISSIONS} missions"
-            if p["t"] not in names and "name" not in p["p"] and "goal" not in p["p"]:
-                return f"no mission named {p['t']}"
+            name = p["p"].get("name") or p["t"]
+            if name not in names and len(names) >= MAX_MISSIONS:
+                return "reject", f"the crew already has {MAX_MISSIONS} missions"
+            if name not in names and "goal" not in p["p"]:
+                return "reject", f"no mission named {name}, and a new one needs a goal"
+            if ("goal" in p["p"] or name not in names) and not human:
+                return "needs_human", "a new mission or a new goal is for people to adopt: filed as a task card"
+            if "every" in p["p"] and float(p["p"]["every"]) < 6 and not human:
+                return "reject", "an agent may not schedule a mission more often than every 6 hours"
         if p["k"] == "agent":
             cfg = p["p"].get("config") or {}
             if not cfg.get("name") or cfg.get("kind") not in (None, "custom"):
-                return "only a custom agent Forge built in a run can be kept"
+                return "reject", "only a custom agent Forge built in a run can be kept"
+            if p["by"] != "rule:keep" and not human:
+                return "reject", "only the keep rule (an agent Forge built and used) or a person may keep an agent"
+            if cfg["name"] in registry.configs and registry.source.get(cfg["name"]) != "run":
+                return "reject", f"{cfg['name']} already exists; a kept agent never replaces a built-in or saved one"
+        if p["k"] == "note" and not p["e"] and len(p["backers"]) < 2 and not human:
+            return "reject", "a note for shared memory needs an evidence reference or a second backer"
         return None
 
     def _decide(self, p, rail, votes):
         """The rule. Returns (decision, reason, votes-as-dict)."""
         v = {k: vs.get(p["id"], ("?", ""))[0] + (":" + vs[p["id"]][1] if vs.get(p["id"], ("", ""))[1] else "") for k, vs in votes.items() if p["id"] in vs}
         if rail:
-            return ("needs_human" if p["k"] == "code" else "reject"), rail, v
+            return rail[0], rail[1], v
         vera = votes.get("vera", {}).get(p["id"], ("?", ""))
-        owner = votes.get(p["t"], {}).get(p["id"]) if p["k"] == "cfg" else None
+        owner = votes.get(p["t"], {}).get(p["id"]) if p["k"] == "cfg" and p["by"] != p["t"] else None
         if vera[0] == "n" or (owner and owner[0] == "n"):
             who = "Vera" if vera[0] == "n" else p["t"]
             return "reject", f"{who}: {(vera if vera[0] == 'n' else owner)[1] or 'no'}", v
@@ -282,8 +337,9 @@ class Council:
             return "defer", f"revise: {(vera if vera[0] == 'r' else owner)[1]}", v
         if vera[0] == "?" or (owner and owner[0] == "?"):
             return "defer", "a reviewer could not judge it this session", v
-        if RISK[p["k"]] == "medium" and len(p["backers"]) < 1:
-            return "defer", "needs a backer", v
+        self_serving = p["by"] == p["t"] or str(p["by"]).startswith("rule:")
+        if RISK[p["k"]] == "medium" and self_serving and len(p["backers"]) < 2:
+            return "defer", "a change an agent asks for itself (or a rule files) needs a second backer", v
         return "adopt", "Vera yes" + (f", {p['t']} yes" if owner else ""), v
 
     # --- effects: real, reversible, by code -------------------------------------------------------------------------------------
@@ -369,11 +425,14 @@ class Council:
         with open(os.path.join(self.dir, "human.md"), "a") as f:
             f.write(f"- [ ] {_now()} {p['id']} ({p['by']}): {p['w']} — why: {p['y'] or '-'} — evidence: {', '.join(p['e']) or '-'} — {why}\n")
 
-    def revert(self, id, registry, by="human"):
-        """Undo an applied effect from its undo record (configs and missions; a memory note stays, it is advisory)."""
+    def revert(self, id, registry, by="human", memory=None):
+        """Undo an applied effect from its undo record (configs and missions); a memory note is marked refuted when a memory is given."""
+        self._replay()
         p = self.proposals.get(id)
         if not p or not p.get("effect") or p["effect"].get("x") != "applied":
             return False
+        if p["k"] == "note" and memory is not None:
+            memory.refute(f"council: {p['w']}", "reverted by the council", source="council", expert=p["by"])
         upath = p["effect"].get("u")
         if upath and os.path.exists(upath):
             with open(upath) as f:
@@ -430,6 +489,7 @@ class Council:
         return filed
 
     def summary(self):
+        self._replay()
         items = sorted(self.proposals.values(), key=lambda p: p.get("updated") or "", reverse=True)
         return {"open": [p for p in items if p["status"] in ("open", "deferred")], "decided": [p for p in items if p["status"] not in ("open", "deferred")][:20],
                 "sessions": self.sessions[-5:], "due": self.due()}

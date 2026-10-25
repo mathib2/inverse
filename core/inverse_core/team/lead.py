@@ -15,7 +15,7 @@ from .critic import Critic
 from .custom import scope_check
 from .expert import ExpertBudget, Task
 from .llmcall import BadReply, ask
-from .plan import Plan, PlanError
+from .plan import PLACEHOLDER, Plan, PlanError
 from .registry import ConfigError
 from .tools import CODE_TOOLS, Tools
 
@@ -200,6 +200,10 @@ class Lead:
                 t = tasks.get(str(c.get("id"))) if isinstance(c, dict) else None
                 goal = str(c.get("goal") or "").strip() if isinstance(c, dict) else ""
                 if t and t.expert == name and goal and goal != t.goal:
+                    kept = [e for e in self.ctx.equipment if e in t.goal and e not in goal]
+                    if PLACEHOLDER.search(goal) or kept:                      # a copied example or a dropped machine never replaces a goal
+                        self.ctx.trace.event("plan_review_ignored", expert=name, task=t.id, reason="placeholder text" if not kept else f"dropped {kept}")
+                        continue
                     t.goal = goal
                     changed.append(t.id)
             self.ctx.trace.event("plan_review", expert=name, ok=bool(review.get("ok", True)), changed=changed,
@@ -341,7 +345,7 @@ class Lead:
                 return
             if reason:                                                        # the reviewer's note goes on the bus, addressed to the expert
                 self.bus.post("critic", task.expert, reason, type="review", task=task.id, verdict=review["verdict"])
-            if review.get("by") == "llm" and reason:                         # a reviewer's reason is a lesson for this expert's next tasks
+            if review.get("by") == "llm" and reason and "unknown verdict" not in reason:   # a reviewer's reason is a lesson; a parse problem is not
                 self._mem("add_lesson", task.expert, f"{task.goal[:80]}: {reason[:200]}")
             if review["verdict"] == "reject":
                 task.status, task.feedback = "rejected", reason

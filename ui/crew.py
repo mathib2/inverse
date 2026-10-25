@@ -24,10 +24,7 @@ EXAMPLES = [("What do we know about P-104?", "From the registry, the sensor spec
             ("Check our own code", "Review this repository's own code for security weaknesses and propose the smallest fix for each verified finding."),
             ("What do we know so far?", "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.")]
 ICON = {"question": "❓", "answer": "💬", "result": "📣", "review": "🧐", "note": "📝"}
-TOOL_WORDS = {"run_sql": "data queries", "calc": "calculator", "memory": "shared memory", "ask_expert": "asks the others", "post_message": "leaves notes",
-              "read_messages": "reads notes", "scan": "code scan", "read_file": "reads code", "grep": "searches code", "list_files": "lists files",
-              "list_experts": "sees the crew", "design_expert": "designs agents", "create_expert": "builds agents",
-              "test_expert": "test-drives agents"}
+TOOL_WORDS = plain.TOOL_WORDS
 
 
 def _configs():
@@ -70,7 +67,7 @@ def crew_cards(configs):
         cols = st.columns(3, gap="small")
         for col, r in zip(cols, rows[i:i + 3]):
             with col.container(border=True, height="stretch"):
-                st.markdown(f"**{r['name']}**  \n<span style='color:#9FB0CC;font-size:.85rem'>{r['id']}</span>", unsafe_allow_html=True)
+                st.markdown(f"**{parts.esc(r['name'])}**  \n<span style='color:#9FB0CC;font-size:.85rem'>{parts.esc(r['id'])}</span>", unsafe_allow_html=True)
                 st.caption(r["does"])
                 if r["tools"]:
                     st.caption("Can use: " + ", ".join(TOOL_WORDS.get(t, t) for t in r["tools"]))
@@ -123,6 +120,8 @@ def render(ledger, ai_online, sidecar, health=None):
     data_online = bool(health and health["data"]["ok"]) if health else True
     if not ai_online:
         st.caption("The crew is paused because the AI is offline. See **AI** under Connections in the sidebar.")
+    elif not data_online:
+        st.caption("The data platform is offline, so Scout and Ada cannot query it. See **Data platform** under Connections in the sidebar.")
     if st.button("Go", type="primary", icon=":material/play_arrow:", disabled=not ai_online or not data_online or not goal.strip()):
         for k in ("crew_out", "crew_plan", "crew_dir", "crew_replay"):
             ss.pop(k, None)
@@ -151,6 +150,11 @@ def render(ledger, ai_online, sidecar, health=None):
             status.update(label="Mission complete", state="complete", expanded=False)
             ss.crew_out, ss.crew_plan, ss.crew_dir = box["v"], holder["plan"], ctx.trace.dir
 
+    if not ss.get("crew_out") and not ss.get("crew_autoloaded"):              # first visit: show the newest finished mission, not an empty page
+        ss.crew_autoloaded = True
+        newest = team.saved_runs(limit=1)
+        if newest and team._load_run(newest[0]["dir"]):
+            ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = ss.team_out, ss.team_plan, ss.team_dir, ss.team_events, True
     if ss.get("crew_out"):
         if ss.get("crew_replay"):
             st.info(f"Replaying the mission saved at `{os.path.relpath(ss.crew_dir, ROOT)}`: nothing below was recomputed.")

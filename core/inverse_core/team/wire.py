@@ -20,7 +20,11 @@ NAME = re.compile(r"^[a-z][a-z0-9_:-]{0,31}$")
 PID = re.compile(r"^P-[0-9a-f]{6}$")
 REF = re.compile(r"^(T\d+\.E\d+|T\d+|P-[0-9a-f]{6}|runs/[\w-]+)$")
 TEXT = 140
+YES = {"y", "yes", "adopt", "accept", "approve", "ok", "agree"}
+NO = {"n", "no", "reject", "rejected", "deny", "veto", "against"}
+REVISE = {"r", "revise", "change", "defer", "amend"}
 LANES = ("fast", "deep")
+CODE_TOOLS = {"scan", "read_file", "grep", "list_files"}
 GRANTABLE = ("run_sql", "calc", "memory", "ask_expert", "post_message", "read_messages", "propose")   # tools a proposal may add; never the architect's
 BUDGET_RANGE = {"budget.tool_calls": (1, 16), "budget.tokens": (1000, 200000), "budget.seconds": (30, 900)}
 PATCH_KEYS = {
@@ -30,6 +34,11 @@ PATCH_KEYS = {
     "note": set(),
     "code": set(),
 }
+
+
+def slug(s):
+    """Targets and mission names as identifiers: 'data check' -> 'data_check'."""
+    return re.sub(r"[^a-z0-9_./-]+", "_", clean(s, 48).lower()).strip("_")[:32]
 
 
 def clean(s, n=TEXT):
@@ -64,8 +73,8 @@ def _patch(kind, p):
                 return {}, "model_lane must be fast or deep"
         elif k in ("tools+", "tools-"):
             v = str(v)
-            if k == "tools+" and v not in GRANTABLE:
-                return {}, f"tool {v!r} cannot be granted by the council (allowed: {', '.join(GRANTABLE)})"
+            if v not in GRANTABLE:
+                return {}, f"tool {v!r} is not one the council may grant or remove (allowed: {', '.join(GRANTABLE)})"
         elif k == "system_prompt+":
             v = clean(v, 200)
             if len(v) < 8:
@@ -80,7 +89,7 @@ def _patch(kind, p):
         elif k == "enabled":
             v = bool(v)
         elif k in ("goal", "name"):
-            v = clean(v, 200 if k == "goal" else 32)
+            v = clean(v, 200) if k == "goal" else slug(v)
             if k == "name" and not TARGET.match(v):
                 return {}, "mission name must be a short identifier"
         elif k == "config":
@@ -99,7 +108,7 @@ def parse_proposal(obj, by, run=""):
     kind = str(obj.get("k") or obj.get("kind") or "").strip().lower()
     if kind not in KINDS:
         return None, f"unknown kind {kind!r} (one of {', '.join(KINDS)})"
-    target = clean(obj.get("t") or obj.get("target") or ("shared" if kind == "note" else "repo" if kind == "code" else ""), 32).lower()
+    target = slug(obj.get("t") or obj.get("target") or ("shared" if kind == "note" else "repo" if kind == "code" else ""))
     if not TARGET.match(target):
         return None, "target must be a short identifier (an expert, a mission, 'shared' or 'repo')"
     what = clean(obj.get("w") or obj.get("what"))
@@ -127,12 +136,16 @@ def parse_votes(obj, agenda_ids):
         if i not in votes:
             continue
         s = clean(v, 90)
-        if s == "y" or s.lower().startswith("y"):
+        if "|" in s or "<" in s:                                              # the prompt's example, copied: not a vote
+            continue
+        head, _, note = s.partition(":")
+        word = head.strip().strip(".!").lower()
+        if word in YES:
             votes[i] = ("y", "")
-        elif s.lower().startswith("n"):
-            votes[i] = ("n", s[2:].strip() if len(s) > 1 and s[1] == ":" else s[1:].strip())
-        elif s.lower().startswith("r"):
-            votes[i] = ("r", s[2:].strip() if len(s) > 1 and s[1] == ":" else s[1:].strip())
+        elif word in NO:
+            votes[i] = ("n", note.strip() or head.strip()[1:].strip() if word == "n" and len(head.strip()) > 1 else note.strip())
+        elif word in REVISE:
+            votes[i] = ("r", note.strip())
         else:
             votes[i] = ("?", "")
     return votes, None

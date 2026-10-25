@@ -56,7 +56,8 @@ def validate(c, lanes=None):
 
 
 def _local(directory):
-    return directory.rstrip("/\\") + ".local"
+    """experts.local next to the experts folder, or the folder INVERSE_EXPERTS_LOCAL names (the test suite points it at a temp dir)."""
+    return os.environ.get("INVERSE_EXPERTS_LOCAL") or directory.rstrip("/\\") + ".local"
 
 
 def load_configs(directory, lanes=None):

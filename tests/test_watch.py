@@ -109,7 +109,8 @@ def test_failures_are_recorded_and_the_cycle_goes_on(tmp_path):
     runs = w.status()["runs"]
     assert runs[0]["status"] == "failed" and "planner exploded" in runs[0]["error"]
     assert not os.path.exists(w.current_path)
-    assert w.cycle() == []                                                                 # a failed machine waits for new data, not a retry storm
+    assert [d["ok"] for d in w.cycle()] == [False, False]                                   # one retry on the next cycle
+    assert w.cycle() == []                                                                 # then it waits for new data, not a retry storm
 
 
 def test_loop_once_writes_heartbeat_log_and_status_and_the_filter_limits_machines(tmp_path):

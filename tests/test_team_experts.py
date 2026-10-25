@@ -120,11 +120,10 @@ def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produce
         calls.append([m["content"][:30] for m in messages if m["role"] == "user"])
         return json.dumps({"tool": "calc", "args": {"expr": "1"}})
     ctx2 = make_ctx(tmp_path / "runs2", greedy, root=str(tmp_path))
-    res = CustomExpert(ctx2, "s", "r", "p", "fast", ["calc"]).run(Task("T1", "x", "s"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=3))
-    assert res.confidence == 0.0 and "budget" in res.answer and len(res.evidence) == 3            # three tools ran, then it had to answer
+    with pytest.raises(BudgetExceeded, match="tool-call budget 3 exceeded"):                     # told to answer, it asked for a tool again: the task fails honestly
+        CustomExpert(ctx2, "s", "r", "p", "fast", ["calc"]).run(Task("T1", "x", "s"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=3))
     assert calls[-1][-1].startswith("Your tool budget is spent") and len(events(ctx2, "llm")) == 4
     assert sum(c.startswith("[earlier tool result") for c in calls[-1]) == 1                        # the oldest of three results is a stub
-    assert C.deterministic(res.to_dict()) == ("revise", "the expert reported zero confidence")
 
 
 # --- model replies that are not clean JSON -------------------------------------------------------------------------------------
@@ -246,7 +245,8 @@ def test_retry_builds_on_the_previous_attempt(tmp_path):
 
 
 # --- registry: local overrides, validation ---------------------------------------------------------------------------------
-def test_registry_local_overrides_add_and_disable_without_touching_builtins(tmp_path):
+def test_registry_local_overrides_add_and_disable_without_touching_builtins(tmp_path, monkeypatch):
+    monkeypatch.delenv("INVERSE_IGNORE_LOCAL_EXPERTS", raising=False)                        # this test is about local overrides
     d = tmp_path / "experts"
     d.mkdir()
     (d / "a.yaml").write_text("name: a\nkind: custom\nrole: built-in role\ntools: [calc]\nmodel_lane: fast\n")

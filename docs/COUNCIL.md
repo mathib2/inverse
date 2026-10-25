@@ -52,12 +52,16 @@ an hour unless a person asks. Each session is bounded by `Budget(max_llm_calls=4
 five (most backed, then oldest):
 
 1. **Code first.** Expire what waited a week or was deferred twice. Check the rails on every item without a model: a budget may move
-   by half at most per decision; the architect's configuration is never changed; a mission must exist or be new with a goal; only a
-   custom agent Forge built can be kept; code changes are never applied (they become a task card for people).
+   by half at most per decision; the architect's configuration is never changed; an agent is never left without tools and a code reviewer keeps
+   its code tools; a note needs an evidence reference or a second backer; only the keep rule (an agent Forge built and used) or a person keeps an
+   agent, never over a built-in; code changes are never applied. Prompt addenda, granted tools, new missions or new goals become task cards for
+   people unless a person filed them; an agent may not schedule a mission more often than every six hours.
 2. **Vera votes on the whole agenda in one call** (lane `critic`): `y`, `n:reason`, `r:what to change`, `?`.
 3. **Each agent a change concerns votes on its own items in one call** (lane `fast`, its own prompt), at most two such calls.
 4. **The rule:** `n` from Vera or the owner rejects; `r` defers with the requested change kept as a note; `?` (or an unreadable
-   reply, or a budget stop) defers without counting as a vote; otherwise adopt. Two deferrals expire a proposal.
+   reply, an offline model or a budget stop) defers without counting as a vote; a change an agent asks for itself, or a rule files, needs
+   a second backer; otherwise adopt. The proposer never votes on its own change. Two deferrals expire a proposal. Votes are read in
+   a small model's own words (`accept`, `reject`, `approve`); a copied example is an abstention.
 5. **Effects by code**, each with an undo record in `council/undo/`: `cfg` writes `experts.local/<agent>.yaml` through the registry's
    validation and reloads; `mission` writes `missions.local.yaml` (merged over `missions.yaml` by `core/inverse_core/missions.py`);
    `note` writes shared memory with source `council`, which no deterministic check can be overwritten by; `agent` keeps Forge's config;

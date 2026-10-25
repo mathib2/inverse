@@ -44,7 +44,9 @@ cd ~/inverse-live && PYTHONPATH=core .venv/bin/python scripts/watch.py --once --
 ```
 
 With the local models (`docs/agent/LOCAL_MODELS.md`) a mission takes a few minutes, so the 30-minute interval is comfortable;
-a queued goal is picked up within about 30 seconds.
+a queued goal is picked up within about 30 seconds. Fixed-text missions (standing missions and new-data missions) are planned by rule with no
+model call; a person's goal gets the model planner. `missions.yaml` and `missions.local.yaml` are re-read every cycle, so the council's and
+people's changes take effect without a restart. A failed new-data mission is retried once on the next cycle, then waits for new data.
 
 ## 2. The agents talk (`core/inverse_core/team/bus.py`, `team/tools.py`)
 

@@ -14,8 +14,8 @@ import requests
 from .expert import ExpertBudget, Task
 from .experts import check_sql, safe_eval
 
-SECRET_GLOBS = (".env", ".env.*", "*.pem", "*.key", "id_*", "*.p12", "*.pfx", "secrets.toml", "*.kdbx")
-SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", "runs", "vendor", ".state", ".pytest_cache", "experts.local"}
+SECRET_GLOBS = (".env", ".env.*", "*.pem", "*.key", "id_*", "*.p12", "*.pfx", "secrets.toml", "*.kdbx", "*.jsonl", "*.local.yaml")   # the last two are live state, not code
+SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", "runs", "vendor", ".state", ".pytest_cache", "experts.local", "council", "state", "queue"}
 TEXT_EXT = {".py", ".md", ".txt", ".yaml", ".yml", ".toml", ".json", ".ts", ".js", ".sh", ".cfg", ".ini", ".sql", ".html", ".css", ".example"}
 CODE_EXT = {".py", ".ts", ".js", ".sh", ".yaml", ".yml", ".toml", ".cfg", ".ini"}
 MAX_FILE_CHARS, MAX_HITS, MAX_LIST = 8000, 40, 300
@@ -130,6 +130,8 @@ class Tools:
         p = self._inside(path)
         if not os.path.isfile(p):
             raise ToolError(f"{path!r} is not a file")
+        if os.path.splitext(p)[1] not in TEXT_EXT:
+            raise ToolError(f"{path!r} is not a text file experts read")
         with open(p, encoding="utf-8", errors="replace") as f:
             lines = f.read().splitlines()
         start, end = max(1, int(start)), min(len(lines), int(end or len(lines)))
@@ -181,11 +183,10 @@ class Tools:
             rows = self.ctx.zetaris.sql(sql, limit=50)
             if cache is not None:
                 cache[sql] = rows
-        if "maintenance_table" in sql and self.ctx.guard:                        # untrusted text never reaches a model raw
-            notes = [r for r in rows if "note" in r and "record_id" in r]
-            safe, _ = self.ctx.guard(notes)
-            by_id = {n["record_id"]: n for n in safe}
-            rows = [by_id.get(r.get("record_id"), r) for r in rows]
+        from ..agents.guard import scrub
+        rows, blocked = scrub(rows)                                             # untrusted text never reaches a model raw, whatever the column is called
+        if blocked:
+            self.ctx.trace.event("injection_guard", agent=self.owner, blocked=blocked[:5])
         return {"sql": sql, "rows": rows[:50], "count": len(rows)}
 
     def _calc(self, expr):
