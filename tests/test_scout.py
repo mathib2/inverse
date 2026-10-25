@@ -45,7 +45,7 @@ def test_a_quote_is_judged_against_evidence_values_not_the_query_text():
     evidence = [{"type": "sql", "source": "SELECT equipment_id FROM obs.equipment_table WHERE baseline_dataset IS NULL", "detail": "0 rows", "rows": []}]
     kept, dropped = C.check_problems([{"quote": answer, "why": "the registry does hold such a machine"}], answer, evidence)
     assert kept and not dropped                                                                    # the SELECT's own words do not support the claim
-    evidence = [{"type": "sql", "source": "SELECT equipment_id FROM obs.equipment_table WHERE baseline_dataset = 'none'", "detail": "1 rows", "rows": [{"equipment_id": "T-200"}]}]
+    evidence = [{"type": "sql", "source": "SELECT equipment_id FROM obs.equipment_table WHERE baseline_dataset = 'none'", "detail": "1 rows", "rows": [{"equipment_id": "T-200", "baseline_dataset": "none"}]}]
     kept, dropped = C.check_problems([{"quote": "T-200 has no baseline dataset", "why": "x"}], "T-200 has no baseline dataset.", evidence)
     assert not kept and dropped[0]["check"] == "the evidence covers it"
 

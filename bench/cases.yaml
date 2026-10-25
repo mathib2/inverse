@@ -24,7 +24,7 @@
   goal: "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2."
   expect: ["9.81"]
 - name: code
-  goal: "Review core/inverse_core/team/tools.py for security weaknesses and name the most important finding with its line number."
+  goal: "Review core/inverse_core/team/tools.py for security weaknesses. Name the file you reviewed and the most important finding with its line number, or say that none was found in it."
   expect: ["tools.py"]
   expert: vulnerability
 - name: summary
