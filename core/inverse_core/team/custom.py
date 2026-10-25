@@ -59,6 +59,9 @@ class CustomExpert(BaseExpert):
     def _system(self):
         return (self.prompt or self.role) + self.TAIL + self.toolbox.describe()
 
+    def system(self):
+        return self._system()
+
     OUT_OF_BUDGET = "Your tool budget is spent. Do not call a tool. Give your final JSON now from what you already have."
 
     def _loop(self, msgs, budget, evidence):
@@ -82,9 +85,9 @@ class CustomExpert(BaseExpert):
             failed = isinstance(out, dict) and out.get("error")
             evidence.append({"type": "tool", "source": f"{name}({json.dumps(args, default=str)[:120]})",
                              "detail": (f"ERROR {out['error']}" if failed else json.dumps(out, default=str))[:300], "result": out})
-            msgs += [{"role": "assistant", "content": r["text"]}, {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:2500]}]
-            if sum(len(m["content"]) for m in msgs) > 16000:                 # fold only when the conversation gets long: rewriting it every turn broke the prefix cache
-                self._fold(msgs)
+            msgs += [{"role": "assistant", "content": r["text"]}, {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:1800]}]
+            if sum(len(m["content"]) for m in msgs) > 9000:                  # fold only when the conversation nears the 4096-token window (rewriting it every turn broke the prefix cache)
+                self._fold(msgs, keep=1)
         return {"answer": "I used up my tool budget before reaching an answer.", "confidence": 0.0, "not_checked": ["the task"]}, models
 
     @staticmethod
@@ -148,7 +151,7 @@ class VulnerabilityExpert(CustomExpert):
         else:
             msgs = [{"role": "system", "content": self._system()},
                     {"role": "user", "content": self._task_text(task) + "\nSCAN RESULT (fixed rules; triage each hit, read the code to confirm or to find more):\n"
-                     + json.dumps(scan, default=str)[:8000] + self._previous(task)}]
+                     + json.dumps(scan, default=str)[:3500] + self._previous(task)}]
             j, models = self._loop(msgs, budget, evidence)
             verified, dropped = self._verify(j.get("findings") or [])
         findings = []

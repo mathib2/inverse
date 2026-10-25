@@ -113,8 +113,11 @@ def check_sql(sql):
 class ResearchExpert(BaseExpert):
     """Zetaris-only: the model writes SELECTs, we validate and run them, every claim cites a query and its rows."""
 
+    def system(self):
+        return self.prompt + "\n" + SCHEMA + '\nWrite new queries for the task in that dialect. Return ONLY JSON: {"queries":["SELECT ..."]} with at most 3 read-only SELECTs, no semicolons.'
+
     def run(self, task, memory, budget):
-        sys1 = (self.prompt + "\n" + SCHEMA + '\nWrite new queries for the task in that dialect. Return ONLY JSON: {"queries":["SELECT ..."]} with at most 3 read-only SELECTs, no semicolons.')
+        sys1 = self.system()
         q = ask(self.ctx, self.lane, [{"role": "system", "content": sys1}, {"role": "user", "content": self._task_text(task)}],
                 self.name, budget, json_reply=True, max_tokens=QUERY_MAX_TOKENS)
         models, evidence, rows_all = [q["model"]], [], []
@@ -246,8 +249,11 @@ class ReasoningExpert(BaseExpert):
                 bad.append(f"step {i}: {calc} could not be computed ({e})")
         return ev, bad
 
+    def system(self):
+        return self.prompt + self.SYSTEM_TAIL
+
     def run(self, task, memory, budget):
-        msgs = [{"role": "system", "content": self.prompt + self.SYSTEM_TAIL}, {"role": "user", "content": self._task_text(task)}]
+        msgs = [{"role": "system", "content": self.system()}, {"role": "user", "content": self._task_text(task)}]
         r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
         models, j = [r["model"]], r["json"]
         ev, bad = self._check(j.get("steps", []))

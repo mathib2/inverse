@@ -90,12 +90,15 @@ class Lead:
         self.bus = getattr(ctx, "bus", None) or Bus()                         # the experts' conversation: results, reviews, questions, answers
         ctx.bus = self.bus
 
+    def plan_system(self):
+        """The planner's system prompt as sent: byte-stable per process, so the model server's prefix cache holds it."""
+        return PLAN_SYSTEM.format(experts="\n".join(f"- {n}: {r}" for n, r in self.registry.roles().items()),
+                                  equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(Tools.SPECS))
+
     def plan(self, goal, collaborate=False, votes=1):
         """votes > 1 samples that many plans at temperature 0.7 and keeps the most common task/expert structure
         (self-consistency, Wang et al. 2022): a majority over samples is more reliable than one greedy decode."""
-        prompt = PLAN_SYSTEM.format(experts="\n".join(f"- {n}: {r}" for n, r in self.registry.roles().items()),
-                                    equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(Tools.SPECS))
-        msgs = [{"role": "system", "content": prompt}, {"role": "user", "content": goal}]
+        msgs = [{"role": "system", "content": self.plan_system()}, {"role": "user", "content": goal}]
         before = set(self.registry.configs)                                  # experts proposed by losing or invalid samples are dropped again
         if votes > 1:
             plan = self._vote(goal, msgs, votes)
@@ -400,9 +403,12 @@ class Lead:
                 return
             if reason:                                                        # the reviewer's note goes on the bus, addressed to the expert
                 self.bus.post("critic", task.expert, reason, type="review", task=task.id, verdict=review["verdict"])
-            if review.get("by") == "llm" and reason and "unknown verdict" not in reason:   # a reviewer's reason is a lesson; a parse problem is not
-                self._mem("add_lesson", task.expert, f"{task.goal[:80]}: {reason[:200]}")
-            if review["verdict"] == "reject":
+            kept = review.get("problems") or []
+            if review.get("by") == "llm" and kept:                             # only an objection that checked out becomes a lesson, in its checkable words
+                self._mem("add_lesson", task.expert, (f"{task.goal[:80]}: " + "; ".join(f"\u00ab{str(k.get('quote'))[:80]}\u00bb {k.get('why') or k.get('check')}" for k in kept[:2]))[:240])
+            if review["verdict"] == "reject" and review.get("by") == "llm" and attempt < self.max_attempts:
+                self.ctx.trace.event("reject_retried", task=task.id, reason=reason[:200])   # a 4B reviewer's reject is a strong revise: one more try with the quote
+            elif review["verdict"] == "reject":
                 task.status, task.feedback = "rejected", reason
                 self._mem("refute", f"{task.expert}: {res.answer[:200]}", reason, source="llm_critic" if review.get("by") == "llm" else "validator",
                           expert=task.expert)
@@ -436,9 +442,9 @@ class Lead:
         self.ctx.trace.event("composing", accepted=len(ok), unfinished=len(problems))
         if not ok:                                                            # nothing survived review: the answer is written by code, never by a model
             text, model, fallback = "No task produced an accepted result.", None, True
-        elif len(ok) == 1:                                                    # one accepted result IS the answer: cited by code, no writer call (8-45 s saved)
-            t = ok[0]
-            text = f"{t.result['answer']} " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1))
+        elif len(ok) == 1 or (len(ok) == 2 and sum(len(str(t.result["answer"])) for t in ok) < 900):   # short results ARE the answer: cited by code, no writer call
+            cite = lambda t: " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1))
+            text = f"{ok[0].result['answer']} {cite(ok[0])}" if len(ok) == 1 else "\n\n".join(f"**{t.id} ({t.expert})**: {t.result['answer']} {cite(t)}" for t in ok)
             model, fallback = None, False
         else:
           try:

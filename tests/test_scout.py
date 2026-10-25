@@ -138,3 +138,42 @@ def test_values_the_answer_leaves_out_ride_along_from_the_rows():
     many = [{"type": "sql", "source": "q", "detail": "9 rows", "rows": [{"t": str(i)} for i in range(9)]}]
     assert ResearchExpert._facts(many, "x") == ""                                                                 # not for big result sets
 
+def test_a_reviewers_reject_is_retried_once_with_the_quote_and_only_kept_problems_become_lessons(tmp_path):
+    n = {"critic": 0}
+
+    def script(model, messages):
+        system = messages[0]["content"]
+        if system.startswith("You are the Reasoning expert"):
+            return json.dumps({"steps": [{"claim": "c", "calc": "2*3", "expect": 6}], "answer": "six is 6, as the manual says", "confidence": 0.9, "assumptions": []})
+        if system.startswith("You are an adversarial reviewer"):
+            n["critic"] += 1
+            if n["critic"] == 1:
+                return json.dumps({"verdict": "reject", "problems": [{"quote": "as the manual says", "why": "no manual is in the evidence"}], "reason": "unsupported"})
+            return json.dumps({"verdict": "accept", "problems": []})
+        return "6 [T1.E1]"
+
+    ctx, lead = crew(tmp_path, script)
+    t = Task("T1", "what is 2*3", "reasoning")
+    lead._execute(t)
+    assert t.status == "done" and t.attempts == 2 and events(ctx, "reject_retried") and not events(ctx, "task_rejected")
+    lessons = lead.memory.lessons("reasoning")
+    assert len(lessons) == 1 and "as the manual says" in lessons[0] and "no manual" in lessons[0]
+
+
+def test_two_short_results_are_composed_by_code(tmp_path):
+    from inverse_core.team.plan import Plan
+    ctx, lead = crew(tmp_path, lambda m, msgs: (_ for _ in ()).throw(AssertionError("no writer call expected")))
+    mk = lambda i, exp, ans: Task(f"T{i}", "g", exp, status="done", result={"answer": ans, "evidence": [{"type": "sql", "source": "q", "detail": "1 rows"}], "confidence": 0.9, "assumptions": [], "not_checked": []})
+    out = lead.compose(Plan("g", [mk(1, "research", "P-104 and T-200 are in the registry."), mk(2, "research", "T-200 has no baseline dataset.")]))
+    assert out["answer"] == "**T1 (research)**: P-104 and T-200 are in the registry. [T1.E1]\n\n**T2 (research)**: T-200 has no baseline dataset. [T2.E1]"
+    assert set(out["citations"]) == {"T1.E1", "T2.E1"} and events(ctx, "compose")[0]["model"] is None
+
+
+def test_every_agent_exposes_the_system_prompt_a_warm_up_sends(tmp_path):
+    from inverse_core.team import critic as CR
+    from inverse_core.team.experts import SCHEMA
+    ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
+    assert "Experts:" in lead.plan_system() and "research" in lead.plan_system()
+    assert SCHEMA in lead.registry.experts["research"].system() and "steps" in lead.registry.experts["reasoning"].system()
+    assert "TOOLS:" in lead.registry.experts["solver"].system() and CR.SYSTEM.startswith("You are an adversarial reviewer")
+
