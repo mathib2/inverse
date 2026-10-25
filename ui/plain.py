@@ -151,9 +151,15 @@ def team_step(e: dict, agents=None) -> str | None:
         n = e.get("evidence") or 0
         return f"{who} finished {task} with {n} piece{'s' if n != 1 else ''} of evidence"
     if k == "critic":
+        if e.get("by") == "code":
+            return f"{task} accepted: {e.get('reason')}"
+        if e.get("by") == "error" or e.get("verdict") == "unreviewed":
+            return f"{task} kept without review: {e.get('reason')}"
         by = "a fixed rule" if e.get("by") == "rule" else "the reviewer"
         return {"accept": f"{task} accepted by {by}", "revise": f"{task} sent back by {by}: {e.get('reason')}",
                 "reject": f"{task} rejected by {by}: {e.get('reason')}"}.get(e.get("verdict"))
+    if k == "critic_reask":
+        return f"{task}: the reviewer's verdict could not be read, asking once more"
     if k == "retry":
         return f"{task} will be retried"
     if k == "stuck":

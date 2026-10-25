@@ -7,7 +7,7 @@ Names are what people see; the identifiers in parentheses are what configs, plan
 | Agent | Identifier | What they do | Tools |
 |---|---|---|---|
 | **Atlas** | `lead` | Plans the mission (at most five tasks), hands them out by expertise, lets the crew review the plan, writes the final answer with citations, and reports verbatim what did not finish. Falls back to a plan written by rule when the model cannot write one | the plan and the crew |
-| **Vera** | `critic` | Reviews every result on its own lane: fixed rules first (evidence present, numbers grounded, scope), then a model; sends weak work back with a reason, rejects what cannot work | rules, a model |
+| **Vera** | `critic` | Reviews every result on its own lane: fixed rules first (evidence present, numbers grounded, scope), then a model whose every objection must quote the answer, kept by code only when the evidence does not cover the quote; sends weak work back with the quoted words and the reason, rejects what cannot work, asks once more when a verdict cannot be read | rules, a model |
 | **Warden** | `watch` | Keeps watch: queued goals, standing missions on their schedule, and one mission per machine whose sensor data changed | the schedule, the queue |
 | **Scout** | `research` | Finds facts in the data platform (registry, sensor specs, maintenance history, samples) with read-only SQL and cites every query | `run_sql` |
 | **Euler** | `reasoning` | Works through a question step by step; every number is recomputed by a calculator and a mismatch forces a repair | `calc` |

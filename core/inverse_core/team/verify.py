@@ -24,11 +24,16 @@ def _numbers(obj):
     return out
 
 
+def claim_numbers(text):
+    """The number tokens of a text that count as claims: IDs, ISO dates, task and query labels removed."""
+    return _NUMBER.findall(_NOT_CLAIMS.sub(" ", str(text or "")))
+
+
 def unverified_numbers(text, evidence):
     """Numbers in `text` that are not within 1% of any number in `evidence` (or its percentage). IDs, dates and labels do not count."""
     known = _numbers(evidence)
     bad = []
-    for tok in _NUMBER.findall(_NOT_CLAIMS.sub(" ", str(text or ""))):
+    for tok in claim_numbers(text):
         v = float(tok)
         if not any(abs(v - k) <= 0.01 * max(abs(k), 1e-9) or abs(abs(k) * 100 - v) <= 1 for k in known):
             bad.append(tok)

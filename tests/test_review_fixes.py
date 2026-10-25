@@ -45,10 +45,10 @@ def test_a_null_reviewer_reason_is_handled(tmp_path):
     lead = lead_for(ctx)
     lead.max_attempts = 2
     lead._execute(t)
-    assert t.status == "failed" and "gave no reason" in t.feedback
+    assert t.status == "done" and any("no reason given" in n for n in t.result["not_checked"])   # no quote and no reason: the work is not sent back
     r = C.Critic(ctx).review(Task("T2", "g", "reasoning"), {"answer": "a", "confidence": 0.9, "assumptions": [], "not_checked": [],
                                                            "evidence": [{"type": "step", "source": "s", "detail": None}]})
-    assert r["verdict"] == "revise" and isinstance(r["reason"], str)
+    assert r["verdict"] == "accept" and r["by"] == "code" and isinstance(r["reason"], str)
 
 
 def test_one_unreadable_plan_sample_does_not_end_the_vote(tmp_path):
