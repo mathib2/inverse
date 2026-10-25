@@ -33,4 +33,12 @@ def test_team_steps_read_as_plain_sentences():
     assert plain.team_step({"kind": "message", "type": "question", "from": "solver", "to": "reasoning", "text": "2*3?"}) == "solver asked reasoning: 2*3?"
     assert plain.team_step({"kind": "message", "type": "review", "from": "critic", "to": "solver", "text": "x"}) is None
     assert plain.team_step({"kind": "consult", "from": "solver", "to": "reasoning", "ok": True}) == "solver consulted reasoning and got an answer"
-    assert plain.team_step({"kind": "llm"}) is None
+    assert plain.team_step({"kind": "llm", "agent": "lead_plan", "latency_s": 18.2}) == "lead's model replied after 18 s"
+    assert plain.team_step({"kind": "llm", "agent": "council_vera"}) == "critic's model replied"
+    assert plain.team_step({"kind": "llm", "agent": "research_plan_review"}).startswith("research's model replied")
+    assert plain.team_step({"kind": "memory_write", "task": "T1", "findings": 2}) == "Shared memory keeps 2 findings from T1"
+    assert plain.team_step({"kind": "engines"}) is None
+    assert plain.team_step({"kind": "composing", "accepted": 2, "unfinished": 1}) == "The lead writes the answer from 2 accepted results; 1 did not finish"
+    assert plain.team_step({"kind": "task_skipped", "task": "T2", "reason": "stopped"}) == "T2 was not started: a person stopped the mission"
+    assert plain.team_step({"kind": "proposal_filed", "by": "rule:budget", "what": "raise it"}) == "a rule (budget) proposed to the council: raise it"
+    assert plain.team_step({"kind": "council_decision", "id": "P-1", "decision": "adopt", "reason": "ok"}) == "The council adopted P-1: ok"

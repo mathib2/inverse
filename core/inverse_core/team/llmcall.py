@@ -1,6 +1,8 @@
 """One place where team agents call a model: charges both budgets and records the serving model in the trace."""
 from __future__ import annotations
 
+import threading
+
 from ..clients.meterless import extract_json
 from .bus import Bus
 
@@ -21,6 +23,7 @@ class Ctx:
         self.bus = bus or Bus(getattr(trace, "dir", None), trace)             # how experts talk to each other (messages.jsonl next to the trace)
         self.registry = None                                                  # attached by build(); the architect's tools and ask_expert act on it
         self.council = None                                                   # attached by build(); proposals go there, sessions decide them
+        self.stop = threading.Event()                                         # set by a person: the Lead finishes the step in progress and skips the rest
 
 
 def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False, temperature=None):

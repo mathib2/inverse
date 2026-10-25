@@ -20,7 +20,7 @@ class Task:
     goal: str
     expert: str
     depends_on: list = field(default_factory=list)
-    status: str = "pending"        # pending | running | done | rejected | failed
+    status: str = "pending"        # pending | running | done | rejected | failed | skipped (a person stopped the mission)
     attempts: int = 0
     feedback: str = ""             # the Critic's reason when the task was sent back
     context: str = ""              # accepted answers of the tasks this one depends on
