@@ -31,8 +31,9 @@ Use research to look facts up in the registry, sensor specs, maintenance history
 If no expert fits a task and an architect is on the team, give the architect a task to design, create and test an expert for that need, assign the dependent task to the expert name the architect should create (lowercase snake_case), and make it depend on the architect's task. Without an architect, define one (at most 2) by adding "new_experts":[{{"name":"snake_case","role":"one sentence","system_prompt":"its instructions","tools":["..."],"model_lane":"fast|deep"}}] to the JSON, using only these tools: {tools}. Prefer an existing expert when one fits."""
 
 COMPOSE_SYSTEM = """Write the final answer for the user from the accepted expert results. Rules: use only facts present in the results; cite every claim as
-[T1.E2] (task id, evidence number); say which expert produced each part; state uncertainty and what was NOT checked. Tasks that did not finish are
-listed for you under "unfinished": do not describe them or guess why they failed (that is reported separately, verbatim); just do not fill their gap.
+[T1.E2] (task id, evidence number); say which expert produced each part; state uncertainty and what was NOT checked. The goal may ask several
+things: answer each of them from the results and say plainly which one has no result. Tasks that did not finish are listed for you under
+"unfinished": do not describe them or guess why they failed (that is reported separately, verbatim); just do not fill their gap.
 Be concise (under 220 words)."""
 
 REVIEW_TAIL = ("\nYou are reviewing the team plan before work starts. For YOUR tasks only, say whether each is doable as written with "
@@ -50,6 +51,7 @@ CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|v
 CALC_WORDS = re.compile(r"\b(compute|calculate|derive|deriv\w+|multipl\w+|times|divide\w*|convert\w*|weight|force|torque|energy|frequency|damping|ratio|percent\w*|average|mean|formula|equation"
                         r"|why|whether|should|needs?|compare\w*|explain|assess\w*|diagnos\w+|recommend\w*|judge)\b", re.I)   # a computation or a judgement: Euler after Scout
 DATA_WORDS = re.compile(r"\b(registry|maintenance|sensors?|samples?|datasets?|records?|tables?|rows|stored|specification\w*|history|sql|quer\w+)\b", re.I)
+PATH_WORD = re.compile(r"[\w./-]+/[\w./-]+")                                 # a repository path named in a goal
 LOOKUP_WORDS = re.compile(r"^\W*(how many|how much|list|what is|what are|what was|which|when|show|name|give me)\b", re.I)   # a plain lookup: Scout alone
 SUMMARY_WORDS = re.compile(r"\b(summari[sz]e|digest|what (do|does) (we|the crew|the team) know|found so far|ruled out|still unchecked)\b", re.I)
 
@@ -144,9 +146,16 @@ class Lead:
         given to the reasoning agent goes to research; a summary of what the crew knows goes to the solver (it has the memory
         tool); a goal that asks for a computation gets a reasoning task after the lookups when the plan has none."""
         names, changes = self.registry.names(), []
+        path = next((m.group(0).rstrip("/.") for m in PATH_WORD.finditer(plan.goal)), None)
         for t in plan.tasks:
             if t.expert == "reasoning" and "research" in names and DATA_WORDS.search(t.goal) and not CALC_WORDS.search(t.goal):
                 t.expert, _ = "research", changes.append(f"{t.id}: reasoning -> research (a data lookup)")
+            elif t.expert == "reasoning" and not CALC_WORDS.search(t.goal) and not re.search(r"\d", t.goal):   # nothing to compute: Euler would invent arithmetic
+                to = "vulnerability" if CODE_WORDS.search(t.goal) and "vulnerability" in names else ("solver" if "solver" in names else None)
+                if to:
+                    t.expert, _ = to, changes.append(f"{t.id}: reasoning -> {to} (no numbers and nothing to compute)")
+            if t.expert == "vulnerability" and path and not PATH_WORD.search(t.goal):
+                t.goal, _ = f"{t.goal} Path: {path}", changes.append(f"{t.id}: the path from the goal added ({path})")
         if SUMMARY_WORDS.search(plan.goal) and "solver" in names and len(plan.tasks) == 1 and plan.tasks[0].expert in ("reasoning", "research"):
             plan.tasks[0].expert, _ = "solver", changes.append(f"{plan.tasks[0].id}: -> solver (a summary needs the shared memory)")
             if "memory" not in plan.tasks[0].goal.lower():

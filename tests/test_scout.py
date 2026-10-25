@@ -112,3 +112,21 @@ def test_a_query_that_forgets_a_column_the_task_asks_for_gets_it_added():
         == ("SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104'", ["date", "note"])
     assert complete_columns("SELECT * FROM obs.equipment_table", "mass of P-104")[1] == []
 
+def test_the_guard_keeps_euler_for_arithmetic_only_and_hands_sentinel_the_path(tmp_path):
+    ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
+    goal = "Review core/inverse_core/team/tools.py for security weaknesses and name the most important finding."
+    p = lead._parse_plan(goal, {"tasks": [{"id": "T1", "goal": "Think about possible weaknesses in the code", "expert": "reasoning", "depends_on": []},
+                                          {"id": "T2", "goal": "Review the code for security weaknesses", "expert": "vulnerability", "depends_on": ["T1"]}]})
+    assert [t.expert for t in p.tasks] == ["vulnerability", "vulnerability"] and p.tasks[1].goal.endswith("Path: core/inverse_core/team/tools.py")
+    p = lead._parse_plan("Tell me a plan for the week.", {"tasks": [{"id": "T1", "goal": "Draft a plan for the week", "expert": "reasoning", "depends_on": []}]})
+    assert [t.expert for t in p.tasks] == ["solver"]
+    p = lead._parse_plan("What is 12.5 times 9.81?", {"tasks": [{"id": "T1", "goal": "Multiply 12.5 by 9.81", "expert": "reasoning", "depends_on": []}]})
+    assert [t.expert for t in p.tasks] == ["reasoning"]
+
+
+def test_a_lenient_ask_returns_none_instead_of_raising_on_an_unreadable_reply(tmp_path):
+    from inverse_core.team.llmcall import ask
+    ctx, _ = crew(tmp_path, lambda m, msgs: "no json here")
+    out = ask(ctx, "fast", [{"role": "user", "content": "x"}], "t", json_reply=True, lenient=True)
+    assert out["json"] is None and out["text"] == "no json here" and events(ctx, "llm_parse_error")
+

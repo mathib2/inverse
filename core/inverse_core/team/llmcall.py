@@ -26,7 +26,7 @@ class Ctx:
         self.stop = threading.Event()                                         # set by a person: the Lead finishes the step in progress and skips the rest
 
 
-def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False, temperature=None):
+def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False, temperature=None, lenient=False):
     """json_reply asks the runtime for one JSON object and parses it; a reply that still cannot be parsed is traced
     (first 300 characters) before the error propagates, so a failed run explains itself."""
     ctx.budget.charge_llm()
@@ -47,5 +47,8 @@ def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=Fals
             out["json"] = extract_json(r["text"])
         except ValueError as e:
             ctx.trace.event("llm_parse_error", agent=who, lane=lane, model=r.get("model"), finish=r.get("finish_reason"), preview=(r["text"] or "")[:300])
+            if lenient:                                                       # the caller carries on (a chain that must not stop): json is None
+                out["json"] = None
+                return out
             raise BadReply(str(e)) from e
     return out

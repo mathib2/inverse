@@ -39,6 +39,7 @@ def _num(x, default):
         return default
 
 
+CHUNK_MAX_TOKENS = 600                                                        # one working set of a long review: findings JSON, nothing else
 TURN_MAX_TOKENS = 900                                                         # one tool call or one final JSON per reply; the long tail is cut, never the work
 
 
@@ -214,20 +215,18 @@ class VulnerabilityExpert(CustomExpert):
                 prompt = r["prompt"] + (f"\n\n[WORKING SET {k + 1} of {len(sets)}: {ws['file']}]\nScan hits: {json.dumps(ws['hits'], default=str)[:1500]}\n{ws['text']}"
                                         if ws else "\n\nNo working set is left: give your final summary.")
                 prompt += "\n\nEnd with " + ("[TASK_COMPLETE] (this is the last working set)." if last else "[STATE_CHECKPOINT] and the state block.")
-                try:
+                try:                                                          # JSON mode: a 4B model drifted out of JSON in every free-text chunk; the chain marker is added by code
                     out = ask(self.ctx, self.lane, [{"role": "system", "content": (self.prompt or self.role) + self.MARKOVIAN_TAIL}, {"role": "user", "content": prompt}],
-                              self.name, budget, max_tokens=4000)                 # not json_object: the marker must survive; room for many findings
+                              self.name, budget, json_reply=True, lenient=True, max_tokens=CHUNK_MAX_TOKENS)
                 except BudgetExceeded as e:
                     not_checked.append(f"review stopped by the budget before working set {k + 1} ({e})")
                     break
                 models.append(out["model"])
                 if ws:
                     reviewed.add(ws["file"])
-                try:
-                    j = extract_json(content_of(out["text"]))
-                except ValueError:
+                j = out.get("json") if isinstance(out.get("json"), dict) else None
+                if j is None:
                     j = {}
-                    self.ctx.trace.event("llm_parse_error", agent=self.name, lane=self.lane, model=out["model"], preview=(out["text"] or "")[:300])
                     not_checked.append(f"chunk {k + 1} ({ws['file'] if ws else 'summary'}): the reply could not be read as JSON")
                 v, d = self._verify(j.get("findings") or [])
                 v = [f for f in v if (f["file"], f["line"]) not in seen]
