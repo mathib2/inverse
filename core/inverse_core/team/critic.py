@@ -29,6 +29,7 @@ WORDS = {"accept": {"accept", "accepted", "approve", "approved", "ok", "okay", "
 STOP = set("the a an and or of to in on for is are was were be been with by at from as that this it its not no than then into "
            "has have had does did done will would can could should about into over under each there their these those".split())
 MAX_PROBLEMS = 3
+MAX_TOKENS = 500                                                             # three quoted problems and a sentence fit; a reply that rambles is cut, then re-asked
 
 
 def _detail(e):
@@ -140,7 +141,7 @@ class Critic:
         for attempt in (1, 2):                                                # a reply that cannot be read is asked for once more
             calls += 1
             try:
-                out = ask(self.ctx, self.lane, messages, "critic", json_reply=True)
+                out = ask(self.ctx, self.lane, messages, "critic", json_reply=True, max_tokens=MAX_TOKENS)
                 model, read = out["model"], _read(out["json"])
                 problem = None if read else f"verdict {str((out['json'] or {}).get('verdict'))[:60]!r} is not accept, revise or reject"
             except (BadReply, ValueError, KeyError, AttributeError, TypeError) as e:

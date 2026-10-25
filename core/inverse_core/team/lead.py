@@ -39,6 +39,7 @@ REVIEW_TAIL = ("\nYou are reviewing the team plan before work starts. For YOUR t
                "your tools, and fix the wording if not (keep the same id). Return ONLY JSON: "
                '{"ok":true|false,"changes":[{"id":"T1","goal":"rewritten self-contained instruction"}],"missing":["what you need that no task provides"]}')
 NEW_EXPERT_BUDGET = {"tool_calls": 6, "tokens": 40000, "seconds": 240}
+PLAN_MAX_TOKENS, REVIEW_MAX_TOKENS, COMPOSE_MAX_TOKENS = 700, 400, 650          # reply caps: at 10 tokens/s on a CPU an unbounded reply is the long tail
 
 
 def _norm(s):
@@ -96,7 +97,7 @@ class Lead:
                 return self.review_plan(plan) if collaborate else plan
         err = ""
         for _ in range(2):
-            out = ask(self.ctx, self.plan_lane, msgs, "lead_plan", json_reply=True)
+            out = ask(self.ctx, self.plan_lane, msgs, "lead_plan", json_reply=True, max_tokens=PLAN_MAX_TOKENS)
             try:
                 plan = self._parse_plan(goal, out["json"])
                 self._prune(before, plan)
@@ -142,7 +143,7 @@ class Lead:
         samples, invalid = [], 0
         for i in range(votes):
             try:                                                             # an unreadable sample counts as invalid; it does not end the vote
-                out = ask(self.ctx, self.plan_lane, msgs, f"lead_plan_sample{i + 1}", json_reply=True, temperature=0.7)
+                out = ask(self.ctx, self.plan_lane, msgs, f"lead_plan_sample{i + 1}", json_reply=True, temperature=0.7, max_tokens=PLAN_MAX_TOKENS)
                 samples.append((self._parse_plan(goal, out["json"]), out["model"]))
             except (PlanError, ConfigError, KeyError, TypeError, AttributeError, ValueError):
                 invalid += 1
@@ -191,7 +192,7 @@ class Lead:
                            "your_tasks": [t.id for t in mine]}
                 try:
                     out = ask(self.ctx, expert.lane, [{"role": "system", "content": (expert.prompt or expert.role) + REVIEW_TAIL},
-                                                      {"role": "user", "content": json.dumps(payload)}], f"{name}_plan_review", json_reply=True)
+                                                      {"role": "user", "content": json.dumps(payload)}], f"{name}_plan_review", json_reply=True, max_tokens=REVIEW_MAX_TOKENS)
                     review = dict(out["json"]) | {"model": out["model"]}
                 except (ValueError, KeyError, TypeError):
                     review = {"ok": True, "changes": [], "missing": [], "note": "review reply was not valid JSON; plan kept as drafted"}
@@ -400,7 +401,7 @@ class Lead:
         else:
           try:
             out = ask(self.ctx, self.compose_lane, [{"role": "system", "content": COMPOSE_SYSTEM},
-                      {"role": "user", "content": json.dumps({"goal": plan.goal, "results": payload, "unfinished": problems}, default=str)}], "lead_compose")
+                      {"role": "user", "content": json.dumps({"goal": plan.goal, "results": payload, "unfinished": problems}, default=str)}], "lead_compose", max_tokens=COMPOSE_MAX_TOKENS)
             text, model, fallback = out["text"].strip(), out["model"], False
           except Exception as e:                                              # the writer is down: assemble the answer by code, nothing is lost
             text = "\n\n".join(f"**{t.id} ({t.expert})**: {t.result['answer']} " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1)) for t in ok) \
