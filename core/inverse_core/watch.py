@@ -34,6 +34,14 @@ def _now():
     return time.strftime("%Y-%m-%dT%H:%M:%S")
 
 
+def _takes_trigger(fn):
+    try:
+        import inspect
+        return len(inspect.signature(fn).parameters) >= 3
+    except (TypeError, ValueError):
+        return False
+
+
 class Watcher:
     """team(goal, on_start) -> (answer dict, run_dir), where on_start(run_dir) is called as soon as the run directory exists.
     It is injected, so the loop is testable without a model or the data platform."""
@@ -51,7 +59,8 @@ class Watcher:
         self.queue_path, self.done_path = os.path.join(self.queue_dir, "goals.jsonl"), os.path.join(self.queue_dir, "done.jsonl")
         self.state = self._load(self.state_path, {"seen": {}, "cycles": 0, "runs": []})
         self.state.setdefault("missions", {})
-        self.missions = [dict(m) for m in (missions or []) if isinstance(m, dict) and m.get("name") and m.get("goal")]   # standing missions (missions.yaml)
+        self._missions_src = missions                                          # a list, or a callable re-read every cycle (the council edits missions)
+        self.missions = self._load_missions()
         self.webhook, self.services, self._print, self.council = webhook, services, log, council   # council: callable -> session record or None
         self._status, self._hb_extra, self._stop = "starting", {}, False
 
@@ -169,7 +178,7 @@ class Watcher:
         self._dump(self.current_path, {"kind": "team", "goal": goal, "started": started, "trigger": trigger, "requeued": requeued})
         self.log(f"crew mission ({trigger}): {goal[:120]}")
         try:
-            out, run_dir = self.team(goal, on_start)
+            out, run_dir = self.team(goal, on_start, trigger) if _takes_trigger(self.team) else self.team(goal, on_start)
         except Exception as e:
             err = f"{type(e).__name__}: {str(e)[:200]}"
             self.manifest(box.get("dir"), kind="team", trigger=trigger, by=by, goal=goal, equipment=equipment, status="failed", started=started, finished=_now(), error=err)
@@ -209,6 +218,14 @@ class Watcher:
                 self.log(f"webhook failed: {e}")
 
     # --- standing missions --------------------------------------------------------------------------------------------------
+    def _load_missions(self):
+        try:
+            rows = self._missions_src() if callable(self._missions_src) else (self._missions_src or [])
+        except Exception as e:
+            self.log(f"could not read the missions: {type(e).__name__}: {str(e)[:120]}")
+            return getattr(self, "missions", [])
+        return [dict(m) for m in rows if isinstance(m, dict) and m.get("name") and m.get("goal")]
+
     def _mark_mission(self, name, ok):
         """Records when a standing mission ran; a failed one is due again in an hour, not after its whole interval."""
         every = next((float(m.get("every", 24)) for m in self.missions if m["name"] == name), 24.0) * 3600
@@ -231,6 +248,7 @@ class Watcher:
         self.state["cycles"] += 1
         self._save()
         self.heartbeat("working")
+        self.missions = self._load_missions()
         done = []
         if self.services:
             try:
@@ -273,7 +291,12 @@ class Watcher:
             trigger = f"new_data:{eq}" if seen != fp else f"forced:{eq}"
             goal = data_goal(eq, fp)
             out = self.run_team(goal, trigger, by=f"warden:{eq}", equipment=eq)
-            self.state["seen"][eq] = fp                                        # a failed mission waits for new data, not a retry storm
+            failed = self.state.setdefault("failed", {})
+            if out is None and failed.get(eq) != fp:                           # a failed mission is retried once next cycle, then waits for new data
+                failed[eq] = fp
+            else:
+                failed.pop(eq, None)
+                self.state["seen"][eq] = fp
             self._save()
             done.append({"kind": "team", "trigger": trigger, "equipment": eq, "goal": goal, "ok": out is not None})
         if self.council:                                                       # the council meets only when its own rules say so

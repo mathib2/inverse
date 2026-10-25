@@ -41,6 +41,15 @@ def deterministic(result):
     return None
 
 
+def norm_verdict(v):
+    """'Accept.', 'REJECT' or 'revise: ...' from a small model mean what they say."""
+    s = str(v or "").strip().strip(".!").lower()
+    for word in ("accept", "revise", "reject"):
+        if s.startswith(word):
+            return word
+    return s
+
+
 class Critic:
     def __init__(self, ctx, lane="critic"):
         self.ctx, self.lane = ctx, lane
@@ -57,7 +66,7 @@ class Critic:
         try:
             out = ask(self.ctx, self.lane, [{"role": "system", "content": SYSTEM}, {"role": "user", "content": json.dumps(payload, default=str)}],
                       "critic", json_reply=True)
-            v, reason, model = out["json"].get("verdict"), str(out["json"].get("reason") or ""), out["model"]
+            v, reason, model = norm_verdict(out["json"].get("verdict")), str(out["json"].get("reason") or ""), out["model"]
         except (ValueError, KeyError, AttributeError):                       # unparseable reply: fail closed, never silently accept
             v, reason, model = "revise", "reviewer reply was not valid JSON; re-check the answer", None
         if v not in ("accept", "revise", "reject"):

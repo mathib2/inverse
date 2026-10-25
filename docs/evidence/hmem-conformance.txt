@@ -1,5 +1,5 @@
 
-H-MEM conformance: implementation = /home/<user>/vendor/Meterless/engines/hmem/reference/src/index.ts
+H-MEM conformance: implementation = <home>/vendor/Meterless/engines/hmem/reference/src/index.ts
 
   record-validation
     PASS rv-001 a record with no source is rejected by construction

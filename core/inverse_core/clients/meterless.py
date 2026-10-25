@@ -88,11 +88,12 @@ ModelOffline = NightshiftOffline
 
 
 class MeterlessClient:
-    def __init__(self, base_url=None, api_key=None, model=None, timeout=180):
-        self.base = (base_url or os.environ["MODEL_BASE_URL"]).rstrip("/")
-        self.key = api_key or os.environ["MODEL_API_KEY"]
-        self.model = model or os.environ["NEMOTRON_MODEL"]
-        self.timeout = timeout
+    def __init__(self, base_url=None, api_key=None, model=None, timeout=None):
+        local = provider_id() not in ("nightshift",)
+        self.base = (base_url or os.environ.get("MODEL_BASE_URL") or ("http://127.0.0.1:11434/v1" if local else "http://127.0.0.1:8088/v1")).rstrip("/")
+        self.key = api_key or os.environ.get("MODEL_API_KEY") or "ollama"
+        self.model = model or os.environ.get("NEMOTRON_MODEL") or "nemotron-mini:latest"
+        self.timeout = timeout or int(os.environ.get("MODEL_TIMEOUT") or (600 if local else 180))   # a 4B at 10 tokens/s needs minutes
         self.h = {"Authorization": "Bearer " + self.key, "meterless-app": "inverse", "meterless-scope": "user", "content-type": "application/json"}
 
     def health(self):

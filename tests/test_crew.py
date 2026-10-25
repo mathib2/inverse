@@ -32,19 +32,19 @@ def test_rename_touches_identifiers_only():
 
 def test_standing_missions_run_when_due_and_not_again_until_their_interval_passes(tmp_path):
     z, team = FakeZ(), FakeTeam(str(tmp_path))
-    missions = [{"name": "data check", "every": 12, "goal": "Check {machines}."}, {"name": "digest", "every": 24, "goal": "Summarize what we know."}]
+    missions = [{"name": "data_check", "every": 12, "goal": "Check {machines}."}, {"name": "digest", "every": 24, "goal": "Summarize what we know."}]
     w = Watcher(z, team, root=str(tmp_path), interval=60, missions=missions)
-    assert [m["name"] for m in w.due_missions()] == ["data check", "digest"]                 # never ran: both due
+    assert [m["name"] for m in w.due_missions()] == ["data_check", "digest"]                 # never ran: both due
     done = w.cycle()
     assert team.goals[:2] == ["Check P-104, T-200.", "Summarize what we know."]               # {machines} filled from the registry
-    assert [d["trigger"] for d in done][:2] == ["mission:data check", "mission:digest"]
+    assert [d["trigger"] for d in done][:2] == ["mission:data_check", "mission:digest"]
     m = json.load(open(os.path.join(tmp_path, "runs", "team1", "manifest.json")))
-    assert m["trigger"] == "mission:data check" and m["by"] == "warden" and m["status"] == "done"
+    assert m["trigger"] == "mission:data_check" and m["by"] == "warden" and m["status"] == "done"
     assert w.due_missions() == [] and w.cycle() == []                                           # not due again, and no new data either
     state = json.load(open(os.path.join(tmp_path, "state", "watch.json")))
-    assert set(state["missions"]) == {"data check", "digest"}
-    w.state["missions"]["data check"] = time.time() - 13 * 3600                               # 13 hours later: only the 12-hour one is due
-    assert [m["name"] for m in w.due_missions()] == ["data check"]
+    assert set(state["missions"]) == {"data_check", "digest"}
+    w.state["missions"]["data_check"] = time.time() - 13 * 3600                               # 13 hours later: only the 12-hour one is due
+    assert [m["name"] for m in w.due_missions()] == ["data_check"]
     assert w.status()["missions"]["digest"] > 0
 
 

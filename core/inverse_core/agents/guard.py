@@ -7,6 +7,25 @@ PATTERNS = [r"ignore (all |any )?(previous|prior|above) (instructions|prompts?)"
             r"override (the )?(verifier|validator)"]
 
 
+def scrub(rows):
+    """Every string cell of every row: text that reads as instructions for a model is withheld. Returns (rows, blocked[{record_id, matched}])."""
+    out, blocked = [], []
+    for r in rows:
+        if not isinstance(r, dict):
+            out.append(r)
+            continue
+        clean = {}
+        for k, v in r.items():
+            hit = next((p for p in PATTERNS if isinstance(v, str) and re.search(p, v, re.I)), None)
+            if hit:
+                blocked.append({"record_id": r.get("record_id", k), "matched": hit})
+                clean[k] = "[text withheld: matched injection pattern]"
+            else:
+                clean[k] = v
+        out.append(clean)
+    return out, blocked
+
+
 def sanitize(notes):
     """notes: list of dicts with 'note'. Returns (safe_notes, blocked[{record_id, matched}])."""
     safe, blocked = [], []

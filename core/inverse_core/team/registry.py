@@ -63,6 +63,8 @@ def load_configs(directory, lanes=None):
     """{name: config} from experts/*.yaml then experts.local/*.yaml (local wins). config["_source"] is builtin or local."""
     out = {}
     for where, folder in (("builtin", directory), ("local", _local(directory))):
+        if where == "local" and os.environ.get("INVERSE_IGNORE_LOCAL_EXPERTS"):            # the test suite must not see a checkout's live overrides
+            continue
         for path in sorted(glob.glob(os.path.join(folder, "*.yaml"))):
             with open(path) as f:
                 raw = yaml.safe_load(f) or {}

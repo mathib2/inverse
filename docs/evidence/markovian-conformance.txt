@@ -3,7 +3,7 @@ run 2026-10-24 on the workstation against the reference implementation that serv
 (npm run setup copies engines/markovian/reference there). Our integration test for the step protocol is tests/test_markovian.py.
 
 
-Markovian conformance: implementation = /home/<user>/vendor/Meterless/engines/markovian/reference/src/index.ts
+Markovian conformance: implementation = <home>/vendor/Meterless/engines/markovian/reference/src/index.ts
 
   PASS eff-001 efficiency model reproduces the documented worked example: N=20 -> 86% (within 0.5%)
   PASS snap-001 run records carry a mandatory chunkConfig snapshot

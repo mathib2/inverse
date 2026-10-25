@@ -2,6 +2,15 @@
 trace event of a crew mission. tests/test_ui_plain.py keeps these honest."""
 from __future__ import annotations
 
+TOOL_WORDS = {"run_sql": "data queries", "calc": "calculator", "memory": "shared memory", "ask_expert": "asks the others", "post_message": "leaves notes",
+              "read_messages": "reads notes", "scan": "code scan", "read_file": "reads code", "grep": "searches code", "list_files": "lists files",
+              "list_experts": "sees the crew", "design_expert": "designs agents", "create_expert": "builds agents", "test_expert": "test-drives agents",
+              "propose": "proposes changes to the crew", "support": "backs proposals"}
+TOOL_VERBS = {"run_sql": "ran a data query", "calc": "used the calculator", "memory": "checked shared memory", "ask_expert": "asked another agent",
+              "post_message": "left a note", "read_messages": "read its notes", "scan": "scanned the code", "read_file": "read a file", "grep": "searched the code",
+              "list_files": "listed files", "list_experts": "looked at the crew", "design_expert": "designed an agent", "create_expert": "built an agent",
+              "test_expert": "test-drove an agent", "propose": "filed a proposal", "support": "backed a proposal"}
+
 GLOSSARY = [
     ("Mission", "A goal given to the crew: Atlas plans it, the agents work, Vera checks, and the answer cites its evidence."),
     ("Evidence", "What an agent's answer rests on: a query and its rows, a calculation, a file and line, or a tool result. Every claim must point at one."),
@@ -65,7 +74,11 @@ def team_step(e: dict) -> str | None:
     if k == "delegate":
         return f"{who} starts {task}" + (f" (attempt {e['attempt']}, with the reviewer's notes)" if (e.get("attempt") or 1) > 1 else "")
     if k == "tool":
-        return f"{who} used {e.get('tool')}" + (", which failed" if e.get("error") else "")
+        return f"{who} {TOOL_VERBS.get(e.get('tool'), 'used ' + str(e.get('tool')))}" + (", which failed" if e.get("error") else "")
+    if k == "plan_review_ignored":
+        return f"{who}'s rewording of {task} was ignored ({e.get('reason')})"
+    if k == "injection_guard":
+        return f"Text that read as instructions for the AI was withheld from {who}"
     if k == "refused_scope":
         return f"{who} refused {task}: {e.get('reason')}"
     if k == "expert_result":

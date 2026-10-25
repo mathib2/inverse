@@ -40,7 +40,8 @@ obs.sensors_table(sensor_id, equipment_id, quantity, unit, sigma, sampling_hz)
 obs.maintenance_table(record_id, equipment_id, date, note)
 obs.p104_baseline_samples(dataset_id, t, x, v), obs.p104_current_samples(...), obs.trap_current_samples(...)"""
 ALLOWED_TABLES = {"equipment_table", "sensors_table", "maintenance_table", "p104_baseline_samples", "p104_current_samples", "trap_current_samples"}
-FORBIDDEN = re.compile(r"\b(insert|update|delete|drop|create|alter|truncate|merge|grant|cache|call|exec)\b|;|--|/\*", re.I)
+FORBIDDEN = re.compile(r"\b(insert|update|delete|drop|create|alter|truncate|merge|grant|cache|call|exec)\b|;|--|/\*"
+                       r"|\b(reflect|java_method|input_file_name|transform|current_user|exec_java)\s*\(", re.I)   # Spark built-ins that reach the JVM
 
 
 class UnsafeSQL(ValueError):
@@ -104,8 +105,7 @@ class ResearchExpert(BaseExpert):
                 rows = self.ctx.zetaris.sql(sql, limit=50)
                 if cache is not None:
                     cache[sql] = rows
-            if "maintenance_table" in sql and self.ctx.guard:                       # untrusted text never reaches a model raw
-                rows = self._sanitize(rows)
+            rows = self._sanitize(rows)                                               # untrusted text never reaches a model raw, whatever the column is called
             rows_all.append(rows)
             evidence.append({"type": "sql", "source": sql, "detail": f"{len(rows)} rows", "rows": rows[:8]})
         ran = [e for e in evidence if not e["detail"].startswith("REFUSED")]
@@ -130,10 +130,11 @@ class ResearchExpert(BaseExpert):
         return res
 
     def _sanitize(self, rows):
-        notes = [r for r in rows if "note" in r and "record_id" in r]
-        safe, _ = self.ctx.guard(notes)
-        by_id = {n["record_id"]: n for n in safe}
-        return [by_id.get(r.get("record_id"), r) for r in rows]
+        from ..agents.guard import scrub
+        safe, blocked = scrub(rows)
+        if blocked:
+            self.ctx.trace.event("injection_guard", agent=self.name, blocked=blocked[:5])
+        return safe
 
 
 _OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv, ast.Pow: operator.pow,

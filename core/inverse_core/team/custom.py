@@ -71,8 +71,8 @@ class CustomExpert(BaseExpert):
             j = r["json"] if isinstance(r["json"], dict) else {}
             if "tool" not in j:
                 return j, models
-            if low:
-                break
+            if low:                                                          # the model still wants a tool: the budget is spent, and the run says so
+                raise BudgetExceeded(f"tool-call budget {budget.max_tool_calls} exceeded")
             name, args = str(j.get("tool")), j.get("args") or {}
             out = self.toolbox.call(name, args, budget, who=self.name)
             failed = isinstance(out, dict) and out.get("error")
@@ -150,7 +150,7 @@ class VulnerabilityExpert(CustomExpert):
         for f in verified:
             item = {"type": "code", "source": f"{f['file']}:{f['line']}", "detail": f"{f['severity']}: {f['weakness']} Fix: {f['fix']}", "snippet": f["snippet"]}
             evidence.append(item)
-            findings.append({"claim": f"{f['file']}:{f['line']} {f['weakness'][:120]}", "evidence": [item], "source": "validator", "confidence": 0.9})
+            findings.append({"claim": f"{f['file']}:{f['line']} {f['weakness'][:120]}", "evidence": [item], "source": "fitter", "confidence": 0.7})   # the line was checked by code; the words are the model's
         summary = str(j.get("summary") or "").strip()
         answer = (summary + " " if summary else "") + (f"{len(verified)} verified finding(s): " + "; ".join(f"{f['severity']} {f['file']}:{f['line']} {f['weakness']}" for f in verified)
                                                         if verified else "No verified weakness was found in the reviewed code.")

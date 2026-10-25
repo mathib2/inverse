@@ -34,8 +34,9 @@ def _kill(p):
 
 @pytest.fixture()
 def sidecar():
-    if not shutil.which("npx"):
-        pytest.skip("npx missing")
+    side = f"{ROOT}/services/meterless-sidecar"
+    if not shutil.which("npx") or not os.path.isdir(f"{side}/vendor/hmem") or not os.path.exists(f"{side}/node_modules/.bin/tsx"):
+        pytest.skip("sidecar not installed here (npm install && npm run setup)")
     state, port = tempfile.mkdtemp(), "8199"
     p = subprocess.Popen(["npx", "tsx", "server.ts"], cwd=f"{ROOT}/services/meterless-sidecar",
                          env={**os.environ, "SIDECAR_PORT": port, "SIDECAR_STATE": state}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)

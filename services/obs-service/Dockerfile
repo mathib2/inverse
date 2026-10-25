@@ -1,5 +1,5 @@
 FROM python:3.12-slim
-RUN pip install --no-cache-dir fastapi uvicorn numpy scipy
+RUN pip install --no-cache-dir fastapi uvicorn numpy
 WORKDIR /app
 COPY core/inverse_core /app/inverse_core
 COPY services/obs-service/app.py /app/app.py

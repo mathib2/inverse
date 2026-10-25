@@ -1,0 +1,14 @@
+{
+ "kind": "team",
+ "trigger": "mission:code review",
+ "by": "warden",
+ "goal": "Review this repository's own code for security weaknesses and propose the smallest fix for each verified finding.",
+ "status": "done",
+ "started": "2026-10-24T17:54:05",
+ "finished": "2026-10-24T17:57:25",
+ "answer": "No verified weakness was found in the reviewed code.",
+ "unfinished": 0,
+ "models": [
+  "nemotron-mini:latest"
+ ]
+}

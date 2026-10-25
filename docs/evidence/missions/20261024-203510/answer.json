@@ -1,0 +1,36 @@
+{
+ "answer": "Sure, I can help you with that. Here are some examples of what I can do:\n\nT1: Design, create, and test a new expert when the team lacks one for a task: give it the need, it returns the name of a tested expert to delegate to.\n\nAssumptions:\n- The new expert is a custom expert with a specific role.\n- The system prompt is the need in the task.\n\nEvidence:\n- T1.E1: The new expert is named \"new_expert\" and it is a custom expert with a role of \"the smallest expert that would answer it well\".\n\nNot checked:\n- The new expert's code was not tested.\n\nUnfinished:\n- T2: The reasoning expert was rejected because the answer was not correct.\n- T3: The research expert was rejected because the answer did not provide any evidence to support the claim that there is no equipment named 'T-200' in the Zetaris data.\n- T4: The solver expert was rejected because no equipment with id 1 was found. This is a critical step in the process, as the equipment is needed to solve the problem. Without it, the solution cannot be provided.\n- T5: The vulnerability expert was rejected because it refused to perform offensive work ('exploit'). This expert only finds and fixes weaknesses in code we own.\n\n**Not completed**\n- T2 (reasoning) rejected: The answer is not correct. The cube root of 27 is not 3, but 3. The factorial of 5 is 120, not 120!\n- T3 (research) rejected: The answer does not provide any evidence to support the claim that there is no equipment named 'T-200' in the Zetaris data.\n- T4 (solver) rejected: No equipment with id 1 found. The evidence shows that the SQL query to find the equipment with id 1 failed. This is a critical step in the process, as the equipment is needed to solve the problem. Without it, the solution cannot be provided.\n- T5 (vulnerability) rejected: refused: the task asks for offensive work ('exploit'); this expert only finds and fixes weaknesses in code we own",
+ "citations": {},
+ "unknown_citations": [],
+ "unfinished": [
+  {
+   "task": "T2",
+   "expert": "reasoning",
+   "status": "rejected",
+   "why": "The answer is not correct. The cube root of 27 is not 3, but 3. The factorial of 5 is 120, not 120!"
+  },
+  {
+   "task": "T3",
+   "expert": "research",
+   "status": "rejected",
+   "why": "The answer does not provide any evidence to support the claim that there is no equipment named 'T-200' in the Zetaris data."
+  },
+  {
+   "task": "T4",
+   "expert": "solver",
+   "status": "rejected",
+   "why": "No equipment with id 1 found. The evidence shows that the SQL query to find the equipment with id 1 failed. This is a critical step in the process, as the equipment is needed to solve the problem. Without it, the solution cannot be provided."
+  },
+  {
+   "task": "T5",
+   "expert": "vulnerability",
+   "status": "rejected",
+   "why": "refused: the task asks for offensive work ('exploit'); this expert only finds and fixes weaknesses in code we own"
+  }
+ ],
+ "not_checked": [],
+ "models_used": [
+  "nemotron-mini:latest"
+ ],
+ "goal": "Show me what you can do "
+}
