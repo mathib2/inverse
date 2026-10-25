@@ -30,6 +30,10 @@ def test_team_steps_read_as_plain_sentences():
     assert plain.team_step({"kind": "plan", "tasks": [1], "by": "rule"}).endswith("because the model's plans were not usable")
     assert plain.team_step({"kind": "delegate", "task": "T1", "expert": "research", "attempt": 2}) == "research starts T1 (attempt 2, with the reviewer's notes)"
     assert plain.team_step({"kind": "critic", "task": "T1", "verdict": "revise", "by": "llm", "reason": "cite it"}) == "T1 sent back by the reviewer: cite it"
+    assert plain.team_step({"kind": "critic", "task": "T1", "verdict": "accept", "by": "code", "reason": "the reviewer asked to reject (x) but no objection checked out: y"}) \
+        == "T1 accepted: the reviewer asked to reject (x) but no objection checked out: y"
+    assert plain.team_step({"kind": "critic", "task": "T1", "verdict": "accept", "by": "error", "reason": "z"}) == "T1 kept without review: z"
+    assert plain.team_step({"kind": "critic_reask", "task": "T1", "reason": "r"}) == "T1: the reviewer's verdict could not be read, asking once more"
     assert plain.team_step({"kind": "message", "type": "question", "from": "solver", "to": "reasoning", "text": "2*3?"}) == "solver asked reasoning: 2*3?"
     assert plain.team_step({"kind": "message", "type": "review", "from": "critic", "to": "solver", "text": "x"}) is None
     assert plain.team_step({"kind": "consult", "from": "solver", "to": "reasoning", "ok": True}) == "solver consulted reasoning and got an answer"

@@ -130,10 +130,13 @@ def test_critic_rules_run_before_the_model(tmp_path):
     assert r["verdict"] == "revise"
 
 
-def test_critic_fails_closed_on_garbage_reply(tmp_path):
-    ctx = make_ctx(tmp_path, lambda m, msgs: "lgtm!")
+def test_critic_asks_once_more_on_a_garbage_reply_then_keeps_the_result_marked(tmp_path):
+    calls = []
+    ctx = make_ctx(tmp_path, lambda m, msgs: calls.append(1) or "lgtm!")
     res = {"answer": "a", "confidence": 0.9, "assumptions": [], "not_checked": [], "evidence": [{"type": "step", "source": "s", "detail": "d"}]}
-    assert C.Critic(ctx).review(Task("T1", "g", "reasoning"), res)["verdict"] == "revise"
+    r = C.Critic(ctx).review(Task("T1", "g", "reasoning"), res)
+    assert r["verdict"] == "accept" and r["by"] == "error" and len(calls) == 2            # one re-ask, then kept with a visible note, never sent back
+    assert "could not be read twice" in res["not_checked"][0]
 
 
 # --- team memory --------------------------------------------------------------------------------------------------------

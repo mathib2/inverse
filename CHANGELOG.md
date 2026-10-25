@@ -3,6 +3,11 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## Vera's verdict in a checkable shape (2026-10-25)
+- The Critic's model reply is `{"verdict", "problems": [{"quote", "why"}], "reason"}`: every objection quotes the words of the answer it is about. Code keeps an objection only when the quote is really in the answer and the evidence does not cover it (a number missing from the evidence, or, for a quote without numbers, most of its content words absent from the evidence). A revise or reject with no objection that checks out does not send work back: the result is accepted with the objection on record under "not checked" (`by: code` in the trace).
+- A verdict that cannot be read (no JSON, or a word that is not accept, revise or reject) is asked for once more; unreadable twice, the result is kept and marked unreviewed, never silently accepted and never sent back for the reviewer's failure. `norm_verdict` reads approve, ok, pass, fail and the one-letter council forms.
+- Plain lines for the new outcomes; `tests/test_critic.py` covers the checks, the re-ask, and the acceptance check of the plan: a correct arithmetic answer is no longer rejected on a made-up reason.
+
 ## Live view, Warden panel, council form (2026-10-25)
 - The running mission lives in the process, not in one browser session: a click, a rerun or a page reload re-attaches to it; the status line names who is on which task, how many finished and the time elapsed; a **Stop** button (`ctx.stop`) lets the step in progress finish, starts nothing new, and the answer lists what did not finish, verbatim. Model replies, memory writes, Markovian chunks, proposals and council steps read as plain lines, live and in "How it went".
 - Warden's panel refreshes itself every 10 seconds and shows the mission running now (`state/current.json`), the queue, and a button to show a mission Warden ran.
