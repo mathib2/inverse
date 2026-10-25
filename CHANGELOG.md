@@ -3,6 +3,9 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## README first screen (2026-10-25)
+- The tests badge, a ten-line diagram of a mission and a "Read next" links block at the top of the README; a marked place for the two screenshots.
+
 ## Vera's verdict in a checkable shape (2026-10-25)
 - The Critic's model reply is `{"verdict", "problems": [{"quote", "why"}], "reason"}`: every objection quotes the words of the answer it is about. Code keeps an objection only when the quote is really in the answer and the evidence does not cover it (a number missing from the evidence, or, for a quote without numbers, most of its content words absent from the evidence). A revise or reject with no objection that checks out does not send work back: the result is accepted with the objection on record under "not checked" (`by: code` in the trace).
 - A verdict that cannot be read (no JSON, or a word that is not accept, revise or reject) is asked for once more; unreadable twice, the result is kept and marked unreviewed, never silently accepted and never sent back for the reviewer's failure. `norm_verdict` reads approve, ok, pass, fail and the one-letter council forms.
