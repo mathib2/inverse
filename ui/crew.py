@@ -15,7 +15,7 @@ import team
 from inverse_core.clients.world import WorldClient
 from inverse_core.clients.zetaris import ZetarisClient
 from inverse_core.team.build import build
-from inverse_core.team.crew import name as crew_name, rename, roster
+from inverse_core.team.crew import CREW, name as crew_name, rename, roster
 from inverse_core.team.lanes import Lanes
 from inverse_core.team.registry import load_configs
 
@@ -42,7 +42,7 @@ def _say(e, configs):
         if e.get("type") == "review":
             return None
         return f"{crew_name(e.get('from'), configs)} → {crew_name(e.get('to'), configs)}: {str(e.get('text') or '')[:140]}"
-    line = plain.team_step(e)
+    line = plain.team_step(e, agents=set(configs) | set(CREW))
     if not line:
         return None
     line = line.replace("The lead", crew_name("lead")).replace("the lead", crew_name("lead")).replace("the reviewer", crew_name("critic"))

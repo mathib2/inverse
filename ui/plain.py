@@ -68,15 +68,18 @@ def agent_word(agent) -> str:
     return a or "an expert"
 
 
-def by_word(by) -> str:
-    """Who filed or backed a proposal: an agent id (renamed later), a rule, or a person."""
+def by_word(by, agents=None) -> str:
+    """Who filed or backed a proposal: an agent id (renamed later), a rule, or a person. With the set of agent ids, anything
+    else (a login name from the shell, for one) is "a person": names of people never reach a screen."""
     s = str(by or "")
     if s.startswith("rule:"):
         return "a rule (" + s.split(":", 1)[1].replace("_", " ") + ")"
-    return "a person" if s in ("human", "ui") else s or "someone"
+    if s in ("human", "ui") or not s or (agents is not None and s not in agents):
+        return "a person"
+    return s
 
 
-def team_step(e: dict) -> str | None:
+def team_step(e: dict, agents=None) -> str | None:
     """One plain line of live progress for a mission trace event, or None for events too technical to show."""
     k, task, who = e.get("kind"), e.get("task", ""), e.get("expert") or e.get("agent") or "an expert"
     if k == "llm":
@@ -95,11 +98,11 @@ def team_step(e: dict) -> str | None:
         n = e.get("accepted") or 0
         return f"The lead writes the answer from {n} accepted result{'s' if n != 1 else ''}" + (f"; {e['unfinished']} did not finish" if e.get("unfinished") else "")
     if k == "proposal_filed":
-        return f"{by_word(e.get('by'))} proposed to the council: {e.get('what')}"
+        return f"{by_word(e.get('by'), agents)} proposed to the council: {e.get('what')}"
     if k == "proposal_backed":
-        return f"{by_word(e.get('by'))} backed proposal {e.get('id')} ({e.get('support')} backers)"
+        return f"{by_word(e.get('by'), agents)} backed proposal {e.get('id')} ({e.get('support')} backers)"
     if k == "proposal_dropped":
-        return f"A proposal from {by_word(e.get('by'))} was not readable: {e.get('reason')}"
+        return f"A proposal from {by_word(e.get('by'), agents)} was not readable: {e.get('reason')}"
     if k == "proposal_expired":
         return f"Proposal {e.get('id')} expired unheard"
     if k == "council_session":
