@@ -8,7 +8,7 @@ import streamlit as st
 from inverse_core.missions import load_missions
 from inverse_core.team import wire
 from inverse_core.team.council import Council
-from inverse_core.team.crew import name as crew_name
+from inverse_core.team.crew import CREW, name as crew_name
 
 KINDS = {"cfg": "change an agent's settings", "mission": "add or change a standing mission", "note": "a note for the crew's shared memory",
          "agent": "keep an agent Forge built", "code": "a code change (people make it)"}
@@ -22,7 +22,9 @@ def _who(by, configs):
     s = str(by)
     if s.startswith("rule:"):
         return "a rule (" + s.split(":", 1)[1] + ")"
-    return "you" if s == "human" else crew_name(s, configs)
+    if s in ("human", "ui") or (s not in CREW and s not in (configs or {})):  # a login name from the shell is "a person", never shown
+        return "a person"
+    return crew_name(s, configs)
 
 
 def _about(p, configs):

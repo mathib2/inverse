@@ -24,10 +24,10 @@ def main():
         print(json.dumps({"due": s["due"], "open": [{k: p[k] for k in ("id", "by", "k", "t", "w", "backers", "status")} for p in s["open"]],
                           "decided": [{k: p.get(k) for k in ("id", "k", "t", "w", "status")} for p in s["decided"][:10]]}, indent=1, default=str))
     elif cmd == "propose":
-        p = c.file(json.loads(sys.argv[2]), by=os.environ.get("USER", "human"))
+        p = c.file(json.loads(sys.argv[2]), by="human")                      # never the login name: it ends up on screens
         print(json.dumps(p, default=str) if p else "refused (see council/book.jsonl and the trace)")
     elif cmd == "support":
-        p = c.support(sys.argv[2], os.environ.get("USER", "human"))
+        p = c.support(sys.argv[2], "human")
         print(json.dumps(p, default=str) if p else "no open proposal with that id")
     elif cmd in ("session", "undo"):
         from inverse_core.clients.world import WorldClient

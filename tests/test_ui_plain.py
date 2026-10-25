@@ -42,3 +42,5 @@ def test_team_steps_read_as_plain_sentences():
     assert plain.team_step({"kind": "task_skipped", "task": "T2", "reason": "stopped"}) == "T2 was not started: a person stopped the mission"
     assert plain.team_step({"kind": "proposal_filed", "by": "rule:budget", "what": "raise it"}) == "a rule (budget) proposed to the council: raise it"
     assert plain.team_step({"kind": "council_decision", "id": "P-1", "decision": "adopt", "reason": "ok"}) == "The council adopted P-1: ok"
+    assert plain.team_step({"kind": "proposal_filed", "by": "<user>", "what": "x"}, agents={"research"}) == "a person proposed to the council: x"
+    assert plain.team_step({"kind": "proposal_filed", "by": "research", "what": "x"}, agents={"research"}) == "research proposed to the council: x"
