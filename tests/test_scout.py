@@ -130,3 +130,11 @@ def test_a_lenient_ask_returns_none_instead_of_raising_on_an_unreadable_reply(tm
     out = ask(ctx, "fast", [{"role": "user", "content": "x"}], "t", json_reply=True, lenient=True)
     assert out["json"] is None and out["text"] == "no json here" and events(ctx, "llm_parse_error")
 
+def test_values_the_answer_leaves_out_ride_along_from_the_rows():
+    from inverse_core.team.experts import ResearchExpert
+    ran = [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"sigma": "0.01", "sampling_hz": "100"}]}]
+    assert ResearchExpert._facts(ran, "0.01") == "Rows: sigma = 0.01, sampling_hz = 100 [Q1]"
+    assert ResearchExpert._facts(ran, "The noise level is 0.01 and the rate is 100 Hz.") == ""                     # nothing left out
+    many = [{"type": "sql", "source": "q", "detail": "9 rows", "rows": [{"t": str(i)} for i in range(9)]}]
+    assert ResearchExpert._facts(many, "x") == ""                                                                 # not for big result sets
+

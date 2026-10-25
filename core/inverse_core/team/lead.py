@@ -156,10 +156,13 @@ class Lead:
                     t.expert, _ = to, changes.append(f"{t.id}: reasoning -> {to} (no numbers and nothing to compute)")
             if t.expert == "vulnerability" and path and not PATH_WORD.search(t.goal):
                 t.goal, _ = f"{t.goal} Path: {path}", changes.append(f"{t.id}: the path from the goal added ({path})")
-        if SUMMARY_WORDS.search(plan.goal) and "solver" in names and len(plan.tasks) == 1 and plan.tasks[0].expert in ("reasoning", "research"):
-            plan.tasks[0].expert, _ = "solver", changes.append(f"{plan.tasks[0].id}: -> solver (a summary needs the shared memory)")
+        if SUMMARY_WORDS.search(plan.goal) and "solver" in names and len(plan.tasks) == 1 and plan.tasks[0].expert in ("reasoning", "research", "solver"):
+            if plan.tasks[0].expert != "solver":
+                plan.tasks[0].expert, _ = "solver", changes.append(f"{plan.tasks[0].id}: -> solver (a summary needs the shared memory)")
             if "memory" not in plan.tasks[0].goal.lower():
-                plan.tasks[0].goal += " Use the shared memory tool first."
+                plan.tasks[0].goal, _ = plan.tasks[0].goal + " Use the shared memory tool first.", changes.append(f"{plan.tasks[0].id}: the memory tool named")
+        if len(plan.tasks) == 1 and plan.tasks[0].expert == "research" and plan.goal.strip() not in plan.tasks[0].goal:   # Scout sees the whole question, not a paraphrase of half of it
+            plan.tasks[0].goal, _ = f"{plan.tasks[0].goal} (The whole goal: {plan.goal.strip()})", changes.append(f"{plan.tasks[0].id}: the whole goal appended")
         if CALC_WORDS.search(plan.goal) and "reasoning" in names and plan.tasks and all(t.expert == "research" for t in plan.tasks) and len(plan.tasks) < 5:   # lookups only
             deps = [t.id for t in plan.tasks]
             plan.tasks.append(Task(f"T{len(plan.tasks) + 1}", f"Using the accepted results from the earlier tasks, answer this in plain words: {plan.goal}", "reasoning", deps))

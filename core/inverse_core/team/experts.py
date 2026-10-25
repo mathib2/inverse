@@ -159,6 +159,10 @@ class ResearchExpert(BaseExpert):
         models.append(a["model"])
         j = a["json"]
         answer = str(j.get("answer") or "")
+        facts = self._facts(ran, answer)
+        if facts:                                                                     # a small result set rides along verbatim: the model dropped values the task asked for
+            answer = (answer.rstrip(" .") + ". " if answer.strip() else "") + facts
+            self.ctx.trace.event("answer_facts", expert=self.name, task=task.id, facts=facts[:200])
         bad = unverified_numbers(answer, payload)
         not_checked = [f"numbers in the answer not found in the rows: {bad}"] if bad else []
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
@@ -166,6 +170,19 @@ class ResearchExpert(BaseExpert):
         res.findings = [{"claim": answer, "evidence": evidence[:2], "source": "fitter", "confidence": conf}]   # written on accept
         res.proposals = proposals_of(j)
         return res
+
+    @staticmethod
+    def _facts(ran, answer, max_rows=4, max_chars=320):
+        """When the queries returned a handful of rows and the answer leaves out some of their values, the values themselves,
+        cited: 'Rows: sigma = 0.01, sampling_hz = 100 [Q1]'. Code-made, so every number in it is in the evidence."""
+        rows = [(i + 1, r) for i, e in enumerate(ran) for r in (e.get("rows") or [])]
+        if not rows or len(rows) > max_rows:
+            return ""
+        low = answer.lower()
+        if all(str(v).lower() in low for _, r in rows for v in r.values() if str(v).strip()):
+            return ""
+        text = "Rows: " + "; ".join(", ".join(f"{k} = {v}" for k, v in r.items()) + f" [Q{q}]" for q, r in rows)
+        return text[:max_chars]
 
     def _sanitize(self, rows):
         from ..agents.guard import scrub
