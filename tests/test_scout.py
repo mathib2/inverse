@@ -56,3 +56,29 @@ def test_the_rule_plan_carries_the_goal_and_adds_reasoning_only_for_a_computatio
     assert [t.expert for t in p.tasks] == ["research"] and "How many sensor samples" in p.tasks[0].goal and "P-104" in p.tasks[0].goal
     p = rule_plan("Using the mass of P-104 from the registry, compute its weight in newtons.", names, eq)
     assert [t.expert for t in p.tasks] == ["research", "reasoning"] and p.tasks[1].depends_on == ["T1"]
+
+def test_scout_answers_in_the_same_conversation_as_its_queries(tmp_path):
+    seen = []
+
+    def script(model, messages):
+        seen.append([m["role"] for m in messages])
+        if len(seen) == 1:
+            return json.dumps({"queries": ["SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'"]})
+        return json.dumps({"answer": "P-104 has a mass of 12.5 kg [Q1].", "confidence": 0.9, "assumptions": []})
+
+    ctx, lead = crew(tmp_path, script)
+    res = ctx.registry.experts["research"].run(Task("T1", "mass of P-104", "research"), lead.memory, ExpertBudget())
+    assert res.answer.startswith("P-104 has a mass of 12.5 kg") and res.confidence == 0.9
+    assert seen == [["system", "user"], ["system", "user", "assistant", "user"]]                          # the second call continues the first: a warm prefix
+    llm = events(ctx, "llm")
+    assert len(llm) == 2
+
+
+def test_one_accepted_result_is_the_answer_without_a_writer_call(tmp_path):
+    from inverse_core.team.plan import Plan
+    ctx, lead = crew(tmp_path, lambda m, msgs: (_ for _ in ()).throw(AssertionError("no model call expected")))
+    done = Task("T1", "g", "research", status="done", result={"answer": "T-200 has no baseline dataset.", "evidence": [{"type": "sql", "source": "q", "detail": "1 rows"}],
+                                                              "confidence": 0.9, "assumptions": [], "not_checked": ["x"]})
+    out = lead.compose(Plan("g", [done]))
+    assert out["answer"] == "T-200 has no baseline dataset. [T1.E1]" and out["citations"] == ["T1.E1"] and out["not_checked"] == ["x"]
+

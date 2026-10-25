@@ -191,7 +191,7 @@ class Tools:
         rows, blocked = scrub(rows)                                             # untrusted text never reaches a model raw, whatever the column is called
         if blocked:
             self.ctx.trace.event("injection_guard", agent=self.owner, blocked=blocked[:5])
-        return {"sql": sql, "rows": rows[:50], "count": len(rows)}
+        return {"sql": sql, "rows": rows[:12], "count": len(rows)}            # a dozen rows is what a 4B model can read; the count says the rest
 
     def _calc(self, expr):
         return {"expr": str(expr), "value": safe_eval(str(expr))}

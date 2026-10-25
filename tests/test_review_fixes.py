@@ -168,4 +168,4 @@ def test_compose_survives_a_null_evidence_detail(tmp_path):
     ctx = make_ctx(tmp_path / "runs", lambda m, msgs: "fine [T1.E1]")
     done = Task("T1", "g", "research", status="done", result={"answer": "a", "evidence": [{"type": "step", "source": "s", "detail": None}], "confidence": 0.9, "assumptions": [], "not_checked": []})
     out = lead_for(ctx).compose(Plan("g", [done]))
-    assert out["answer"].startswith("fine [T1.E1]")
+    assert out["answer"].startswith("a [T1.E1]") and not [x for x in ctx.trace.events if x["kind"] == "llm"]   # one result: cited by code, no writer call

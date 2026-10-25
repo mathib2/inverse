@@ -81,8 +81,9 @@ class CustomExpert(BaseExpert):
             failed = isinstance(out, dict) and out.get("error")
             evidence.append({"type": "tool", "source": f"{name}({json.dumps(args, default=str)[:120]})",
                              "detail": (f"ERROR {out['error']}" if failed else json.dumps(out, default=str))[:300], "result": out})
-            msgs += [{"role": "assistant", "content": r["text"]}, {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:6000]}]
-            self._fold(msgs)
+            msgs += [{"role": "assistant", "content": r["text"]}, {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:2500]}]
+            if sum(len(m["content"]) for m in msgs) > 16000:                 # fold only when the conversation gets long: rewriting it every turn broke the prefix cache
+                self._fold(msgs)
         return {"answer": "I used up my tool budget before reaching an answer.", "confidence": 0.0, "not_checked": ["the task"]}, models
 
     @staticmethod

@@ -402,6 +402,10 @@ class Lead:
         self.ctx.trace.event("composing", accepted=len(ok), unfinished=len(problems))
         if not ok:                                                            # nothing survived review: the answer is written by code, never by a model
             text, model, fallback = "No task produced an accepted result.", None, True
+        elif len(ok) == 1:                                                    # one accepted result IS the answer: cited by code, no writer call (8-45 s saved)
+            t = ok[0]
+            text = f"{t.result['answer']} " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1))
+            model, fallback = None, False
         else:
           try:
             out = ask(self.ctx, self.compose_lane, [{"role": "system", "content": COMPOSE_SYSTEM},
