@@ -27,17 +27,13 @@ def test_a_rejected_query_is_evidence_and_the_reviewer_names_it(tmp_path):
     assert res.confidence == 0.0 and res.evidence[0]["detail"].startswith("ERROR HTTPError: 400") and events(ctx, "sql_error")
     verdict = C.deterministic(res.to_dict())
     assert verdict[0] == "revise" and "every query failed" in verdict[1] and "sampling_rate" in verdict[1] and "'P-104'" in verdict[1]
-    assert "schema" not in verdict[1].lower() or True                                              # the reason is the platform's own message plus the fix
 
 
 def test_the_schema_the_agents_see_names_the_values_and_the_dialect():
     from inverse_core.team.experts import SCHEMA
     from inverse_core.team.tools import Tools
     assert "'none'" in SCHEMA and "'x' is displacement" in SCHEMA and "WHERE equipment_id = 'P-104'" in SCHEMA
-    ctx, _ = None, None
-    class Ctx:                                                                                     # Tools.describe needs only the allowed list
-        zetaris = None
-    t = Tools.__new__(Tools)
+    t = Tools.__new__(Tools)                                                                       # describe() needs only the allowed list
     t.allowed = ["run_sql", "calc"]
     assert SCHEMA in t.describe() and "- calc:" in t.describe()
     t.allowed = ["calc"]
