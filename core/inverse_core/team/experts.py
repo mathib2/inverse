@@ -230,13 +230,32 @@ class ReasoningExpert(BaseExpert):
                    '"answer":"...","confidence":0.0-1.0,"assumptions":["..."]}. At most 5 steps, one short sentence per claim. Put every numeric claim in a calc with the value you expect. '
                    + PROPOSE_TAIL)
 
-    def _check(self, steps):
+    _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+    @classmethod
+    def resolve(cls, calc, context=""):
+        """'calc(mass_kg * 9.81)' with 'mass_kg = 1.0' in the accepted results becomes '1.0 * 9.81': a 4B model writes the
+        quantity's name where the calculator needs its value. Function names and constants are left alone."""
+        expr = str(calc or "").strip()
+        m = re.fullmatch(r"calc\((.*)\)", expr, re.S)
+        if m:
+            expr = m.group(1).strip()
+        for name in sorted(set(cls._NAME.findall(expr)), key=len, reverse=True):
+            if name in _FUNCS or name in ("e", "pi"):
+                continue
+            found = re.search(r"(?<![\w.])" + re.escape(name) + r"\s*[=:]\s*(-?\d+(?:\.\d+)?)", str(context or ""))
+            if found:
+                expr = re.sub(r"\b" + re.escape(name) + r"\b", found.group(1), expr)
+        return expr
+
+    def _check(self, steps, context=""):
         ev, bad = [], []
         for i, s in enumerate(steps, 1):
             calc = s.get("calc")
             if not calc:
                 ev.append({"type": "step", "source": f"step {i}", "detail": str(s.get("claim") or "")})
                 continue
+            calc = self.resolve(calc, context)
             try:
                 val = safe_eval(str(calc))
                 exp = s.get("expect")
@@ -256,14 +275,14 @@ class ReasoningExpert(BaseExpert):
         msgs = [{"role": "system", "content": self.system()}, {"role": "user", "content": self._task_text(task)}]
         r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
         models, j = [r["model"]], r["json"]
-        ev, bad = self._check(j.get("steps", []))
+        ev, bad = self._check(j.get("steps", []), task.context)
         if bad:
             msgs += [{"role": "assistant", "content": r["text"]},
                      {"role": "user", "content": "Self-check found errors. Recompute and return corrected JSON in the same format:\n" + "\n".join(bad)}]
             r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
             models.append(r["model"])
             j = r["json"]
-            ev, bad = self._check(j.get("steps", []))
+            ev, bad = self._check(j.get("steps", []), task.context)
         answer = str(j.get("answer") or "")
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
         not_checked = [f"unresolved: {b}" for b in bad] + ["steps without arithmetic are the model's reasoning, not machine-verified"]

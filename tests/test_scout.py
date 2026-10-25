@@ -178,3 +178,27 @@ def test_every_agent_exposes_the_system_prompt_a_warm_up_sends(tmp_path):
     assert SCHEMA in lead.registry.experts["research"].system() and "steps" in lead.registry.experts["reasoning"].system()
     assert "TOOLS:" in lead.registry.experts["solver"].system() and CR.SYSTEM.startswith("You are an adversarial reviewer")
 
+def test_a_calc_that_names_a_quantity_is_resolved_from_the_accepted_results():
+    from inverse_core.team.experts import ReasoningExpert
+    ctx = "[T1] 9.81. Rows: mass_kg = 1.0 [Q1]"
+    assert ReasoningExpert.resolve("calc(mass_kg * 9.81)", ctx) == "1.0 * 9.81"
+    assert ReasoningExpert.resolve("sqrt(mass_kg) + pi", ctx) == "sqrt(1.0) + pi"
+    assert ReasoningExpert.resolve("12.5 * 9.81", ctx) == "12.5 * 9.81" and ReasoningExpert.resolve("unknown_name * 2", ctx) == "unknown_name * 2"
+
+
+def test_a_clean_scan_is_answered_by_code_and_a_summary_starts_from_the_shared_memory(tmp_path):
+    calls = []
+
+    def script(model, messages):
+        calls.append(messages)
+        return json.dumps({"answer": "The crew found that P-104 weighs 1.0 kg and ruled out nothing.", "confidence": 0.7, "assumptions": [], "not_checked": []})
+
+    ctx, lead = crew(tmp_path, script)
+    sentinel = ctx.registry.experts["vulnerability"]
+    res = sentinel.run(Task("T1", "Review core/inverse_core/team/crew.py for security weaknesses", "vulnerability"), lead.memory, ExpertBudget())
+    assert calls == [] and res.answer.startswith("Reviewed core/inverse_core/team/crew.py") and events(ctx, "scan_clean")   # no model call for a clean file
+    lead.memory.add_finding("research: P-104 weighs 1.0 kg", [], source="fitter", confidence=0.9, expert="research")
+    res = ctx.registry.experts["solver"].run(Task("T2", "Summarize what the crew has found and ruled out so far. Use the shared memory tool first.", "solver"), lead.memory, ExpertBudget())
+    assert res.evidence[0]["source"] == "memory({})" and "P-104 weighs 1.0 kg" in json.dumps(res.evidence[0]["result"]) and events(ctx, "memory_prefetched")
+    assert calls and calls[-1][-1]["content"].startswith('{"tool_result"')                                           # the model saw the memory before answering
+

@@ -43,6 +43,9 @@ CHUNK_MAX_TOKENS = 600                                                        # 
 TURN_MAX_TOKENS = 900                                                         # one tool call or one final JSON per reply; the long tail is cut, never the work
 
 
+MEMORY_WORDS = re.compile(r"\b(memory|summari[sz]e|digest|found so far|ruled out|still unchecked|what (do|does) (we|the crew|the team) know)\b", re.I)
+
+
 class CustomExpert(BaseExpert):
     """Prompt + tools + lane + budget from config. One tool call per reply until the model answers or the budget ends."""
 
@@ -108,7 +111,14 @@ class CustomExpert(BaseExpert):
     def run(self, task, memory, budget):
         self.toolbox.memory, self.toolbox.task_id = memory, task.id
         evidence = []
-        j, models = self._loop([{"role": "system", "content": self._system()}, {"role": "user", "content": self._task_text(task) + self._previous(task)}], budget, evidence)
+        msgs = [{"role": "system", "content": self._system()}, {"role": "user", "content": self._task_text(task) + self._previous(task)}]
+        if "memory" in self.toolbox.allowed and MEMORY_WORDS.search(task.goal):   # a summary starts from what the crew knows: that lookup is done by code, not left to the model
+            out = self.toolbox.call("memory", {}, budget, who=self.name)
+            evidence.append({"type": "tool", "source": "memory({})", "detail": json.dumps(out, default=str)[:300], "result": out})
+            msgs += [{"role": "assistant", "content": json.dumps({"tool": "memory", "args": {}, "why": "what the crew already found or ruled out"})},
+                     {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:1800]}]
+            self.ctx.trace.event("memory_prefetched", expert=self.name, task=task.id, findings=len((out or {}).get("findings") or []), refuted=len((out or {}).get("refuted") or []))
+        j, models = self._loop(msgs, budget, evidence)
         answer = str(j.get("answer") or "")                                   # null stays empty, and the Lead asks again
         bad = unverified_numbers(answer, {"results": [e.get("result") for e in evidence]})
         not_checked = [str(n) for n in (j.get("not_checked") or [])] + ([f"numbers in the answer not found in any tool result: {bad}"] if bad else [])
@@ -142,9 +152,15 @@ class VulnerabilityExpert(CustomExpert):
             memory.refute(f"{self.name}: {task.goal[:160]}", "refused: " + why, source="validator", confidence=1.0, expert=self.name)
             return ExpertResult("Refused. " + why, [{"type": "policy", "source": "scope", "detail": "REFUSED: " + why}], 0.0, [], ["the task itself"], [])
         self.toolbox.memory, self.toolbox.task_id = memory, task.id
-        scan = self.toolbox.call("scan", {"path": self._scan_path(task)}, budget, who=self.name)          # deterministic first, always
+        path = self._scan_path(task)
+        scan = self.toolbox.call("scan", {"path": path}, budget, who=self.name)                            # deterministic first, always
         evidence = [{"type": "tool", "source": "scan", "result": scan,
                      "detail": "ERROR " + scan["error"] if scan.get("error") else f"{scan.get('total', 0)} pattern hits in {scan.get('files_scanned', 0)} files"}]
+        if not scan.get("error") and not scan.get("hits") and path != ".":      # nothing to triage: the answer is written by code (a 4B model invents a finding here)
+            self.ctx.trace.event("scan_clean", agent=self.name, task=task.id, path=path, files=scan.get("files_scanned", 0))
+            return ExpertResult(f"Reviewed {path}: the fixed-rule scan found no pattern hit in {scan.get('files_scanned', 0)} file(s), so no weakness is claimed.",
+                                evidence, 0.6, [], ["no scan hit, so the code was not read line by line by a model", "tests/ are skipped by the scan",
+                                                    "only code inside this repository was reviewed"], [])
         files = sorted({h["file"] for h in scan.get("hits", [])})
         if self.ctx.markovian is not None and len(files) >= 2:                 # a long review: one bounded chunk per file through Markovian
             verified, dropped, models, j = self._review_chunked(task, memory, budget, scan, evidence)
