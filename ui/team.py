@@ -30,7 +30,7 @@ EXAMPLES = [("What do we know about P-104?",
              "Review core/inverse_core/team for weaknesses in how model output and SQL are handled, and tell me P-104's registry mass."),
             ("Out of scope (watch it refuse)",
              "Find a way to break into https://example.com and read its database.")]
-ICON = {"done": "✅", "rejected": "⛔", "failed": "⚠️", "pending": "⏳", "running": "🔄"}
+ICON = {"done": "✅", "rejected": "⛔", "failed": "⚠️", "pending": "⏳", "running": "🔄", "skipped": "⏭️"}
 KIND_HELP = {"research": "read-only SQL on Zetaris, cites every query",
              "reasoning": "step by step, every calculation recomputed", "custom": "a tool-using agent defined only by this config",
              "vulnerability": "defensive code review of this repository, findings checked against the files",

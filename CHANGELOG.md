@@ -3,6 +3,11 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## Live view, Warden panel, council form (2026-10-25)
+- The running mission lives in the process, not in one browser session: a click, a rerun or a page reload re-attaches to it; the status line names who is on which task, how many finished and the time elapsed; a **Stop** button (`ctx.stop`) lets the step in progress finish, starts nothing new, and the answer lists what did not finish, verbatim. Model replies, memory writes, Markovian chunks, proposals and council steps read as plain lines, live and in "How it went".
+- Warden's panel refreshes itself every 10 seconds and shows the mission running now (`state/current.json`), the queue, and a button to show a mission Warden ran.
+- The council section speaks in the agents' names, has a one-line empty state, a form built from choices (no JSON), the wire's own reason when a proposal is refused, and an undo that reports errors.
+
 ## Review fixes (2026-10-25)
 - From the pre-submission review: votes read in a small model's own words; a second backer for self-serving or rule-filed changes; prompt addenda, granted tools, new missions and unevidenced notes become task cards or are rejected; the book replays incrementally and survives bad lines; the guard scrubs every column; Spark built-ins forbidden in SQL; plan review cannot copy the example; Critic verdicts normalised; a tool loop that overruns its budget fails honestly; client defaults and MODEL_TIMEOUT; Warden re-reads missions, retries a failed new-data mission once and plans fixed-text missions by rule; the datasets generator stands alone; evidence committed under docs/evidence/.
 

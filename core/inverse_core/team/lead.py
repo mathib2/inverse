@@ -234,7 +234,10 @@ class Lead:
             ready = []
             for task in level:
                 blocked = [d for d in task.depends_on if done[d].status != "done"]
-                if blocked:
+                if self.stopped():                                            # a person pressed Stop: what did not start is listed in the answer, verbatim
+                    task.status, task.feedback = "skipped", "stopped by a person before it started"
+                    self.ctx.trace.event("task_skipped", task=task.id, reason="stopped")
+                elif blocked:
                     task.status, task.feedback = "failed", f"skipped: dependency {blocked} did not produce an accepted result"
                     self.ctx.trace.event("task_skipped", task=task.id, blocked_by=blocked)
                 elif task.expert not in self.registry.experts:                # planned for an expert the architect was to create
@@ -263,7 +266,16 @@ class Lead:
                 self.ctx.trace.event("council_error", op="observe", error=f"{type(e).__name__}: {str(e)[:200]}")
         return plan
 
+    def stopped(self):
+        """True once a person asked the mission to stop (ctx.stop); experts finish the step they are on, nothing new starts."""
+        s = getattr(self.ctx, "stop", None)
+        return bool(s is not None and s.is_set())
+
     def _execute(self, task):
+        if self.stopped():                                                    # queued behind a running task when Stop was pressed
+            task.status, task.feedback = "skipped", "stopped by a person before it started"
+            self.ctx.trace.event("task_skipped", task=task.id, reason="stopped")
+            return
         expert = self.registry.experts[task.expert]
         if set(getattr(expert, "tools", None) or []) & CODE_TOOLS:            # scope is a property of the tool layer, not of one expert class
             ok, why = scope_check(task.goal)
@@ -278,6 +290,10 @@ class Lead:
             self.ctx.trace.event("lessons", task=task.id, expert=task.expert, count=len(task.lessons))
         last, repeats = None, 0
         for attempt in range(1, self.max_attempts + 1):
+            if attempt > 1 and self.stopped():
+                task.status, task.feedback = "failed", "stopped by a person before another attempt; the last note was: " + task.feedback
+                self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
+                return
             task.attempts, task.status = attempt, "running"
             budget = self.registry.budget_for(task.expert)
             task.messages = [m for m in self.bus.inbox(task.expert)
@@ -378,6 +394,7 @@ class Lead:
                     "assumptions": t.result["assumptions"], "not_checked": t.result["not_checked"],
                     "evidence": {f"{t.id}.E{i}": str(e.get("detail") or "")[:160] for i, e in enumerate(t.result["evidence"], 1)}} for t in ok]
         problems = [{"task": t.id, "expert": t.expert, "status": t.status, "why": t.feedback} for t in plan.tasks if t.status != "done"]
+        self.ctx.trace.event("composing", accepted=len(ok), unfinished=len(problems))
         if not ok:                                                            # nothing survived review: the answer is written by code, never by a model
             text, model, fallback = "No task produced an accepted result.", None, True
         else:

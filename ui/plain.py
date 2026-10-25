@@ -53,9 +53,72 @@ def error(exc: Exception, known_equipment=()) -> tuple[str, str]:
     return "Something went wrong", f"{name}: {str(exc)[:200]}"
 
 
+def agent_word(agent) -> str:
+    """The agent behind a model-call label: 'lead_plan' and 'lead_compose' are the lead, 'council_vera' is the critic, '<x>_plan_review' is x."""
+    a = str(agent or "")
+    for suffix in ("_plan_review", "_plan_sample"):
+        if suffix in a:
+            return a.split(suffix)[0]
+    if a.startswith("lead"):
+        return "lead"
+    if a == "council_vera":
+        return "critic"
+    if a.startswith("council_"):
+        return a[len("council_"):]
+    return a or "an expert"
+
+
+def by_word(by) -> str:
+    """Who filed or backed a proposal: an agent id (renamed later), a rule, or a person."""
+    s = str(by or "")
+    if s.startswith("rule:"):
+        return "a rule (" + s.split(":", 1)[1].replace("_", " ") + ")"
+    return "a person" if s in ("human", "ui") else s or "someone"
+
+
 def team_step(e: dict) -> str | None:
     """One plain line of live progress for a mission trace event, or None for events too technical to show."""
     k, task, who = e.get("kind"), e.get("task", ""), e.get("expert") or e.get("agent") or "an expert"
+    if k == "llm":
+        lat = e.get("latency_s")
+        return f"{agent_word(e.get('agent'))}'s model replied" + (f" after {lat:.0f} s" if isinstance(lat, (int, float)) else "")
+    if k == "memory_write":
+        n = e.get("findings") or 0
+        return f"Shared memory keeps {n} finding{'s' if n != 1 else ''} from {task}"
+    if k == "markovian_start":
+        return f"{who} starts a long review in {e.get('working_sets')} bounded chunk(s) through Markovian"
+    if k == "markovian_chunk":
+        return f"{who} reviewed chunk {e.get('step')}" + (f": {e.get('file')}" if e.get("file") else "")
+    if k == "markovian_done":
+        return f"{who}'s long review finished after {e.get('chunks')} chunk(s)"
+    if k == "composing":
+        n = e.get("accepted") or 0
+        return f"The lead writes the answer from {n} accepted result{'s' if n != 1 else ''}" + (f"; {e['unfinished']} did not finish" if e.get("unfinished") else "")
+    if k == "proposal_filed":
+        return f"{by_word(e.get('by'))} proposed to the council: {e.get('what')}"
+    if k == "proposal_backed":
+        return f"{by_word(e.get('by'))} backed proposal {e.get('id')} ({e.get('support')} backers)"
+    if k == "proposal_dropped":
+        return f"A proposal from {by_word(e.get('by'))} was not readable: {e.get('reason')}"
+    if k == "proposal_expired":
+        return f"Proposal {e.get('id')} expired unheard"
+    if k == "council_session":
+        n = len(e.get("items") or [])
+        return f"The council is in session: {n} proposal{'s' if n != 1 else ''} on the agenda ({e.get('reason')})"
+    if k == "council_decision":
+        word = {"adopt": "adopted", "reject": "rejected", "defer": "deferred", "expire": "expired", "needs_human": "left to people"}.get(e.get("decision"), str(e.get("decision")))
+        return f"The council {word} {e.get('id')}" + (f": {e.get('reason')}" if e.get("reason") else "")
+    if k == "council_effect":
+        x = e.get("x")
+        if x == "applied":
+            return f"Change {e.get('id')} applied: {e.get('summary')}"
+        if x == "reverted":
+            return f"Change {e.get('id')} undone"
+        return f"Change {e.get('id')} could not be applied: {e.get('error')}"
+    if k == "council_vote_unreadable":
+        return f"{e.get('who')}'s vote could not be read: {e.get('reason')}"
+    if k == "council_done":
+        return f"The council session ended after {e.get('calls') or 0} model call(s)" + (f": {e['note']}" if e.get("note") else "")
     if k == "plan":
         n = len(e.get("tasks") or [])
         return f"The lead drafted a plan with {n} task{'s' if n != 1 else ''}" + (" by the fixed rule, because the model's plans were not usable" if e.get("by") == "rule" else "")
@@ -101,7 +164,7 @@ def team_step(e: dict) -> str | None:
     if k == "task_rejected":
         return f"{task} rejected: {e.get('reason')}"
     if k == "task_skipped":
-        return f"{task} skipped: it needed a task that did not finish"
+        return f"{task} was not started: a person stopped the mission" if e.get("reason") == "stopped" else f"{task} skipped: it needed a task that did not finish"
     if k == "message":
         who, to, text, kind = e.get("from"), e.get("to"), str(e.get("text") or "")[:140], e.get("type")
         if kind == "review":                                                  # the Critic line already says why
