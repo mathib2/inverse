@@ -29,6 +29,7 @@ WORDS = {"accept": {"accept", "accepted", "approve", "approved", "ok", "okay", "
 STOP = set("the a an and or of to in on for is are was were be been with by at from as that this it its not no than then into "
            "has have had does did done will would can could should about into over under each there their these those".split())
 MAX_PROBLEMS = 3
+HEDGE = re.compile(r"\b(not (available|provided|specified|given|found|present|included)|cannot be (computed|determined|found)|no (data|value|information|rows)|unavailable|unknown)\b", re.I)
 MAX_TOKENS = 500                                                             # three quoted problems and a sentence fit; a reply that rambles is cut, then re-asked
 
 
@@ -54,6 +55,10 @@ def deterministic(result):
     mism = [e for e in evidence if "MISMATCH" in _detail(e)]
     if mism:
         return "revise", "a calculation does not match its expected value: " + str(mism[0].get("source", ""))
+    sql = [e for e in evidence if e.get("type") == "sql" and not _detail(e).startswith(("ERROR", "REFUSED"))]
+    if sql and all(isinstance(e.get("rows"), list) and e["rows"] for e in sql) and HEDGE.search(str(result.get("answer") or "")):
+        shown = "; ".join(json.dumps(e["rows"][0], default=str)[:120] for e in sql[:3])
+        return "revise", f"the answer says a value is missing, but every query returned rows ({shown}); answer from those values"
     try:
         if float(result.get("confidence") or 0) <= 0.0:
             return "revise", "the expert reported zero confidence"

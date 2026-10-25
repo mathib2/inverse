@@ -49,6 +49,7 @@ def _norm(s):
 CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|vulnerab\w*|exploit\w*)\b", re.I)
 CALC_WORDS = re.compile(r"\b(compute|calculate|derive|deriv\w+|multipl\w+|times|divide\w*|convert\w*|weight|force|torque|energy|frequency|damping|ratio|percent\w*|average|mean|formula|equation"
                         r"|why|whether|should|needs?|compare\w*|explain|assess\w*|diagnos\w+|recommend\w*|judge)\b", re.I)   # a computation or a judgement: Euler after Scout
+DATA_WORDS = re.compile(r"\b(registry|maintenance|sensors?|samples?|datasets?|records?|tables?|rows|stored|specification\w*|history|sql|quer\w+)\b", re.I)
 LOOKUP_WORDS = re.compile(r"^\W*(how many|how much|list|what is|what are|what was|which|when|show|name|give me)\b", re.I)   # a plain lookup: Scout alone
 SUMMARY_WORDS = re.compile(r"\b(summari[sz]e|digest|what (do|does) (we|the crew|the team) know|found so far|ruled out|still unchecked)\b", re.I)
 
@@ -136,7 +137,28 @@ class Lead:
     def _parse_plan(self, goal, j):
         for spec in (j.get("new_experts") or [])[:2]:
             self._create_expert(spec)
-        return Plan.from_dict({"goal": goal, "tasks": j["tasks"][:5]}).validate(self.registry.names(), self.creators())
+        return self._guard(Plan.from_dict({"goal": goal, "tasks": j["tasks"][:5]}).validate(self.registry.names(), self.creators()))
+
+    def _guard(self, plan):
+        """Three routing rules a 4B planner gets wrong often enough to cost a mission, applied by code and traced: a data lookup
+        given to the reasoning agent goes to research; a summary of what the crew knows goes to the solver (it has the memory
+        tool); a goal that asks for a computation gets a reasoning task after the lookups when the plan has none."""
+        names, changes = self.registry.names(), []
+        for t in plan.tasks:
+            if t.expert == "reasoning" and "research" in names and DATA_WORDS.search(t.goal) and not CALC_WORDS.search(t.goal):
+                t.expert, _ = "research", changes.append(f"{t.id}: reasoning -> research (a data lookup)")
+        if SUMMARY_WORDS.search(plan.goal) and "solver" in names and len(plan.tasks) == 1 and plan.tasks[0].expert in ("reasoning", "research"):
+            plan.tasks[0].expert, _ = "solver", changes.append(f"{plan.tasks[0].id}: -> solver (a summary needs the shared memory)")
+            if "memory" not in plan.tasks[0].goal.lower():
+                plan.tasks[0].goal += " Use the shared memory tool first."
+        if CALC_WORDS.search(plan.goal) and "reasoning" in names and not any(t.expert in ("reasoning", "solver") for t in plan.tasks) and len(plan.tasks) < 5:
+            deps = [t.id for t in plan.tasks]
+            plan.tasks.append(Task(f"T{len(plan.tasks) + 1}", f"Using the accepted results from the earlier tasks, answer this in plain words: {plan.goal}", "reasoning", deps))
+            changes.append(f"{plan.tasks[-1].id}: reasoning added (the goal asks for a computation)")
+        if changes:
+            self.ctx.trace.event("plan_guard", changes=changes)
+            plan.validate(names, self.creators())
+        return plan
 
     @staticmethod
     def signature(plan):

@@ -80,5 +80,24 @@ def test_one_accepted_result_is_the_answer_without_a_writer_call(tmp_path):
     done = Task("T1", "g", "research", status="done", result={"answer": "T-200 has no baseline dataset.", "evidence": [{"type": "sql", "source": "q", "detail": "1 rows"}],
                                                               "confidence": 0.9, "assumptions": [], "not_checked": ["x"]})
     out = lead.compose(Plan("g", [done]))
-    assert out["answer"] == "T-200 has no baseline dataset. [T1.E1]" and out["citations"] == ["T1.E1"] and out["not_checked"] == ["x"]
+    assert out["answer"] == "T-200 has no baseline dataset. [T1.E1]" and set(out["citations"]) == {"T1.E1"} and out["not_checked"] == ["x"]
+
+def test_the_plan_guard_reroutes_what_a_small_planner_gets_wrong(tmp_path):
+    ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
+    p = lead._parse_plan("List the maintenance records for P-104 with their dates.", {"tasks": [{"id": "T1", "goal": "List the maintenance records for P-104 with their dates", "expert": "reasoning", "depends_on": []}]})
+    assert [t.expert for t in p.tasks] == ["research"]
+    p = lead._parse_plan("Summarize what the crew has found and ruled out so far.", {"tasks": [{"id": "T1", "goal": "Summarize the findings", "expert": "reasoning", "depends_on": []}]})
+    assert [t.expert for t in p.tasks] == ["solver"] and "memory" in p.tasks[0].goal
+    p = lead._parse_plan("Using the mass of P-104 from the registry, compute its weight in newtons.", {"tasks": [{"id": "T1", "goal": "Look up the mass of P-104", "expert": "research", "depends_on": []}]})
+    assert [t.expert for t in p.tasks] == ["research", "reasoning"] and p.tasks[1].depends_on == ["T1"]
+    assert len(events(ctx, "plan_guard")) == 3
+
+
+def test_a_value_the_rows_contain_is_never_not_available():
+    res = {"answer": "The sampling rate is 0.01 Hz and the noise level is not available in the data.", "confidence": 0.9, "assumptions": [], "not_checked": [],
+           "evidence": [{"type": "sql", "source": "q1", "detail": "1 rows", "rows": [{"sigma": "0.01"}]}, {"type": "sql", "source": "q2", "detail": "1 rows", "rows": [{"sampling_hz": "100"}]}]}
+    v = C.deterministic(res)
+    assert v[0] == "revise" and "every query returned rows" in v[1] and "sampling_hz" in v[1]
+    res["answer"] = "The sampling rate is 100 Hz and the noise level is 0.01."
+    assert C.deterministic(res) is None
 
