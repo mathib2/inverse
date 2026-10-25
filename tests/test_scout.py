@@ -202,3 +202,16 @@ def test_a_clean_scan_is_answered_by_code_and_a_summary_starts_from_the_shared_m
     assert res.evidence[0]["source"] == "memory({})" and "P-104 weighs 1.0 kg" in json.dumps(res.evidence[0]["result"]) and events(ctx, "memory_prefetched")
     assert calls and calls[-1][-1]["content"].startswith('{"tool_result"')                                           # the model saw the memory before answering
 
+def test_a_tool_call_repeated_with_the_same_arguments_ends_the_loop_by_code(tmp_path):
+    calls = []
+
+    def script(model, messages):
+        calls.append(messages[-1]["content"][:80])
+        return json.dumps({"tool": "memory", "args": {}, "why": "again"})                             # the model never stops asking
+
+    ctx, lead = crew(tmp_path, script)
+    res = ctx.registry.experts["solver"].run(Task("T1", "Summarize what the crew knows. Use the shared memory tool first.", "solver"), lead.memory, ExpertBudget())
+    assert res.answer.startswith("Tool results so far: memory({})") and res.confidence <= 0.3
+    assert [e.get("times") for e in events(ctx, "tool_repeat")] == [2, 3] and len(events(ctx, "llm")) == 3                   # prefetch, one warning, then code
+    assert any(c.startswith("You already called memory({})") for c in calls)
+

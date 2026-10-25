@@ -67,11 +67,13 @@ class CustomExpert(BaseExpert):
 
     OUT_OF_BUDGET = "Your tool budget is spent. Do not call a tool. Give your final JSON now from what you already have."
 
-    def _loop(self, msgs, budget, evidence):
+    def _loop(self, msgs, budget, evidence, seen=None):
         """Tool turns until the model stops asking for one. Older tool results are folded into one-line stubs (the evidence list
         keeps them in full), and when the budget is nearly spent the model is told to answer with what it has instead of failing.
+        A tool call repeated with the same arguments is not run again: the model is told once, and the next repeat ends the
+        loop with an answer written by code from the tool results (a 4B model can loop on one call until the clock runs out).
         Returns (final json, models used)."""
-        models, j = [], {}
+        models, j, seen = [], {}, dict(seen or {})
         for _ in range(budget.max_tool_calls + 2):
             low = budget.tool_calls >= budget.max_tool_calls or budget.tokens >= 0.7 * budget.max_tokens
             if low:
@@ -84,6 +86,16 @@ class CustomExpert(BaseExpert):
             if low:                                                          # the model still wants a tool: the budget is spent, and the run says so
                 raise BudgetExceeded(f"tool-call budget {budget.max_tool_calls} exceeded")
             name, args = str(j.get("tool")), j.get("args") or {}
+            key = f"{name}({json.dumps(args, sort_keys=True, default=str)[:160]})"
+            seen[key] = seen.get(key, 0) + 1
+            if seen[key] >= 2:
+                self.ctx.trace.event("tool_repeat", agent=self.name, call=key, times=seen[key])
+                if seen[key] == 2:
+                    msgs += [{"role": "assistant", "content": r["text"]},
+                             {"role": "user", "content": f"You already called {key} and its result is above. Do not call it again. Give your final JSON now, from the results you have."}]
+                    continue
+                return {"answer": "Tool results so far: " + "; ".join(f"{x['source']}: {str(x['detail'])[:200]}" for x in evidence[-4:]), "confidence": 0.3, "assumptions": [],
+                        "not_checked": ["the model kept repeating the same tool call; this answer lists its tool results instead"]}, models
             out = self.toolbox.call(name, args, budget, who=self.name)
             failed = isinstance(out, dict) and out.get("error")
             evidence.append({"type": "tool", "source": f"{name}({json.dumps(args, default=str)[:120]})",
@@ -118,7 +130,10 @@ class CustomExpert(BaseExpert):
             msgs += [{"role": "assistant", "content": json.dumps({"tool": "memory", "args": {}, "why": "what the crew already found or ruled out"})},
                      {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:1800]}]
             self.ctx.trace.event("memory_prefetched", expert=self.name, task=task.id, findings=len((out or {}).get("findings") or []), refuted=len((out or {}).get("refuted") or []))
-        j, models = self._loop(msgs, budget, evidence)
+            seen = {"memory({})": 1}
+        else:
+            seen = {}
+        j, models = self._loop(msgs, budget, evidence, seen)
         answer = str(j.get("answer") or "")                                   # null stays empty, and the Lead asks again
         bad = unverified_numbers(answer, {"results": [e.get("result") for e in evidence]})
         not_checked = [str(n) for n in (j.get("not_checked") or [])] + ([f"numbers in the answer not found in any tool result: {bad}"] if bad else [])

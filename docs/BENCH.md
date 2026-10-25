@@ -40,7 +40,7 @@ in under a second. Everything below follows from those three numbers: fewer call
 | 3 | 3/8 | 3 | 824 | 6.4 | one accepted result is the answer by code; Scout answers in one conversation; shorter steps; smaller tool results |
 | 4 | 4/8 | 4 | 669 | 5.9 | a routing guard on every model plan; "not available" with rows present is sent back; a missing column the task asks for is added to the query |
 | 5 | 5/8 | 4 | 781 | 6.4 | values the answer leaves out ride along from the rows; Euler only for arithmetic; Sentinel gets the path; chunked reviews in JSON |
-| 6 | | | | | a reviewer's reject retried once; two short results composed by code; prompts kept inside the 4K window; warm-up |
+| 6 | 6/8 | 5 | 903 | 6.4 | a reviewer's reject retried once; two short results composed by code; prompts kept inside the 4K window; warm-up (the summary case alone took 402 s: Ada looped on tools without calling the memory) |
 | 7 | | | | | a calc that names a quantity resolved from the context; a clean scan answered by code; summaries start from the shared memory |
 
 The failures that remained longest, and what decided them:
