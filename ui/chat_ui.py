@@ -275,7 +275,7 @@ def render(ledger, ai_online, sidecar, health=None):
         if health:
             with c2:
                 parts.status_row(health)
-        with st.container(height=600, border=False):
+        with st.container(height=600 if (_turns() or live_run) else 300, border=False):   # a fresh page is not a tall empty box
             if not _turns() and not live_run:
                 _welcome(ledger, sidecar, enabled)
             for t in _turns():
