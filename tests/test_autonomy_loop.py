@@ -126,3 +126,10 @@ def test_changed_files_reads_porcelain_even_when_the_first_line_lost_its_leading
     monkeypatch.setattr(tinker, "sh", lambda cmd, **kw: (0, "M core/inverse_core/team/lead.py\n?? docs/x.md\nR  a.py -> b.py\n?? runs/20261025/trace.jsonl"))
     assert tinker.changed_files() == ["core/inverse_core/team/lead.py", "docs/x.md", "b.py"]
 
+def test_the_public_link_is_read_from_cloudflareds_log_and_kept_in_state(tmp_path):
+    import public_link
+    assert public_link.url_in("2026-10-26T12:00:00Z INF |  https://quiet-river-1234.trycloudflare.com                |") == "https://quiet-river-1234.trycloudflare.com"
+    assert public_link.url_in("INF Requesting new quick Tunnel on trycloudflare.com...") is None
+    public_link.write_url("https://a-b.trycloudflare.com", root=str(tmp_path), now=0)
+    assert public_link.read_url(str(tmp_path))["url"] == "https://a-b.trycloudflare.com" and public_link.read_url(str(tmp_path / "x")) == {}
+

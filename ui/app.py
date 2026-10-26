@@ -1,6 +1,7 @@
 """INVERSE UI (Streamlit, :8501). The Crew page is the default: give the agents a goal, watch them work, see what they do on
 their own. Advanced keeps the plan editor, the experts editor and the replay with traces. Wording lives in ui/plain.py."""
 import getpass
+import json
 import os
 import subprocess
 import sys
@@ -96,6 +97,15 @@ with st.sidebar:
                 ss.panel_turn, ss.panel_pick, ss.mode = ss.team_dir, "Answer", "Chat"
                 st.rerun()
     st.divider()
+    try:
+        with open(os.path.join(ROOT, "state", "public_url.json"), encoding="utf-8") as f:
+            public = (json.load(f) or {}).get("url") or ""
+    except (OSError, ValueError):
+        public = ""
+    if public:                                                                # signed-in people only: the sidebar is drawn after the sign-in page
+        with st.expander("Share with your team", icon=":material/share:"):
+            st.code(public, language=None)
+            st.caption("Anyone with this link and the crew's user and password can sign in; no Tailscale needed. The link changes if the tunnel restarts.")
     with st.expander("Connections", expanded=not ai_online or not h["data"]["ok"]):
         parts.connections(h, recheck, ssh_target(), ss.get("last_latency"))
     with st.expander("Memory"):
