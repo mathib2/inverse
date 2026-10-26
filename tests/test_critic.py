@@ -81,3 +81,17 @@ def test_a_correct_arithmetic_answer_is_no_longer_rejected_on_a_made_up_reason(t
     assert t.status == "done" and t.attempts == 1                                                        # accepted, not sent back
     assert any("no objection checked out" in n for n in t.result["not_checked"])
     assert events(ctx, "critic")[0]["by"] == "code" and events(ctx, "critic")[0]["dropped"] == ["the evidence covers its numbers"]
+
+def test_rules_catch_a_number_from_nowhere_and_an_asked_value_left_out():
+    rows = [{"equipment_id": "P-104", "mass_kg": "1.0"}]
+    res = {"answer": "P-104 has a mass of 12.5 kg [Q1].", "confidence": 0.9, "assumptions": [], "not_checked": [], "task_goal": "mass of P-104",
+           "evidence": [{"type": "sql", "source": "q", "detail": "1 rows", "rows": rows}]}
+    v = C.deterministic(res)
+    assert v[0] == "revise" and "12.5" in v[1] and "no evidence" in v[1]
+    res = {"answer": "The noise level is 0.01.", "confidence": 0.9, "assumptions": [], "not_checked": [], "task_goal": "the sampling rate of P-104's displacement sensor",
+           "evidence": [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"sigma": "0.01", "sampling_hz": "100"}]}]}
+    v = C.deterministic(res)
+    assert v[0] == "revise" and "sampling" in v[1] and "sampling_hz = 100" in v[1]
+    res["answer"] = "The sampling rate is 100 Hz and the noise level is 0.01."
+    assert C.deterministic(res) is None
+

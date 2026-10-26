@@ -66,6 +66,11 @@ VERA = [("correct, grounded", "mass of P-104", {"answer": "P-104 has a mass of 1
         ("an unsupported phrase", "what is 2 times 3", {"answer": "six is 6, as the manual says.", "evidence": [{"type": "calc", "source": "step 1: 2*3", "detail": "= 6 (expected 6) OK"}]}, "not accept")]
 
 
+def fresh(ctx):
+    """Every probe starts with the mission budget untouched: one build serves all probes, so the 40-call budget must not carry over."""
+    ctx.budget.llm_calls, ctx.budget.t0 = 0, time.time()
+
+
 def window(ctx, i0):
     ev = ctx.trace.events[i0:]
     llm = [e for e in ev if e["kind"] == "llm"]
@@ -75,6 +80,7 @@ def window(ctx, i0):
 
 
 def run_expert(lead, ctx, name, goal, expect, budget):
+    fresh(ctx)
     i0, t0 = len(ctx.trace.events), time.time()
     try:
         res = lead.registry.experts[name].run(Task("P1", goal, name), lead.memory, budget).to_dict()
@@ -93,6 +99,7 @@ def probe_vera(lead, ctx):
     out = []
     for label, goal, result, expect in VERA:
         result = {"confidence": 0.9, "assumptions": [], "not_checked": [], **copy.deepcopy(result)}
+        fresh(ctx)
         i0 = len(ctx.trace.events)
         v = lead.critic.review(Task("P1", goal, "research"), result)
         w = window(ctx, i0)
@@ -105,6 +112,7 @@ def probe_atlas(lead, ctx):
     out, guard = [], lead._guard
     for goal, want in ATLAS:
         lead._guard = lambda p: p                                            # the raw plan first: the planner's own judgement
+        fresh(ctx)
         i0 = len(ctx.trace.events)
         try:
             raw = lead.plan(goal)
@@ -122,6 +130,7 @@ def probe_atlas(lead, ctx):
 
 def probe_forge(lead, ctx):
     """One whole mission that needs an expert the crew lacks: does the planner call Forge, does Forge build and test one, and does it work?"""
+    fresh(ctx)
     i0, t0 = len(ctx.trace.events), time.time()
     goal = "What does a 12.5 kg mass weigh on the Moon, where gravity is 1.62 m/s^2? We have no converter for that."
     try:

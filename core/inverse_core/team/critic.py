@@ -56,15 +56,41 @@ def deterministic(result):
     if mism:
         return "revise", "a calculation does not match its expected value: " + str(mism[0].get("source", ""))
     sql = [e for e in evidence if e.get("type") == "sql" and not _detail(e).startswith(("ERROR", "REFUSED"))]
-    if sql and all(isinstance(e.get("rows"), list) and e["rows"] for e in sql) and HEDGE.search(str(result.get("answer") or "")):
+    answer = str(result.get("answer") or "")
+    if sql and all(isinstance(e.get("rows"), list) and e["rows"] for e in sql) and HEDGE.search(answer):
         shown = "; ".join(json.dumps(e["rows"][0], default=str)[:120] for e in sql[:3])
         return "revise", f"the answer says a value is missing, but every query returned rows ({shown}); answer from those values"
+    bad = unverified_numbers(answer, evidence)
+    if bad:                                                                   # a number from nowhere is the one mistake the reviewer's model misses most
+        return "revise", f"the number(s) {', '.join(bad[:4])} in the answer appear in no evidence; use only values the tools returned"
+    missing = asked_but_missing(task_goal(result), answer, sql)
+    if missing:
+        return "revise", "the task asks for " + "; ".join(f"{word} and the rows hold {col} = {val}" for word, col, val in missing[:3]) + "; say those values"
     try:
         if float(result.get("confidence") or 0) <= 0.0:
             return "revise", "the expert reported zero confidence"
     except (TypeError, ValueError):
         return "revise", "the expert reported no usable confidence"
     return None
+
+
+def task_goal(result):
+    return str(result.get("task_goal") or "")
+
+
+def asked_but_missing(goal, answer, sql):
+    """Concepts the task names (sampling rate, noise, mass, dates...) whose column value the rows hold and the answer leaves out:
+    the research expert's own CONCEPTS table, read the other way round."""
+    from .experts import CONCEPTS
+    low, out = answer.lower(), []
+    for pat, table, col in CONCEPTS:
+        m = pat.search(goal or "")
+        if not m:
+            continue
+        vals = [str(r.get(col)) for e in sql for r in (e.get("rows") or [])[:4] if isinstance(r, dict) and r.get(col) not in (None, "")]
+        if vals and not any(v.lower() in low for v in vals):
+            out.append((m.group(0), col, vals[0]))
+    return out
 
 
 def norm_verdict(v):
@@ -155,6 +181,7 @@ class Critic:
         self.ctx, self.lane = ctx, lane
 
     def review(self, task, result):
+        result["task_goal"] = task.goal                                       # the rules read what the task asked for
         hard = deterministic(result)
         if hard:
             self.ctx.trace.event("critic", task=task.id, verdict=hard[0], reason=hard[1], by="rule")
