@@ -216,6 +216,8 @@ def _read(j):
 
 
 class Critic:
+    code_first = True                                                         # what the tool results prove is accepted without a model call; tests of the model path turn it off
+
     def __init__(self, ctx, lane="critic"):
         self.ctx, self.lane = ctx, lane
         self.note = limits.note(getattr(ctx, "root", "."), "critic")          # what Vera is known to get wrong, and the aim to fix it
@@ -226,7 +228,7 @@ class Critic:
         if hard:
             self.ctx.trace.event("critic", task=task.id, verdict=hard[0], reason=hard[1], by="rule")
             return {"verdict": hard[0], "reason": hard[1], "by": "rule"}
-        easy = verified_by_code(result)
+        easy = verified_by_code(result) if self.code_first else None
         if easy:                                                              # the tool results already prove it: no model call
             self.ctx.trace.event("critic", task=task.id, verdict="accept", reason=easy, by="code")
             return {"verdict": "accept", "reason": easy, "by": "code"}

@@ -200,7 +200,7 @@ def test_a_clean_scan_is_answered_by_code_and_a_summary_starts_from_the_shared_m
     lead.memory.add_finding("research: P-104 weighs 1.0 kg", [], source="fitter", confidence=0.9, expert="research")
     res = ctx.registry.experts["solver"].run(Task("T2", "Summarize what the crew has found and ruled out so far. Use the shared memory tool first.", "solver"), lead.memory, ExpertBudget())
     assert res.evidence[0]["source"] == "memory({})" and "P-104 weighs 1.0 kg" in json.dumps(res.evidence[0]["result"]) and events(ctx, "memory_prefetched")
-    assert calls and calls[-1][-1]["content"].startswith('{"tool_result"')                                           # the model saw the memory before answering
+    assert res.answer.startswith("Found and still standing") and events(ctx, "summary_by_code")                      # the digest is read out of the memory by code
 
 def test_a_tool_call_repeated_with_the_same_arguments_ends_the_loop_by_code(tmp_path):
     calls = []
@@ -210,7 +210,7 @@ def test_a_tool_call_repeated_with_the_same_arguments_ends_the_loop_by_code(tmp_
         return json.dumps({"tool": "memory", "args": {}, "why": "again"})                             # the model never stops asking
 
     ctx, lead = crew(tmp_path, script)
-    res = ctx.registry.experts["solver"].run(Task("T1", "Check the shared memory for the mass of P-104. Use the shared memory tool first.", "solver"), lead.memory, ExpertBudget())
+    res = ctx.registry.experts["solver"].run(Task("T1", "Check the shared memory for the pump's mass. Use the shared memory tool first.", "solver"), lead.memory, ExpertBudget())
     assert res.answer.startswith("Tool results so far: memory({})") and res.confidence <= 0.3
     assert [e.get("times") for e in events(ctx, "tool_repeat")] == [2, 3] and len(events(ctx, "llm")) == 2                   # the prefetch counts: one warning, then code
     assert any(c.startswith("You already called memory({})") for c in calls)
