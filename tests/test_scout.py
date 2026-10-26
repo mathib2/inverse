@@ -145,11 +145,11 @@ def test_a_reviewers_reject_is_retried_once_with_the_quote_and_only_kept_problem
         system = messages[0]["content"]
         if system.startswith("You are the Reasoning expert"):
             again = "REVIEWER SENT THIS BACK" in messages[-1]["content"]
-            return json.dumps({"steps": [{"claim": "c", "calc": "2*3", "expect": 6}], "answer": "six is 6, shown as 2*3" if again else "six is 6, as the manual says", "confidence": 0.9, "assumptions": []})
+            return json.dumps({"steps": [{"claim": "c", "calc": "2*3", "expect": 6}], "answer": "six is 6, shown as 2*3" if again else "six is 6, per the memo", "confidence": 0.9, "assumptions": []})
         if system.startswith("You are an adversarial reviewer"):
             n["critic"] += 1
             if n["critic"] == 1:
-                return json.dumps({"verdict": "reject", "problems": [{"quote": "as the manual says", "why": "no manual is in the evidence"}], "reason": "unsupported"})
+                return json.dumps({"verdict": "reject", "problems": [{"quote": "per the memo", "why": "no memo is in the evidence"}], "reason": "unsupported"})
             return json.dumps({"verdict": "accept", "problems": []})
         return "6 [T1.E1]"
 
@@ -158,7 +158,7 @@ def test_a_reviewers_reject_is_retried_once_with_the_quote_and_only_kept_problem
     lead._execute(t)
     assert t.status == "done" and t.attempts == 2 and events(ctx, "reject_retried") and not events(ctx, "task_rejected")
     lessons = lead.memory.lessons("reasoning")
-    assert len(lessons) == 1 and "as the manual says" in lessons[0] and "no manual" in lessons[0]
+    assert len(lessons) == 1 and "per the memo" in lessons[0] and "no memo" in lessons[0]
 
 
 def test_two_short_results_are_composed_by_code(tmp_path):
@@ -214,4 +214,15 @@ def test_a_tool_call_repeated_with_the_same_arguments_ends_the_loop_by_code(tmp_
     assert res.answer.startswith("Tool results so far: memory({})") and res.confidence <= 0.3
     assert [e.get("times") for e in events(ctx, "tool_repeat")] == [2, 3] and len(events(ctx, "llm")) == 2                   # the prefetch counts: one warning, then code
     assert any(c.startswith("You already called memory({})") for c in calls)
+
+def test_euler_is_asked_once_more_when_its_answer_is_empty_and_scout_lists_ids_when_asked_which(tmp_path):
+    replies = iter([json.dumps({"steps": [{"claim": "c", "calc": "12.5*9.81", "expect": 122.625}], "answer": None, "confidence": 0.9, "assumptions": []}),
+                    json.dumps({"steps": [{"claim": "c", "calc": "12.5*9.81", "expect": 122.625}], "answer": "The weight is 122.625 N.", "confidence": 0.9, "assumptions": []})])
+    ctx, lead = crew(tmp_path, lambda m, msgs: next(replies))
+    res = ctx.registry.experts["reasoning"].run(Task("T1", "12.5 kg times 9.81", "reasoning"), lead.memory, ExpertBudget())
+    assert res.answer == "The weight is 122.625 N." and events(ctx, "bare_answer") and len(events(ctx, "llm")) == 2
+    from inverse_core.team.experts import widen_count
+    assert widen_count("SELECT COUNT(*) AS n FROM obs.equipment_table", "How many machines are in the registry, and what are their ids?") == "SELECT equipment_id FROM obs.equipment_table"
+    assert widen_count("SELECT COUNT(*) FROM obs.equipment_table", "How many machines are there?") is None
+    assert widen_count("SELECT equipment_id FROM obs.equipment_table", "Which machines are there?") is None
 

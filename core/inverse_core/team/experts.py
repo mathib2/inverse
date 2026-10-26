@@ -55,6 +55,20 @@ CONCEPTS = [                                                                  # 
 _SELECT = re.compile(r"^\s*SELECT\s+(?P<cols>.+?)\s+FROM\s+obs\.(?P<table>\w+)(?P<rest>.*)$", re.I | re.S)
 
 
+IDS_WORDS = re.compile(r"\b(which|what are (?:their|the) (?:ids?|names?)|list (?:them|the (?:machines|sensors|records)))\b", re.I)
+ID_COLUMN = {"equipment_table": "equipment_id", "sensors_table": "sensor_id", "maintenance_table": "record_id"}
+_COUNT_ONLY = re.compile(r"^\s*SELECT\s+COUNT\(\*\)(?:\s+AS\s+\w+)?\s+FROM\s+obs\.(\w+)(.*)$", re.I | re.S)
+
+
+def widen_count(sql, goal):
+    """'which machines' answered with COUNT(*) alone: the ids are asked for too, so a second query lists them. Returns the extra
+    query or None."""
+    m = _COUNT_ONLY.match(sql or "")
+    if not m or not IDS_WORDS.search(goal or "") or m.group(1).lower() not in ID_COLUMN:
+        return None
+    return f"SELECT {ID_COLUMN[m.group(1).lower()]} FROM obs.{m.group(1)}{m.group(2)}"
+
+
 def complete_columns(sql, goal):
     """A 4B model often selects one column when the task asks for two ('sampling rate and noise level' -> SELECT sigma). When a
     plain SELECT names columns of a table, add the columns the task's words call for and the query lacks. Returns (sql, added)."""
@@ -121,7 +135,13 @@ class ResearchExpert(BaseExpert):
         q = ask(self.ctx, self.lane, [{"role": "system", "content": sys1}, {"role": "user", "content": self._task_text(task)}],
                 self.name, budget, json_reply=True, max_tokens=QUERY_MAX_TOKENS)
         models, evidence, rows_all = [q["model"]], [], []
-        for sql in q["json"].get("queries", [])[:3]:
+        queries = list(q["json"].get("queries", []))[:3]
+        for sql in list(queries):
+            extra = widen_count(sql, task.goal)
+            if extra and extra not in queries and len(queries) < 4:
+                queries.append(extra)
+                self.ctx.trace.event("sql_widened", expert=self.name, task=task.id, sql=extra[:160])
+        for sql in queries:
             try:
                 sql = check_sql(sql)
             except UnsafeSQL as e:
@@ -283,7 +303,17 @@ class ReasoningExpert(BaseExpert):
             models.append(r["model"])
             j = r["json"]
             ev, bad = self._check(j.get("steps", []), task.context)
-        answer = str(j.get("answer") or "")
+        answer = str(j.get("answer") or "").strip()
+        if not answer or answer.lower() in ("none", "null", "error", "n/a"):      # a number or nothing where a sentence was due: once more, by code
+            self.ctx.trace.event("bare_answer", agent=self.name, answer=answer[:60])
+            msgs += [{"role": "assistant", "content": r["text"]}, {"role": "user", "content": 'Your "answer" was empty. Write the answer as one sentence with the number in it, in the same JSON shape.'}]
+            r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
+            models.append(r["model"])
+            j = r["json"]
+            ev2, bad2 = self._check(j.get("steps", []), task.context)
+            if ev2:
+                ev, bad = ev2, bad2
+            answer = str(j.get("answer") or "").strip()
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
         not_checked = [f"unresolved: {b}" for b in bad] + ["steps without arithmetic are the model's reasoning, not machine-verified"]
         res = require_evidence(ExpertResult(answer, ev, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))

@@ -90,7 +90,7 @@ class CustomExpert(BaseExpert):
             j = r["json"] if isinstance(r["json"], dict) else {}
             if "tool" not in j:
                 answer = str(j.get("answer") or "").strip()
-                if not nudged and (BARE.match(answer) or (not re.search(r"\d", answer) and len(answer.split()) < 3)):   # "Error" is not an answer: once more
+                if not nudged and "answer" in j and (BARE.match(answer) or not answer):   # "Error", "None" or nothing where an answer was due: once more
                     nudged = True
                     self.ctx.trace.event("bare_answer", agent=self.name, answer=answer[:60])
                     msgs += [{"role": "assistant", "content": r["text"]},

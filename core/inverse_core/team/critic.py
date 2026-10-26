@@ -66,7 +66,7 @@ def deterministic(result):
     missing = asked_but_missing(task_goal(result), answer, sql)
     if missing:
         return "revise", "the task asks for " + "; ".join(f"{word} and the rows hold {col} = {val}" for word, col, val in missing[:3]) + "; say those values"
-    loose = unsupported_words(task_goal(result), answer, evidence) if task_goal(result) else []
+    loose = unsupported_words(task_goal(result), answer, evidence) if len(task_goal(result).split()) >= 3 else []   # no task text, no judgement
     if len(loose) >= 2 or (loose and len(answer.split()) <= 12):               # a short answer with one word from nowhere, or any answer with two
         return "revise", f"the word(s) {', '.join(loose[:4])} in the answer rest on nothing in the task or the evidence; say only what the evidence holds"
     try:
