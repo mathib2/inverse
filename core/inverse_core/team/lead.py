@@ -197,7 +197,7 @@ class Lead:
         if len(plan.tasks) == 1 and plan.tasks[0].expert not in ("research", *self.creators()) and goal not in plan.tasks[0].goal:
             plan.tasks[0].goal = goal                                         # a one-task plan loses nothing by carrying the goal itself: the planner's paraphrase can only drop a detail or be the example text
             changes.append(f"{plan.tasks[0].id}: the goal verbatim (a one-task plan)")
-        if len(plan.tasks) == 1 and plan.tasks[0].expert == "solver" and "reasoning" in names and CALC_WORDS.search(goal) and re.search(r"\d", goal) and not DATA_WORDS.search(goal):
+        if len(plan.tasks) == 1 and plan.tasks[0].expert == "solver" and "reasoning" in names and CALC_WORDS.search(goal) and claim_numbers(goal) and not DATA_WORDS.search(goal):   # a number to compute with, never an id such as P-104
             plan.tasks[0].expert = "reasoning"                                # plain arithmetic with the numbers in the goal: Euler computes and self-checks; Ada would look for facts that are not there
             changes.append(f"{plan.tasks[0].id}: solver -> reasoning (arithmetic with nothing to look up)")
         for t in plan.tasks:
