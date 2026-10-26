@@ -10,25 +10,15 @@ import time
 
 import pytest
 import requests
-from test_team import make_ctx
-from test_team_experts import repo
 
-from inverse_core.clients.markovian import MarkovianClient, checkpoint, content_of, ensure_marker
+from inverse_core.budget import BudgetExceeded
+from inverse_core.clients.markovian import checkpoint, content_of, ensure_marker, MarkovianClient
 from inverse_core.ledger import InMemoryLedger
-from inverse_core.team.custom import VulnerabilityExpert
 from inverse_core.team.expert import ExpertBudget, Task
 from inverse_core.team.memory import TeamMemory
+from inverse_core.team.vulnerability import VulnerabilityExpert
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-def test_marker_helpers_follow_the_spec():
-    assert checkpoint("a", "b", "c", "d").startswith("[STATE_CHECKPOINT]\nCOMPLETED: a\nREMAINING: b")
-    assert checkpoint("a", "b", "c", "d", final=True) == "[TASK_COMPLETE]"
-    assert content_of('{"x": 1}\n[STATE_CHECKPOINT]\nCOMPLETED: a') == '{"x": 1}'
-    assert content_of('{"x": 1}\n[TASK_COMPLETE]') == '{"x": 1}'
-    assert ensure_marker('{"x": 1}', final=False, completed="f1", remaining="f2").endswith("COMPLETED: f1\nREMAINING: f2\nDECISIONS: \nCONTEXT: ")
-    assert ensure_marker('{"x": 1}\n[TASK_COMPLETE]', final=True) == '{"x": 1}\n[TASK_COMPLETE]'   # exactly one marker per chunk
+from fakes import events, make_ctx, repo
 
 
 class FakeMarkovian:
@@ -56,6 +46,41 @@ def repo2(tmp_path):
     root = repo(tmp_path)
     (tmp_path / "pkg" / "b.py").write_text("import os\n\ndef run(cmd):\n    os.system(cmd)\n")
     return root
+
+
+@pytest.fixture()
+def markovian_server():
+    side = os.path.join(ROOT, "services", "meterless-sidecar")
+    if not shutil.which("npx") or not os.path.isdir(os.path.join(side, "vendor", "markovian")):
+        pytest.skip("npx or vendor/markovian missing")
+    state, port = tempfile.mkdtemp(), "8197"
+    p = subprocess.Popen(["npx", "tsx", "markovian/serve.ts"], cwd=side, env={**os.environ, "MARKOVIAN_PORT": port, "SIDECAR_STATE": state},
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    url = f"http://127.0.0.1:{port}"
+    for _ in range(60):
+        try:
+            requests.get(url + "/healthz", timeout=1)
+            break
+        except Exception:
+            time.sleep(0.5)
+    else:
+        os.killpg(p.pid, signal.SIGKILL)
+        pytest.skip("markovian service did not start")
+    yield url
+    os.killpg(p.pid, signal.SIGKILL)
+    p.wait()
+
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def test_marker_helpers_follow_the_spec():
+    assert checkpoint("a", "b", "c", "d").startswith("[STATE_CHECKPOINT]\nCOMPLETED: a\nREMAINING: b")
+    assert checkpoint("a", "b", "c", "d", final=True) == "[TASK_COMPLETE]"
+    assert content_of('{"x": 1}\n[STATE_CHECKPOINT]\nCOMPLETED: a') == '{"x": 1}'
+    assert content_of('{"x": 1}\n[TASK_COMPLETE]') == '{"x": 1}'
+    assert ensure_marker('{"x": 1}', final=False, completed="f1", remaining="f2").endswith("COMPLETED: f1\nREMAINING: f2\nDECISIONS: \nCONTEXT: ")
+    assert ensure_marker('{"x": 1}\n[TASK_COMPLETE]', final=True) == '{"x": 1}\n[TASK_COMPLETE]'   # exactly one marker per chunk
 
 
 def test_long_review_runs_one_bounded_chunk_per_file_through_markovian(tmp_path):
@@ -94,29 +119,6 @@ def test_single_file_review_does_not_use_markovian(tmp_path):
     assert not any(e["type"] == "engine" for e in res.evidence) and ctx.markovian.started is None     # one file: the plain loop is enough
 
 
-@pytest.fixture()
-def markovian_server():
-    side = os.path.join(ROOT, "services", "meterless-sidecar")
-    if not shutil.which("npx") or not os.path.isdir(os.path.join(side, "vendor", "markovian")):
-        pytest.skip("npx or vendor/markovian missing")
-    state, port = tempfile.mkdtemp(), "8197"
-    p = subprocess.Popen(["npx", "tsx", "markovian/serve.ts"], cwd=side, env={**os.environ, "MARKOVIAN_PORT": port, "SIDECAR_STATE": state},
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-    url = f"http://127.0.0.1:{port}"
-    for _ in range(60):
-        try:
-            requests.get(url + "/healthz", timeout=1)
-            break
-        except Exception:
-            time.sleep(0.5)
-    else:
-        os.killpg(p.pid, signal.SIGKILL)
-        pytest.skip("markovian service did not start")
-    yield url
-    os.killpg(p.pid, signal.SIGKILL)
-    p.wait()
-
-
 def test_reference_engine_drives_a_three_chunk_chain(markovian_server):
     mk = MarkovianClient(markovian_server)
     assert mk.health()["engine"] == "markovian"
@@ -133,3 +135,28 @@ def test_reference_engine_drives_a_three_chunk_chain(markovian_server):
 
 def test_client_default_url_is_the_markovian_service_not_the_hmem_sidecar():
     assert MarkovianClient().url == "http://127.0.0.1:8101"
+
+
+def test_a_stray_final_marker_cannot_end_the_chain_early():
+    out = ensure_marker('{"findings": []}\n[TASK_COMPLETE]', final=False, completed="a.py", remaining="b.py")
+    assert "[TASK_COMPLETE]" not in out and out.startswith('{"findings": []}') and "[STATE_CHECKPOINT]\nCOMPLETED: a.py\nREMAINING: b.py" in out
+    assert ensure_marker('{"x": 1}\n<DONE/>', final=True) == '{"x": 1}\n<DONE/>'                  # the engine's alias counts as final
+
+
+def test_a_failing_chunk_abandons_the_chain_and_lists_what_was_not_reviewed(tmp_path):
+    calls = []
+
+    def script(model, messages):
+        calls.append(1)
+        if len(calls) == 2:
+            raise BudgetExceeded("token budget 100 exceeded")
+        return json.dumps({"findings": [], "summary": "a done"}) + "\n[STATE_CHECKPOINT]\nCOMPLETED: pkg/a.py\nREMAINING: pkg/b.py\nDECISIONS: none\nCONTEXT: scan"
+    ctx = make_ctx(tmp_path / "runs", script, root=repo2(tmp_path))
+    fake = FakeMarkovian()
+    abandoned = []
+    fake.abandon = lambda run_id: abandoned.append(run_id)
+    ctx.markovian = fake
+    res = VulnerabilityExpert(ctx, "vulnerability", "r", "p", "deep", ["scan", "read_file"]).run(Task("T1", "Review pkg", "vulnerability"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=8, tokens=200000))
+    assert abandoned == ["fake"] and events(ctx, "markovian_abandoned") and events(ctx, "markovian_done")[0]["status"] == "abandoned"
+    assert any(n.startswith("not reviewed: pkg/b.py") for n in res.not_checked) and any("stopped by the budget" in n for n in res.not_checked)
+    assert any(e["type"] == "engine" for e in res.evidence) and res.confidence == pytest.approx(0.3)

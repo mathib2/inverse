@@ -10,11 +10,9 @@ import pytest
 import requests
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()                                                                 # ZETARIS_API_KEY decides whether the live tests run
 from inverse_core import ledger as L  # noqa: E402
 from inverse_core.clients.zetaris import ZetarisClient  # noqa: E402
-
-ROOT = os.path.dirname(os.path.dirname(__file__))
 
 
 def zetaris_up():
@@ -50,6 +48,9 @@ def sidecar():
         os.killpg(p.pid, signal.SIGKILL); pytest.skip("sidecar did not start")
     yield url, p
     _kill(p); shutil.rmtree(state, ignore_errors=True)
+
+
+ROOT = os.path.dirname(os.path.dirname(__file__))
 
 
 @pytest.mark.skipif(not zetaris_up(), reason="Zetaris not reachable")

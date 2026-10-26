@@ -1,12 +1,18 @@
-"""The UI wording layer: provider words, the glossary, errors that say what to do, and one plain sentence per trace event."""
-import os
-import sys
+"""Every word the page shows (ui/plain.py), following the provider. No model and no network unless a test says so."""
+from inverse_core.budget import BudgetExceeded
+from inverse_core.team.plan import PlanError
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui"))
-import plain  # noqa: E402
+import plain
 
-from inverse_core.budget import BudgetExceeded  # noqa: E402
-from inverse_core.team.plan import PlanError  # noqa: E402
+
+def test_ui_words_follow_the_provider(monkeypatch):
+    monkeypatch.setenv("MODEL_PROVIDER", "ollama")
+    words = plain.provider_words()
+    assert "Nightshift" not in words["name"] and all("tunnel" not in s for s in words["offline_fix"])
+    assert "Nightshift" not in plain.error(type("NightshiftOffline", (Exception,), {})("x"))[1]
+    assert any(t[0] == "Ollama (local)" for t in plain.glossary_terms())
+    monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
+    assert any(t[0] == "Nightshift" for t in plain.glossary_terms())
 
 
 def test_glossary_names_the_configured_provider(monkeypatch):

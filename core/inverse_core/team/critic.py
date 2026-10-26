@@ -120,7 +120,7 @@ def task_goal(result):
 def asked_but_missing(goal, answer, sql):
     """Concepts the task names (sampling rate, noise, mass, dates...) whose column value the rows hold and the answer leaves out:
     the research expert's own CONCEPTS table, read the other way round."""
-    from .experts import CONCEPTS
+    from .research import CONCEPTS
     low, out = answer.lower(), []
     for pat, table, col in CONCEPTS:
         m = pat.search(goal or "")

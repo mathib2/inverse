@@ -16,7 +16,7 @@ import time
 
 from ..budget import Budget, BudgetExceeded
 from ..missions import load_missions, local_missions, save_local_missions
-from . import wire
+from . import council_wire as wire
 from .llmcall import BadReply, ask
 
 MAX_AGENDA, MAX_CALLS, MAX_SECONDS = 5, 4, 180

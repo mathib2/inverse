@@ -14,7 +14,8 @@ from urllib.parse import urlparse
 import requests
 
 from .expert import ExpertBudget, Task
-from .experts import check_sql, safe_eval
+from .sql_guard import check_sql
+from .reasoning import safe_eval
 
 SECRET_GLOBS = (".env", ".env.*", "*.pem", "*.key", "id_*", "*.p12", "*.pfx", "secrets.toml", "*.kdbx", "*.jsonl", "*.local.yaml")   # the last two are live state, not code
 SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", "runs", "vendor", ".state", ".pytest_cache", "experts.local", "council", "state", "queue"}
@@ -128,7 +129,7 @@ class Tools:
     def describe(self):
         text = "\n".join(f"- {n}: {self.SPECS[n][0]}" for n in self.allowed)
         if "run_sql" in self.allowed:                                           # the same value-annotated schema the research expert gets
-            from .experts import SCHEMA
+            from .sql_guard import SCHEMA
             text += "\n" + SCHEMA
         return text
 
@@ -246,7 +247,7 @@ class Tools:
             rows = self.ctx.zetaris.sql(sql, limit=50)
             if cache is not None:
                 cache[sql] = rows
-        from ..agents.guard import scrub
+        from ..injection_guard import scrub
         rows, blocked = scrub(rows)                                             # untrusted text never reaches a model raw, whatever the column is called
         if blocked:
             self.ctx.trace.event("injection_guard", agent=self.owner, blocked=blocked[:5])
@@ -260,7 +261,7 @@ class Tools:
         r = requests.post("https://html.duckduckgo.com/html/", data={"q": str(query)[:200]}, headers={"User-Agent": UA}, timeout=20)
         r.raise_for_status()
         results = parse_duckduckgo(r.text)[:5]
-        from ..agents.guard import scrub
+        from ..injection_guard import scrub
         results, blocked = scrub(results)
         if blocked:
             self.ctx.trace.event("injection_guard", agent=self.owner, blocked=blocked[:5], source="web_search")
@@ -283,7 +284,7 @@ class Tools:
             if len(raw) > 400000:
                 break
         text = page_text(raw.decode(r.encoding or "utf-8", "replace"))
-        from ..agents.guard import scrub
+        from ..injection_guard import scrub
         rows, blocked = scrub([{"text": text}])
         if blocked:
             self.ctx.trace.event("injection_guard", agent=self.owner, blocked=blocked[:5], source="fetch_url")

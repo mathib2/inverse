@@ -1,5 +1,5 @@
 """A sign-in page for the crew UI. One user and a salted password hash come from .env (UI_USER, UI_PASSWORD_HASH), written by
-`scripts/set_password.py`; nothing secret is in the repository. A signed cookie keeps a device signed in for a week; signing out
+`scripts/admin/set_password.py`; nothing secret is in the repository. A signed cookie keeps a device signed in for a week; signing out
 revokes it. A wrong password slows the next try. With no UI_PASSWORD_HASH set, there is no sign-in page (loopback-only use)."""
 import hashlib
 import hmac
