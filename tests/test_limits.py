@@ -33,7 +33,10 @@ def test_the_note_reaches_the_experts_vera_and_atlas(tmp_path):
     ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
     ada = ctx.registry.experts["solver"]                                                            # the crew's own report names Ada
     assert "KNOWN LIMITATIONS" in ada.prompt and ada.system().startswith(ada.prompt.split("\n")[0][:40])
-    assert "KNOWN LIMITATIONS" in lead.plan_system() and "KNOWN LIMITATIONS" in lead.critic.note
+    assert "KNOWN LIMITATIONS" in lead.plan_system() and lead.critic.note == ""                            # nothing is known against Vera today
+    from inverse_core.team.critic import Critic
+    ctx.root = _root(tmp_path)
+    assert "Vera must doubt numbers" in Critic(ctx).note
 
 
 def test_the_chat_narrates_a_mission_as_it_happens(tmp_path):
