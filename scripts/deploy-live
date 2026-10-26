@@ -25,8 +25,8 @@ tmux kill-session -t inverse-markovian 2>/dev/null || true          # the old fi
 SIDE="$HOME/inverse-live/services/meterless-sidecar"
 port_of() { echo "$1" | sed -n 's|.*:\([0-9][0-9]*\).*|\1|p'; }
 for k in SIDECAR_URL MARKOVIAN_URL; do
-  p=$(port_of "$(grep -m1 "^$k=" .env | cut -d= -f2-)"); [ -n "$p" ] || continue
-  pid=$(ss -ltnp 2>/dev/null | grep ":$p " | grep -o "pid=[0-9]*" | head -1 | cut -d= -f2)
+  p=$(port_of "$(grep -m1 "^$k=" .env | cut -d= -f2- || true)"); [ -n "$p" ] || continue
+  pid=$(ss -ltnp 2>/dev/null | grep ":$p " | grep -o "pid=[0-9]*" | head -1 | cut -d= -f2 || true)   # nothing listening is not an error
   if [ -n "$pid" ] && [ "$(readlink "/proc/$pid/cwd")" = "$SIDE" ]; then kill "$pid" 2>/dev/null || true; fi
 done
 sleep 1
