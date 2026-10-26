@@ -97,7 +97,8 @@ def pin_sensor(sql, goal):
     """A query on the sensors table for a task that names a sensor ('T200-DISP-1') selects it by sensor_id; a filter the model guessed
     (equipment and quantity) is replaced, because a guessed quantity finds nothing. Returns (sql, pinned id or None)."""
     ids = SENSOR_ID.findall(goal or "")
-    if not ids or "obs.sensors_table" not in (sql or "").lower() or "sensor_id" in (sql or "").lower():
+    where = re.split(r"\sWHERE\s", sql or "", maxsplit=1, flags=re.I)
+    if not ids or "obs.sensors_table" not in (sql or "").lower() or (len(where) == 2 and "sensor_id" in where[1].lower()):   # already selected by id
         return sql, None
     head = re.split(r"\sWHERE\s", sql, maxsplit=1, flags=re.I)[0].rstrip()
     tail = re.search(r"\s(ORDER\s+BY\s.*|LIMIT\s.*)$", sql, re.I | re.S)

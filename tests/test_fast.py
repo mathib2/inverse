@@ -77,3 +77,27 @@ def test_a_digest_is_read_out_of_the_memory_without_a_model_call(tmp_path):
     res = ctx.registry.experts["solver"].run(Task("T1", "Summarize in plain words what the crew has found and ruled out so far. Use the shared memory tool first.", "solver"),
                                              lead.memory, ExpertBudget())
     assert not calls and res.answer.startswith("Found and still standing") and res.confidence == 0.8 and events(ctx, "summary_by_code")
+
+def test_four_flaws_the_review_found(tmp_path, monkeypatch):
+    from inverse_core.team import lead as L, tools as T
+    from inverse_core.team.experts import pin_sensor
+    ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
+    assert T.Tools(ctx, [], owner="x").allowed == [] and "calc" in T.Tools(ctx, None, owner="x").allowed              # an empty list is no tools
+    assert L.CALC_WORDS.search("What does the pump weigh?") and L.CALC_WORDS.search("how much it weighs")              # weigh, weighs, weighed
+    sql = "SELECT sensor_id, sigma FROM obs.sensors_table WHERE equipment_id = 'T-200' AND quantity = 'x'"
+    assert pin_sensor(sql, "the noise of sensor T200-DISP-1") == ("SELECT sensor_id, sigma FROM obs.sensors_table WHERE sensor_id = 'T200-DISP-1'", "T200-DISP-1")
+    assert pin_sensor("SELECT sigma FROM obs.sensors_table WHERE sensor_id = 'T200-DISP-1'", "sensor T200-DISP-1")[1] is None
+
+    class Hop:
+        is_redirect, is_permanent_redirect, headers = True, False, {"Location": "http://127.0.0.1:8501/"}
+
+    monkeypatch.setattr(T.requests, "get", lambda *a, **k: Hop())
+    t = T.Tools(ctx, ["fetch_url"], owner="tinker")
+    out = t.call("fetch_url", {"url": "http://example.com/x"}, _budget(), who="tinker")
+    assert "redirect" in out["error"]
+
+
+def _budget():
+    from inverse_core.team.expert import ExpertBudget
+    return ExpertBudget()
+

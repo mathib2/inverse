@@ -127,6 +127,12 @@ which the loop must not change.
 The lesson of this batch: telling a 4B model its own flaws in its system prompt made it worse, measured twice on the same code; the
 awareness lives on the Crew panel and in Tinker's backlog instead, where it does work.
 
+Later the same day (`ten3`): Ada's wrong weight is now caught instead of accepted. The number check had treated any value a hundred
+times an evidence number as grounded, so 981.0 N passed on a mass of 1.0 kg and g = 9.81; the allowance now applies only when the
+text speaks of a percentage. Her mark stays 8.4 (accuracy 7.5, honesty 7.5): the answer is still wrong once, but it is marked as
+unverified and sent back. The Atlas and Vera probes now switch the rule-first planner and the code-first review off, so they keep
+measuring the model: Atlas 7.7, Vera 10.0. The shape every agent shares is written down in `docs/AGENT_STRUCTURE.md`.
+
 ## After three batches of fixes (the same evening)
 
 Every item in the list above that could be a rule was made one, in three batches, each measured by the same probes and one
