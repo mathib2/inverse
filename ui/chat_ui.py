@@ -132,11 +132,12 @@ def _turn(t, configs):
 def _welcome(ledger, sidecar, enabled):
     st.markdown("#### What would you like the crew to find out?")
     st.caption("Eight agents on local models plan the work, look things up, compute, check each other and answer with evidence. Try one of these, or ask your own question below.")
-    cols = st.columns(len(crew.EXAMPLES))
-    for col, (label, text) in zip(cols, crew.EXAMPLES):
-        if col.button(label, key="ex_" + label, width="stretch", disabled=not enabled):
-            st.session_state.pending_goal = text
-            _begin(text, ledger, sidecar)
+    pick = st.pills("Try one", [label for label, _ in crew.EXAMPLES], key="example_pick", label_visibility="collapsed", selection_mode="single", disabled=not enabled)
+    if pick:
+        text = dict(crew.EXAMPLES)[pick]
+        st.session_state.example_pick = None
+        st.session_state.pending_goal = text
+        _begin(text, ledger, sidecar)
 
 
 def _evidence(t):
