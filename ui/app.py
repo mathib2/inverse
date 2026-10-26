@@ -22,6 +22,7 @@ import parts  # noqa: E402
 import plain  # noqa: E402
 
 st.set_page_config(page_title="INVERSE · a crew of local AI agents", page_icon="⚙️", layout="wide", initial_sidebar_state="auto")
+parts.css()                                                                   # the theme first, so the sign-in page has it too
 auth.require()                                                                # with UI_PASSWORD_HASH in .env, a sign-in page comes first
 SIDECAR = "http://127.0.0.1:8100"
 ledger, llm = SidecarLedger(SIDECAR), MeterlessClient()
@@ -76,7 +77,6 @@ def confirm_reset():
 
 h = health()
 ai_online = h["ai"]["status"] == "online"
-parts.css()
 import team  # noqa: E402
 
 with st.sidebar:

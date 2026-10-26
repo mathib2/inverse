@@ -129,8 +129,8 @@ def require():
     with box.container():
         _, col, _ = st.columns([1, 2, 1])
         with col.container(border=True):
-            st.markdown("## INVERSE crew")
-            st.caption("Eight AI agents on a local workstation. Sign in to give them a goal and watch them work.")
+            st.markdown("<div class='inv-brand'>INVERSE</div><div class='inv-tagline'>a crew of local AI agents</div>", unsafe_allow_html=True)
+            st.caption("Sign in to give the crew a goal and watch it work.")
             with st.form("signin"):
                 u = st.text_input("User", autocomplete="username")
                 p = st.text_input("Password", type="password", autocomplete="current-password")
