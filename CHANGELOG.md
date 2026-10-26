@@ -3,6 +3,13 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## Agents that get things done, and take turns (2026-10-26, afternoon)
+- The conflicts the logs showed, fixed at their cause: a tool ignores arguments it does not take (the model's `why` inside `args` had crashed Ada's queries); Sentinel's answer carries no number the evidence lacks (a code-made count sent the daily code review back three times until it ran out of time); the same rule objection twice ends a task; a question about the crew ("what are you capable of") is answered from its records with no model call (it had taken 27 calls and 431 s and failed); Warden reviews code four files at a time, changed files first, every six hours.
+- Turns on the one CPU (`core/inverse_core/team/gate.py`): people and benchmarks first, Warden second, Tinker last, before every model call; markers carry their pid so a crash never blocks anyone.
+- Tinker: a compile check and one repair turn when a change breaks a test; research from the crew's own probe evidence, the web on every third cycle; the coder unloaded after each use; a change merges on its own only with a measured improvement against a real baseline or its own passing test.
+- The deploy script waits for a running mission instead of cutting it short, and gives up rather than deploy over one.
+- `docs/BENCH.md` "What the hardware allows": the memory bus sets the ceiling at about 12 tokens a second; a slot-powered graphics card is the next step.
+
 ## Half the time, and the flaws a review found (2026-10-26)
 - Plain goals are planned by rule without a planner call (`simple_goal`, then the same guard); an answer whose every number is in its own rows or calculator results, with nothing hedged or unchecked, is accepted by code (`verified_by_code`); a digest is read out of the memory by code; shorter caps for Euler's steps and Scout's answer. Round 17: 8 of 8 clean in 222 s against 548 s in round 14 (`docs/BENCH.md`).
 - A task that asks for the records gets every row (a small `LIMIT` the model wrote is dropped, `sql_unlimited`); the number check's hundredfold allowance applies only to percentages (9.81 no longer covers 981.0); the Atlas and Vera probes switch the two shortcuts off so they measure the model; an empty tool list means no tools; `fetch_url` never follows a redirect; `weigh` counts as a computation word; a sensor selected by id in the SELECT list no longer blocks the id rewrite.
