@@ -36,7 +36,8 @@ ss = st.session_state
 def health():
     """Cached briefly: an offline model server would otherwise add a timeout to every click."""
     h = llm.health()
-    ai = {"status": h["status"], "route": llm.model, "n_models": len(h.get("models", [])), "detail": h.get("detail", "")}
+    ai = {"status": h["status"], "route": h.get("model") or llm.model, "n_models": len(h.get("models", [])), "detail": h.get("detail", ""),
+          "fallback": bool(h.get("fallback")), "served_by": h.get("provider"), "primary": (h.get("primary") or {}).get("detail", "")}
     try:
         ZetarisClient().sql("SELECT 1 AS one")
         data = {"ok": True}

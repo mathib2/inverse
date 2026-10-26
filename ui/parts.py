@@ -62,8 +62,9 @@ def css():
 def status_row(h):
     ai = h["ai"]["status"]
     with st.container(horizontal=True, gap="small"):
-        st.badge({"online": "AI online", "unauthorized": "AI key rejected"}.get(ai, "AI offline"), icon=":material/smart_toy:",
-                 color={"online": "green", "unauthorized": "orange"}.get(ai, "red"))
+        fb = h["ai"].get("fallback")
+        st.badge("AI online · fallback" if ai == "online" and fb else {"online": "AI online", "unauthorized": "AI key rejected"}.get(ai, "AI offline"),
+                 icon=":material/smart_toy:", color="orange" if fb else {"online": "green", "unauthorized": "orange"}.get(ai, "red"))
         st.badge("Data platform online" if h["data"]["ok"] else "Data platform offline", icon=":material/database:",
                  color="green" if h["data"]["ok"] else "red")
         st.badge("Memory online" if h["memory"]["ok"] else "Memory offline", icon=":material/neurology:",
@@ -76,7 +77,14 @@ def connections(h, on_recheck, ssh_target, last_latency=None):
     P = plain.provider_words()
     with st.container(border=True):
         st.markdown(f"**AI** · {P['name']}")
-        if ai["status"] == "online":
+        if ai["status"] == "online" and ai.get("fallback"):
+            st.badge("Online on the fallback", icon=":material/swap_horiz:", color="orange")
+            st.caption(f"{P['name']} isn't answering ({ai.get('primary') or 'no reply'}), so the crew runs on {ai.get('served_by')} with "
+                       f"`{ai['route']}` until it is back. Every call tries {P['name']} first again after two minutes.")
+            with st.expander(f"How to bring {P['name']} back"):
+                for i, step in enumerate(P["offline_fix"], 1):
+                    st.markdown(f"{i}. {step.format(ssh_target=ssh_target)}")
+        elif ai["status"] == "online":
             st.badge("Online", icon=":material/check_circle:", color="green")
             st.caption(f"Model: `{ai['route']}`" + (f" · {ai['n_models']} models available" if ai.get("n_models") else "") + f" · on {P['where']}")
             if last_latency:

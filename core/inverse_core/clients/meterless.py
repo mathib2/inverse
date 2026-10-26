@@ -3,11 +3,14 @@
 The provider is chosen by MODEL_PROVIDER in .env (the wire contract is the same for all of them: GET /models,
 POST /chat/completions, `response_format: json_object`; only the wording the UI shows and the advice when the
 model is unreachable differ):
-  nightshift  Meterless Nightshift Runtime, the sponsor path and the default: Bearer token, `meterless-app` and
-              `meterless-scope` headers, Nemotron routes, reached through an SSH tunnel from the laptop that runs it.
-  ollama      a local Ollama server, the development lab on the workstation: free, CPU, no laptop and no credits.
+  nightshift  Meterless Nightshift Runtime, the primary provider and the default: Bearer token, `meterless-app` and
+              `meterless-scope` headers, reached through an SSH tunnel from the laptop that runs it (no Linux build).
+  ollama      a local Ollama server on the workstation: free, CPU, no laptop and no credits.
   openai      any other OpenAI-compatible server.
-Contract kept for Nightshift: 180 s timeout, retry 2/4/8 s on 429."""
+Fallback: with Nightshift primary, a call Nightshift cannot answer (unreachable, timed out, 5xx, key or route refused) goes to
+MODEL_FALLBACK_URL (default: the workstation's Ollama) with MODEL_FALLBACK_MODEL, and every later call goes there directly for
+FALLBACK_HOLD_S before Nightshift is tried again. Each reply names the provider that served it; the trace records it.
+MODEL_FALLBACK_URL=off turns the fallback off. Contract kept for Nightshift: retry 2/4/8 s on 429."""
 from __future__ import annotations
 
 import json
@@ -29,12 +32,12 @@ PROVIDERS = {
         "where": "the laptop that runs Nightshift, through an SSH tunnel to this server",
         "offline_detail": "no response (laptop off, Nightshift closed or tunnel down)",
         "offline_short": "Start Nightshift on the laptop and reopen the SSH tunnel.",
-        "offline_fix": ["On the computer that runs **Nightshift**, open the Nightshift app.",
-                        "On that computer, open PowerShell and run the tunnel command: `ssh -N -R 8088:127.0.0.1:8088 {ssh_target}`",
-                        "Leave that window open, then press **Check again** below."],
+        "offline_fix": ["On the laptop that runs **Nightshift**, open the Nightshift app and keep the laptop awake and plugged in.",
+                        "On that laptop, start the scheduled task **Nightshift tunnel** (or run `~/nightshift-tunnel.ps1`), which forwards this server's port 8090 to it.",
+                        "Press **Check again** below. Until then the crew keeps working on the workstation's own model."],
         "key_rejected": "Nightshift answered but refused INVERSE's access key. Copy the Runtime key from Nightshift's Console "
                         "into `MODEL_API_KEY` in the server's `.env`, then restart the app.",
-        "run_time": "usually one to two minutes with the deep Nemotron lane",
+        "run_time": "usually under a minute on the laptop's GPU",
     },
     "ollama": {
         "id": "ollama", "name": "Ollama (local)", "vendor": "Ollama",
@@ -63,7 +66,34 @@ PROVIDERS = {
 
 
 def provider_id() -> str:
-    return (os.environ.get("MODEL_PROVIDER") or "ollama").strip().lower()          # local by default; nightshift is the sponsor path
+    return (os.environ.get("MODEL_PROVIDER") or "nightshift").strip().lower()      # Nightshift is the primary provider; see fallback()
+
+
+FALLBACK_HOLD_S = 120                    # after Nightshift fails a call, the fallback serves directly this long, then Nightshift is tried again
+_primary_down = {"until": 0.0, "why": ""}  # shared by every client in the process: one failure, not one per lane
+FALLBACK_STATUS = (401, 403, 404, 408, 409, 425, 500, 502, 503, 504)   # Nightshift refused or could not serve; a 400 is our request's fault
+
+
+def fallback() -> dict | None:
+    """The server that answers when the primary cannot: the workstation's Ollama with the same Nemotron model, unless
+    MODEL_FALLBACK_URL says otherwise ("off" disables). Only Nightshift has a fallback: a local primary is its own last resort."""
+    if provider_id() != "nightshift":
+        return None
+    url = (os.environ.get("MODEL_FALLBACK_URL") or "http://127.0.0.1:11434/v1").strip()
+    if url.lower() in ("off", "none", "0", "false"):
+        return None
+    return {"base": url.rstrip("/"), "model": os.environ.get("MODEL_FALLBACK_MODEL") or "nemotron-mini:latest",
+            "key": os.environ.get("MODEL_FALLBACK_KEY") or "ollama", "name": os.environ.get("MODEL_FALLBACK_NAME") or "Ollama on the workstation",
+            "timeout": int(os.environ.get("MODEL_FALLBACK_TIMEOUT") or 600)}
+
+
+def primary_down() -> str:
+    """Why the primary is being skipped right now, or "" when it is tried first."""
+    return _primary_down["why"] if time.time() < _primary_down["until"] else ""
+
+
+class _PrimaryFailed(Exception):
+    pass
 
 
 def provider() -> dict:
@@ -93,10 +123,10 @@ class MeterlessClient:
         self.base = (base_url or os.environ.get("MODEL_BASE_URL") or ("http://127.0.0.1:11434/v1" if local else "http://127.0.0.1:8088/v1")).rstrip("/")
         self.key = api_key or os.environ.get("MODEL_API_KEY") or "ollama"
         self.model = model or os.environ.get("NEMOTRON_MODEL") or "nemotron-mini:latest"
-        self.timeout = timeout or int(os.environ.get("MODEL_TIMEOUT") or (600 if local else 180))   # a 4B at 10 tokens/s needs minutes
+        self.timeout = timeout or int(os.environ.get("MODEL_TIMEOUT") or (600 if local else 300))   # a 4B at 10 tokens/s needs minutes
         self.h = {"Authorization": "Bearer " + self.key, "meterless-app": "inverse", "meterless-scope": "user", "content-type": "application/json"}
 
-    def health(self):
+    def _primary_health(self):
         """GET /v1/models decides: 200 online, 401/403 unauthorized, anything else offline."""
         pid = provider_id()
         try:
@@ -110,26 +140,67 @@ class MeterlessClient:
             return {"status": "online", "models": ids, "route_available": route_available(self.model, ids), "provider": pid}
         return {"status": "offline", "detail": f"HTTP {r.status_code}", "provider": pid}
 
-    def chat(self, messages, temperature=0.0, max_tokens=REPLY_MAX_TOKENS, json_object=False):
-        """json_object=True asks the runtime for exactly one JSON object (OpenAI `response_format`), which Nightshift and
-        Ollama honour; callers still parse with extract_json, so a runtime that ignores the hint degrades gracefully."""
-        body = {"model": self.model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
-        if json_object:
-            body["response_format"] = {"type": "json_object"}
+    def health(self):
+        """The primary's health; when it is not online and a fallback answers, "online" with fallback=True and the primary's
+        own status kept under "primary", so the page can say who runs the AI right now."""
+        h = self._primary_health()
+        fb = fallback()
+        if h["status"] == "online" and h.get("route_available", True) or not fb:
+            return h
+        try:
+            r = requests.get(fb["base"] + "/models", headers={"Authorization": "Bearer " + fb["key"]}, timeout=8)
+            if r.status_code == 200:
+                ids = [m.get("id") for m in r.json().get("data", [])]
+                return {"status": "online", "models": ids, "route_available": route_available(fb["model"], ids), "provider": fb["name"],
+                        "fallback": True, "model": fb["model"], "primary": h}
+        except requests.RequestException:
+            pass
+        return h
+
+    def _post(self, base, headers, body, timeout, name):
+        """One chat call with the 429 retries; raises _PrimaryFailed(reason) for a failure a fallback may cover."""
         for attempt in range(len(RETRY_DELAYS) + 1):
             t0 = time.time()
             try:
-                r = requests.post(self.base + "/chat/completions", headers=self.h, json=body, timeout=self.timeout)
+                r = requests.post(base + "/chat/completions", headers=headers, json=body, timeout=(10, timeout))
             except requests.RequestException as e:
-                raise NightshiftOffline(f"{provider()['name']} unreachable: {e}") from e
+                raise _PrimaryFailed(f"{name} unreachable: {type(e).__name__}: {str(e)[:160]}") from e
             if r.status_code == 429 or "quota" in r.text[:300].lower():
                 if attempt < len(RETRY_DELAYS):
                     time.sleep(RETRY_DELAYS[attempt])
                     continue
+            if r.status_code in FALLBACK_STATUS:
+                raise _PrimaryFailed(f"{name} answered HTTP {r.status_code}: {r.text[:120]}")
             r.raise_for_status()
             j = r.json()
-            return {"text": strip_thinking(j["choices"][0]["message"]["content"]), "model": j.get("model"), "usage": j.get("usage"), "finish_reason": j["choices"][0].get("finish_reason"), "latency_s": round(time.time() - t0, 2)}
+            return {"text": strip_thinking(j["choices"][0]["message"]["content"]), "model": j.get("model"), "usage": j.get("usage"),
+                    "finish_reason": j["choices"][0].get("finish_reason"), "latency_s": round(time.time() - t0, 2)}
         raise RuntimeError("rate limited after retries")
+
+    def chat(self, messages, temperature=0.0, max_tokens=REPLY_MAX_TOKENS, json_object=False):
+        """json_object=True asks the runtime for exactly one JSON object (OpenAI `response_format`), which Nightshift and
+        Ollama honour; callers still parse with extract_json, so a runtime that ignores the hint degrades gracefully.
+        The reply names the provider that served it ("provider") and, when the fallback did, why ("fallback")."""
+        body = {"model": self.model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+        if json_object:
+            body["response_format"] = {"type": "json_object"}
+        fb, why = fallback(), primary_down()
+        if not (fb and why):
+            try:
+                return self._post(self.base, self.h, body, self.timeout, provider()["name"]) | {"provider": provider_id()}
+            except _PrimaryFailed as e:
+                if not fb:
+                    if "HTTP" in str(e) and "unreachable" not in str(e):
+                        raise requests.HTTPError(str(e)) from e
+                    raise NightshiftOffline(str(e)) from e
+                why = str(e)
+                _primary_down.update(until=time.time() + FALLBACK_HOLD_S, why=why)
+        try:
+            out = self._post(fb["base"], {"Authorization": "Bearer " + fb["key"], "content-type": "application/json"},
+                             body | {"model": fb["model"]}, fb["timeout"], fb["name"])
+        except _PrimaryFailed as e:
+            raise NightshiftOffline(f"{provider()['name']} and the fallback both failed: {why}; {e}") from e
+        return out | {"provider": "fallback", "fallback": why}
 
 
 def strip_thinking(text):
