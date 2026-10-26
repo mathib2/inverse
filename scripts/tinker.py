@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ["INVERSE_SANDBOX"] = ROOT                                          # write_file, edit_file and run_tests work only here
+os.environ.setdefault("INVERSE_PRIORITY", "tinker")                            # every model call waits while Warden or a person is working (team/gate.py)
 os.environ.setdefault("INVERSE_ROOT", ROOT)
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
@@ -32,6 +33,7 @@ from inverse_core.team import critic as C  # noqa: E402
 from inverse_core.team.custom import CustomExpert, VulnerabilityExpert  # noqa: E402
 from inverse_core.team.llmcall import ask  # noqa: E402
 from inverse_core.team.expert import ExpertBudget, Task  # noqa: E402
+from inverse_core.team import gate  # noqa: E402
 from inverse_core.team.lanes import Lanes  # noqa: E402
 from inverse_core.team.llmcall import Ctx  # noqa: E402
 from inverse_core.team.memory import TeamMemory  # noqa: E402
@@ -304,7 +306,8 @@ def place_of(item):
 
 
 def busy():
-    return any(os.path.exists(os.path.join(LIVE, "state", n)) for n in ("current.json", "ui_mission.json"))
+    """A person's mission, a benchmark or a Warden mission is running in the live checkout (a stale marker does not count)."""
+    return gate.busy_above(gate.RANK["tinker"], LIVE) is not None
 
 
 def sync():

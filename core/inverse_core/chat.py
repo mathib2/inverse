@@ -58,6 +58,10 @@ def narrate(e, root_dir=None, run=None):
         kind = "result"
         text = (f"Answer ready: {e.get('cited', 0)} citation(s)" + ("; composed by code" if e.get("fallback") else "")
                 + (f"; {e.get('unfinished')} task(s) unfinished" if e.get("unfinished") else ""))
+    elif k == "yielded":
+        who, kind = e.get("agent") or "tinker", "log"
+        to = {"state/ui_mission.json": "a person's mission", "state/bench.json": "a benchmark", "state/current.json": "Warden's mission"}.get(str(e.get("to")), "other work")
+        text = f"paused {e.get('seconds')} s so {to} could use the CPU first"
     elif k in QUIET:
         who, kind = e.get("expert") or e.get("agent") or "lead", "log"
         detail = {kk: vv for kk, vv in e.items() if kk not in ("kind", "t", "expert", "agent", "task")}

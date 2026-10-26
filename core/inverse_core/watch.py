@@ -176,10 +176,10 @@ class Watcher:
 
         def on_start(run_dir):
             box["dir"] = run_dir
-            self._dump(self.current_path, {"kind": "team", "goal": goal, "started": started, "trigger": trigger, "run_dir": run_dir, "requeued": requeued})
+            self._dump(self.current_path, {"kind": "team", "goal": goal, "started": started, "trigger": trigger, "run_dir": run_dir, "requeued": requeued, "pid": os.getpid()})
             self.manifest(run_dir, kind="team", trigger=trigger, by=by, goal=goal, equipment=equipment, status="running", started=started)
 
-        self._dump(self.current_path, {"kind": "team", "goal": goal, "started": started, "trigger": trigger, "requeued": requeued})
+        self._dump(self.current_path, {"kind": "team", "goal": goal, "started": started, "trigger": trigger, "requeued": requeued, "pid": os.getpid()})
         self.log(f"crew mission ({trigger}): {goal[:120]}")
         try:
             out, run_dir = self.team(goal, on_start, trigger) if _takes_trigger(self.team) else self.team(goal, on_start)
