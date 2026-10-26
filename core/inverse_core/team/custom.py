@@ -44,6 +44,7 @@ TURN_MAX_TOKENS = 900                                                         # 
 
 
 ASK_WORDS = re.compile(r"\bask (?:the )?(research|reasoning|solver) (?:expert|agent)\b(?: (?:for|to|about|what|how|whether|which))?", re.I)
+NEEDS_CALC = re.compile(r"\b(compute|calculate|weight|weigh\w*|times|total|sum|across|together|multipl\w*|divide\w*|convert\w*|how many .* (?:both|together|in all))\b", re.I)
 BARE = re.compile(r"^\W*(error|none|null|n/?a|unknown|done|ok|yes|no)\W*$", re.I)
 PREFETCH = [                                                                  # what a solver task asks about a machine -> the queries, run by code before the model speaks
     (re.compile(r"\b(mass|weigh\w*|kg)\b", re.I), ["SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = '{m}'"]),
@@ -74,13 +75,13 @@ class CustomExpert(BaseExpert):
 
     OUT_OF_BUDGET = "Your tool budget is spent. Do not call a tool. Give your final JSON now from what you already have."
 
-    def _loop(self, msgs, budget, evidence, seen=None):
+    def _loop(self, msgs, budget, evidence, seen=None, goal=""):
         """Tool turns until the model stops asking for one. Older tool results are folded into one-line stubs (the evidence list
         keeps them in full), and when the budget is nearly spent the model is told to answer with what it has instead of failing.
         A tool call repeated with the same arguments is not run again: the model is told once, and the next repeat ends the
         loop with an answer written by code from the tool results (a 4B model can loop on one call until the clock runs out).
         Returns (final json, models used)."""
-        models, j, seen, nudged = [], {}, dict(seen or {}), False
+        models, j, seen, nudged, calc_nudged = [], {}, dict(seen or {}), False, False
         for _ in range(budget.max_tool_calls + 2):
             low = budget.tool_calls >= budget.max_tool_calls or budget.tokens >= 0.7 * budget.max_tokens
             if low:
@@ -95,6 +96,13 @@ class CustomExpert(BaseExpert):
                     self.ctx.trace.event("bare_answer", agent=self.name, answer=answer[:60])
                     msgs += [{"role": "assistant", "content": r["text"]},
                              {"role": "user", "content": "That is not an answer. Write the answer to the task as a full sentence, from the tool results you have, in the final JSON shape."}]
+                    continue
+                if not calc_nudged and "calc" in self.toolbox.allowed and NEEDS_CALC.search(goal or "") and not any(str(x.get("source", "")).startswith("calc(") for x in evidence) \
+                        and re.search(r"\d", answer) and budget.tool_calls < budget.max_tool_calls:   # a computation with no calculator call: once more, with the tool
+                    calc_nudged = True
+                    self.ctx.trace.event("calc_nudge", agent=self.name, answer=answer[:80])
+                    msgs += [{"role": "assistant", "content": r["text"]},
+                             {"role": "user", "content": 'Every number in the answer must come from the calc tool. Call it now with the expression, for example {"tool":"calc","args":{"expr":"1.0 * 9.81"},"why":"the weight"}, then answer from its result.'}]
                     continue
                 return j, models
             if low:                                                          # the model still wants a tool: the budget is spent, and the run says so
@@ -175,7 +183,7 @@ class CustomExpert(BaseExpert):
                      {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:1800]}]
             self.ctx.trace.event("memory_prefetched", expert=self.name, task=task.id, findings=len((out or {}).get("findings") or []), refuted=len((out or {}).get("refuted") or []))
             seen["memory({})"] = 1
-        j, models = self._loop(msgs, budget, evidence, seen)
+        j, models = self._loop(msgs, budget, evidence, seen, task.goal)
         answer = str(j.get("answer") or "")                                   # null stays empty, and the Lead asks again
         bad = unverified_numbers(answer, {"results": [e.get("result") for e in evidence]})
         not_checked = [str(n) for n in (j.get("not_checked") or [])] + ([f"numbers in the answer not found in any tool result: {bad}"] if bad else [])

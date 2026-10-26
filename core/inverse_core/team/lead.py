@@ -223,6 +223,22 @@ class Lead:
         """Experts that can create experts (the architect kind): a plan may assign a task to a not-yet-existing expert if it depends on them."""
         return [n for n, c in self.registry.configs.items() if c.get("kind") == "architect" and n in self.registry.experts]
 
+    def _forge_by_rule(self, task, goal):
+        """The expert a plan names but nobody built: a template expert with the calculator and read-only SQL, registered for this run
+        and traced as forge_by_rule. The architect's judgement is better when it works; this is what happens when it does not."""
+        name = str(task.expert)
+        if name in self.registry.experts or not re.fullmatch(r"[a-z][a-z0-9_]{2,40}", name):
+            return name in self.registry.experts
+        try:
+            self._create_expert({"name": name, "role": f"Answers, with tools, questions like: {str(goal)[:120]}",
+                                 "system_prompt": f"You are {name}, an expert the crew built for this: {str(goal)[:200]} Settle every number with the calc tool and "
+                                                  "every fact with one read-only SELECT; cite the tool results; say plainly what you could not check.",
+                                 "tools": ["calc", "run_sql"], "model_lane": "fast"})
+            self.ctx.trace.event("forge_by_rule", task=task.id, name=name)
+        except Exception as ex:
+            self.ctx.trace.event("forge_by_rule_failed", task=task.id, name=name, error=f"{type(ex).__name__}: {str(ex)[:120]}")
+        return name in self.registry.experts
+
     def _create_expert(self, spec):
         """An expert the planner proposed: always a tool-using `custom` expert with a fixed budget; the registry validates the
         rest (name, tools, lane) and refuses what it does not know. Registered for this run; the UI can keep it."""
@@ -294,13 +310,16 @@ class Lead:
             ready = []
             for task in level:
                 blocked = [d for d in task.depends_on if done[d].status != "done"]
+                if blocked and task.expert not in self.registry.experts and all(done[d].expert in self.creators() for d in blocked) \
+                        and self._forge_by_rule(task, plan.goal):              # the architect failed to build it: a rule did, so the work goes on
+                    blocked = []
                 if self.stopped():                                            # a person pressed Stop: what did not start is listed in the answer, verbatim
                     task.status, task.feedback = "skipped", "stopped by a person before it started"
                     self.ctx.trace.event("task_skipped", task=task.id, reason="stopped")
                 elif blocked:
                     task.status, task.feedback = "failed", f"skipped: dependency {blocked} did not produce an accepted result"
                     self.ctx.trace.event("task_skipped", task=task.id, blocked_by=blocked)
-                elif task.expert not in self.registry.experts:                # planned for an expert the architect was to create
+                elif task.expert not in self.registry.experts and not self._forge_by_rule(task, plan.goal):   # planned for an expert nobody created
                     task.status, task.feedback = "failed", f"no expert named {task.expert!r} exists: the architect task did not create it"
                     self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
                 else:

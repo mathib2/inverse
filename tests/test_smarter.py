@@ -57,3 +57,45 @@ def test_a_phrase_that_rests_on_nothing_is_sent_back():
            "task_goal": "Using the mass of P-104 from the registry, compute its weight in newtons with g = 9.81.",
            "evidence": [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"equipment_id": "P-104", "mass_kg": "1.0"}]}]}
     assert C.deterministic(res) is None                                                                              # ordinary phrasing is not a phrase from nowhere
+
+def test_a_sensor_named_in_the_task_is_selected_by_its_id():
+    from inverse_core.team.experts import pin_sensor
+    goal = "What are the noise level and the sampling rate of sensor T200-DISP-1?"
+    assert pin_sensor("SELECT sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = 'T-200' AND quantity = 'v'", goal) == \
+        ("SELECT sigma, sampling_hz FROM obs.sensors_table WHERE sensor_id = 'T200-DISP-1'", "T200-DISP-1")
+    assert pin_sensor("SELECT sigma FROM obs.sensors_table WHERE sensor_id = 'T200-DISP-1'", goal) == ("SELECT sigma FROM obs.sensors_table WHERE sensor_id = 'T200-DISP-1'", None)
+    assert pin_sensor("SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'T-200'", goal)[1] is None
+
+
+def test_a_computation_without_the_calculator_is_told_once_and_the_rule_builds_the_expert_the_architect_did_not(tmp_path):
+    turns = {"solver": 0}
+
+    def script(model, messages):
+        system, user = messages[0]["content"], messages[-1]["content"]
+        if system.startswith("You are the Solver"):
+            turns["solver"] += 1
+            if "Every number in the answer must come from the calc tool" in user:
+                return json.dumps({"tool": "calc", "args": {"expr": "1.0 * 9.81"}, "why": "the weight"})
+            if '"tool_result": {"expr"' in user:
+                return json.dumps({"answer": "P-104 weighs 9.81 N.", "confidence": 0.9, "assumptions": [], "not_checked": []})
+            return json.dumps({"answer": "P-104 weighs 1000.0 N.", "confidence": 0.9, "assumptions": [], "not_checked": []})
+        if system.startswith("You are the lead"):
+            return json.dumps({"tasks": [{"id": "T1", "goal": "Build a Moon weight expert", "expert": "architect", "depends_on": []},
+                                          {"id": "T2", "goal": "What does 12.5 kg weigh on the Moon at 1.62 m/s^2?", "expert": "moon_weight_expert", "depends_on": ["T1"]}]})
+        if system.startswith("You are the Architect"):
+            return json.dumps({"answer": "I could not build it.", "confidence": 0.1, "assumptions": [], "not_checked": []})
+        if system.startswith("You are moon_weight_expert"):
+            return json.dumps({"tool": "calc", "args": {"expr": "12.5 * 1.62"}, "why": "the weight"}) if "tool_result" not in user else \
+                json.dumps({"answer": "12.5 kg weighs 20.25 N on the Moon.", "confidence": 0.9, "assumptions": [], "not_checked": []})
+        if system.startswith("You are an adversarial reviewer"):
+            return json.dumps({"verdict": "accept", "problems": []})
+        return "ok [T2.E1]"
+
+    ctx, lead = crew(tmp_path, script)
+    res = ctx.registry.experts["solver"].run(Task("T1", "Using the registry mass of P-104, compute its weight in newtons with g = 9.81.", "solver"), lead.memory, ExpertBudget())
+    assert events(ctx, "calc_nudge") and res.answer == "P-104 weighs 9.81 N." and any(x["source"].startswith("calc(") for x in res.evidence)
+    plan = lead.plan("What does 12.5 kg weigh on the Moon at 1.62 m/s^2? We have no converter for that.")
+    lead.run(plan, ctx.trace.dir, parallel=1)
+    assert [t.expert for t in plan.tasks] == ["architect", "moon_weight_expert"] and events(ctx, "forge_by_rule")[0]["name"] == "moon_weight_expert"
+    assert plan.tasks[1].status == "done" and "20.25" in plan.tasks[1].result["answer"]
+

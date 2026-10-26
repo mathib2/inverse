@@ -37,7 +37,7 @@ class BaseExpert:
 QUERY_MAX_TOKENS, ANSWER_MAX_TOKENS, STEPS_MAX_TOKENS = 300, 500, 700         # reply caps per call: three short SELECTs, one answer, at most five steps
 SCHEMA = """Tables (Zetaris, read-only; always the obs. prefix; text values in single quotes; no semicolon):
 obs.equipment_table(equipment_id text like 'P-104' or 'T-200', name text, mass_kg number, baseline_dataset text: a dataset id or the text 'none', current_dataset text)
-obs.sensors_table(sensor_id text like 'P104-DISP-1', equipment_id text, quantity text: 'x' is displacement and 'v' is velocity, unit text, sigma number = the noise level, sampling_hz number = the sampling rate)
+obs.sensors_table(sensor_id text like 'P104-DISP-1': a sensor named in the task is selected by sensor_id, equipment_id text, quantity text: 'x' is displacement and 'v' is velocity, unit text, sigma number = the noise level, sampling_hz number = the sampling rate)
 obs.maintenance_table(record_id text like 'M-001', equipment_id text, date text 'YYYY-MM-DD', note text)
 obs.p104_baseline_samples, obs.p104_current_samples, obs.trap_current_samples(dataset_id text, t number in seconds, x number, v number): use COUNT(*), MIN, MAX or AVG on these, never SELECT *.
 Examples of the dialect: SELECT COUNT(*) AS n FROM obs.p104_baseline_samples | SELECT sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = 'P-104' AND quantity = 'x' | SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date | SELECT equipment_id FROM obs.equipment_table WHERE baseline_dataset = 'none'"""
@@ -58,6 +58,20 @@ _SELECT = re.compile(r"^\s*SELECT\s+(?P<cols>.+?)\s+FROM\s+obs\.(?P<table>\w+)(?
 IDS_WORDS = re.compile(r"\b(which|what are (?:their|the) (?:ids?|names?)|list (?:them|the (?:machines|sensors|records)))\b", re.I)
 ID_COLUMN = {"equipment_table": "equipment_id", "sensors_table": "sensor_id", "maintenance_table": "record_id"}
 _COUNT_ONLY = re.compile(r"^\s*SELECT\s+COUNT\(\*\)(?:\s+AS\s+\w+)?\s+FROM\s+obs\.(\w+)(.*)$", re.I | re.S)
+
+
+SENSOR_ID = re.compile(r"\b[A-Z]\d{3}-[A-Z]{3,4}-\d\b")
+
+
+def pin_sensor(sql, goal):
+    """A query on the sensors table for a task that names a sensor ('T200-DISP-1') selects it by sensor_id; a filter the model guessed
+    (equipment and quantity) is replaced, because a guessed quantity finds nothing. Returns (sql, pinned id or None)."""
+    ids = SENSOR_ID.findall(goal or "")
+    if not ids or "obs.sensors_table" not in (sql or "").lower() or "sensor_id" in (sql or "").lower():
+        return sql, None
+    head = re.split(r"\sWHERE\s", sql, maxsplit=1, flags=re.I)[0].rstrip()
+    tail = re.search(r"\s(ORDER\s+BY\s.*|LIMIT\s.*)$", sql, re.I | re.S)
+    return f"{head} WHERE sensor_id = '{ids[0]}'" + (" " + tail.group(1).strip() if tail else ""), ids[0]
 
 
 def widen_count(sql, goal):
@@ -150,6 +164,9 @@ class ResearchExpert(BaseExpert):
             sql, added = complete_columns(sql, task.goal)
             if added:                                                                 # the task asked for these too; the model left them out
                 self.ctx.trace.event("sql_completed", expert=self.name, task=task.id, added=added, sql=sql[:160])
+            sql, pinned = pin_sensor(sql, task.goal)
+            if pinned:
+                self.ctx.trace.event("sql_pinned", expert=self.name, task=task.id, sensor=pinned, sql=sql[:160])
             budget.charge_tool()
             cache = getattr(self.ctx, "sql_cache", None)
             try:
