@@ -1,4 +1,4 @@
-# Local models: the development lab on the workstation
+# Local models: the workstation's own model server, the fallback
 
 INVERSE's model client is OpenAI-compatible, so the AI can run anywhere that speaks that API. `MODEL_PROVIDER` in `.env`
 chooses the provider; the code path is identical, only the UI wording, the reconnect advice and the team-lane defaults
@@ -6,8 +6,8 @@ follow the setting.
 
 | `MODEL_PROVIDER` | What runs the AI | When to use it |
 |---|---|---|
-| `nightshift` | Meterless Nightshift on a Windows laptop, reached through an SSH reverse tunnel (`docs/operations/NIGHTSHIFT_TUNNEL.md`); NVIDIA Nemotron routes | The sponsor provider, one line of `.env` away; the recording runs local |
-| `ollama` (default) | Ollama in Docker on the workstation itself, free local models on the CPU | Development, tests against a real model, unattended runs: nothing depends on a laptop or on credits |
+| `nightshift` (default) | Meterless Nightshift on a Windows laptop, reached through an SSH reverse tunnel (`docs/operations/NIGHTSHIFT_TUNNEL.md`): Nemotron-Mini-4B on the laptop's GPU; this server's Ollama answers when Nightshift cannot | The live crew and the recording |
+| `ollama` | Ollama in Docker on the workstation itself, free local models on the CPU | Tinker's sandbox (`~/inverse-lab`), where marks are compared with earlier ones; anything that must not depend on a laptop |
 | `openai` | Any other OpenAI-compatible server named in `MODEL_BASE_URL` | Whatever you have |
 
 ## The lab (set up 2026-10-24)
@@ -31,8 +31,8 @@ NEMOTRON_MODEL=nemotron-mini:latest  # the id Ollama lists (the :latest suffix i
 LANE_CRITIC=qwen2.5:3b-instruct      # optional: keeps the Critic on a different model than the work it reviews
 ```
 
-Switch providers by editing `.env` and restarting the UI (`~/.local/bin/deploy-live`). The stored Nightshift key can stay
-in `MODEL_API_KEY`: Ollama ignores it, and it is needed again for the recording.
+Switch providers by editing `.env` and restarting the UI (`~/.local/bin/deploy-live`). With `nightshift`, this server's
+Ollama is the fallback by default (`MODEL_FALLBACK_URL`, `MODEL_FALLBACK_MODEL`; `MODEL_FALLBACK_URL=off` turns it off).
 
 ## Measured on the workstation (i5-6500, 4 cores, no GPU, 30 GB RAM)
 
@@ -56,6 +56,6 @@ Small models copy examples and skip steps. The crew's deterministic layer catche
 
 ## What the sponsor requirement means here
 
-The hackathon asks for Meterless as the primary provider. With `ollama` the provider at runtime is not Meterless; the three
-Meterless engines (H-MEM, World Model, Markovian) still run on the workstation and are used on every run. For the demo
-recording and the live evaluation set `MODEL_PROVIDER=nightshift` (`docs/hackathon/SUBMISSION.md`, checklist item 5).
+The hackathon asks for Meterless as the primary provider. The live crew runs `MODEL_PROVIDER=nightshift`: every call goes to
+Nightshift first, and this server's Ollama answers only when Nightshift cannot; the trace names the provider of every call. The
+three Meterless engines (H-MEM, World Model, Markovian) run on the workstation and are used on every run.

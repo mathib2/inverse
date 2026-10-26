@@ -1,6 +1,16 @@
 # Keeping Nightshift reachable from the workstation
 
-Nightshift (the Meterless Runtime) has no Linux build, so it runs on a Windows laptop and the workstation reaches it at `127.0.0.1:8088` through an SSH **reverse** tunnel opened *from the laptop*. When the laptop sleeps or the window closes, the AI goes offline for everyone (the UI shows **AI · Offline** and runs pause). Tonight (2026-10-24, 01:41 CDT) that stopped a live evaluation halfway.
+Nightshift (the Meterless Runtime) has no Linux build, so it runs on a Windows laptop and the workstation reaches it at `127.0.0.1:8088` through an SSH **reverse** tunnel opened *from the laptop*. Nightshift is INVERSE's primary provider; when the laptop sleeps or the tunnel drops, the crew keeps working on the workstation's Ollama (the sidebar shows **AI online · fallback**) and returns to Nightshift by itself.
+
+## How it is set up (2026-10-26)
+
+- **One lane for the crew.** Nightshift's fleet `inverse` has a single lane, `Nemotron-Mini-4B-Instruct-Q4_K_M.gguf` (the same file Ollama serves on the workstation, copied into Nightshift's models folder), 2 slots of 4096 tokens, fully on the laptop's GPU. Its route is `local-runtime/nemotron-mini-4b-instruct-q4-k-m`; the aliases `nemotron-mini` and `nemotron-mini:latest` reach it too. Measured: about 59 tokens a second end to end, a short JSON reply in under a second through the tunnel. The previous fleet (`jury-lite`, six lanes, more than the laptop's memory) is still defined and can be re-activated.
+- **The Documents folder.** With Windows' Documents folder in OneDrive, Nightshift's engine froze at startup while creating its default workspace there, so its API never opened. The launcher sets `XDG_DOCUMENTS_DIR` to a local folder before starting Nightshift; the engine honours it.
+- **The launcher** `%USERPROFILE%\nightshift-tunnel.ps1`, run at logon by the scheduled task **Nightshift tunnel**: starts Nightshift if it is not running (and restarts it if its API does not answer within two minutes), then keeps `ssh -N -R 127.0.0.1:8088:127.0.0.1:<Nightshift's port>` open forever. The tunnel key may open only `127.0.0.1:8088` on the workstation.
+- **The workstation's `.env`** (in `~/inverse-live`; `~/inverse-dev` links to it): `MODEL_PROVIDER=nightshift`, `MODEL_BASE_URL=http://127.0.0.1:8088/v1`, `MODEL_API_KEY` = Nightshift's runtime key (the `proxy-token` file in `%LOCALAPPDATA%\ai.meterless.runtime`), `NEMOTRON_MODEL` and `LANE_FAST`, `LANE_DEEP`, `LANE_CRITIC` = the route above, `MODEL_FALLBACK_URL=http://127.0.0.1:11434/v1`, `MODEL_FALLBACK_MODEL=nemotron-mini:latest`. Tinker's sandbox (`~/inverse-lab`) has its own `.env` on Ollama, so its measurements stay comparable.
+- **Stop it:** `Disable-ScheduledTask -TaskName "Nightshift tunnel"` and close Nightshift; the crew runs on the fallback.
+
+The sections below are the original one-time setup (2026-10-24).
 
 ## One-time setup on the laptop (PowerShell)
 
