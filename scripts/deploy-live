@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Update the live INVERSE UI (port 8501 on the workstation) to the latest m4-sindyc on GitHub.
+# Install: cp scripts/deploy-live ~/.local/bin/ && chmod +x ~/.local/bin/deploy-live
+# It runs from its own clean checkout (~/inverse-live), so work in ~/open-agent-hack never shows on the link.
+set -euo pipefail
+cd ~/inverse-live
+# A deploy restarts the UI and Warden, which cuts a running mission short: wait for it (up to 20 min) unless --now is given.
+if [ "${1:-}" != "--now" ]; then
+  wait_s=$(( ${DEPLOY_WAIT_MIN:-20} * 60 )); waited=0
+  while [ -f state/current.json ] || [ -f state/ui_mission.json ]; do
+    [ "$waited" = 0 ] && echo "a mission is running; waiting up to $(( wait_s / 60 )) min for it to finish (deploy-live --now to skip)"
+    if [ "$waited" -ge "$wait_s" ]; then echo "still running after $(( wait_s / 60 )) min: not deploying (deploy-live --now to force)" >&2; exit 3; fi
+    sleep 10; waited=$(( waited + 10 ))
+  done
+fi
+before=$(git rev-parse HEAD)
+git pull --ff-only -q origin m4-sindyc
+if ! git diff --quiet "$before" HEAD -- requirements.txt; then
+  .venv/bin/python -m pip install -q --disable-pip-version-check -r requirements.txt
+fi
+tmux respawn-pane -k -t 3:1 "cd ~/inverse-live && PYTHONPATH=core .venv/bin/streamlit run ui/app.py --server.port 8501 --server.address 127.0.0.1 --server.headless true > ~/streamlit.log 2>&1"
+tmux kill-session -t inverse-markovian 2>/dev/null || true
+if [ -f ~/inverse-live/services/meterless-sidecar/markovian/serve.ts ]; then
+  tmux new-session -d -s inverse-markovian "cd ~/inverse-live/services/meterless-sidecar && MARKOVIAN_PORT=8101 SIDECAR_STATE=$HOME/inverse-live/services/meterless-sidecar/.state npx tsx markovian/serve.ts >> ~/markovian.log 2>&1"
+fi
+~/.local/bin/inverse-watch restart || true          # the watcher runs the code it was deployed with
+for _ in $(seq 1 30); do
+  if curl -sf -m 2 http://127.0.0.1:8501/_stcore/health >/dev/null; then
+    echo "live UI is up on $(git log -1 --format='%h %s')"; exit 0
+  fi
+  sleep 1
+done
+echo "UI did not come up; see ~/streamlit.log" >&2; exit 1

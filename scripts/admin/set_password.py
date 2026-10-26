@@ -1,11 +1,11 @@
 """Set the crew UI's sign-in: writes UI_USER and UI_PASSWORD_HASH (a salted PBKDF2 hash, never the password) into .env, then
-restart the UI. Usage: python scripts/set_password.py [user]   (asks for the password twice)
-       python scripts/set_password.py [user] --stdin   (reads the password from one line of standard input, for automation)"""
+restart the UI. Usage: python scripts/admin/set_password.py [user]   (asks for the password twice)
+       python scripts/admin/set_password.py [user] --stdin   (reads the password from one line of standard input, for automation)"""
 import getpass
 import os
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # scripts/<group>/<this file> -> the checkout
 sys.path.insert(0, os.path.join(ROOT, "ui"))
 from auth import make_hash  # noqa: E402
 

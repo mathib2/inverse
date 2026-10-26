@@ -1,6 +1,6 @@
-"""Create the Zetaris objects for INVERSE: runs zetaris/sql/*.sql one statement at a time. Idempotent:
+"""Create the Zetaris objects for INVERSE: runs data/zetaris/*.sql one statement at a time. Idempotent:
 statements that fail because the object already exists are reported as SKIP.
-Usage: PYTHONPATH=core .venv/bin/python scripts/setup_zetaris.py"""
+Usage: PYTHONPATH=core .venv/bin/python scripts/admin/setup_zetaris.py"""
 import glob, os
 from dotenv import load_dotenv
 load_dotenv(".env")
@@ -8,7 +8,7 @@ from inverse_core.clients.zetaris import ZetarisClient
 
 z = ZetarisClient()
 ok = skip = 0
-for f in sorted(glob.glob("zetaris/sql/0*.sql")):
+for f in sorted(glob.glob("data/zetaris/0*.sql")):
     for line in open(f):
         s = line.strip().rstrip(";")
         if not s or s.startswith("--"):

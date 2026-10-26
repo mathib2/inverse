@@ -1,4 +1,4 @@
-# Checkable goals for scripts/bench.py. Every expected item must appear in the final answer: a number within 1 %, any other
+# Checkable goals for scripts/measure/bench.py. Every expected item must appear in the final answer: a number within 1 %, any other
 # text as a case-insensitive substring. The answers come from the synthetic data (data/README.md) and from arithmetic.
 - name: arithmetic
   goal: "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps."

@@ -1,13 +1,13 @@
 """Warm the model server's prefix cache with exactly the system prompts a mission sends, one two-token request each, so the first
 mission after a restart (or the demo's first goal) does not pay 10 s of prompt processing per call.
-  PYTHONPATH=core .venv/bin/python scripts/warmup.py"""
+  PYTHONPATH=core .venv/bin/python scripts/measure/warmup.py"""
 import os
 import sys
 import time
 
 from dotenv import load_dotenv
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # scripts/<group>/<this file> -> the checkout
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
 

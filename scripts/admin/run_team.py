@@ -1,4 +1,4 @@
-"""Run the INVERSE team. Usage: PYTHONPATH=core .venv/bin/python scripts/run_team.py "goal" [--collaborate] [--reset] [--edit]
+"""Run the INVERSE team. Usage: PYTHONPATH=core .venv/bin/python scripts/admin/run_team.py "goal" [--collaborate] [--reset] [--edit]
 --collaborate lets each expert review its own tasks before the run; --edit pauses after planning so you can change plan.json."""
 import argparse, json, os
 from dotenv import load_dotenv

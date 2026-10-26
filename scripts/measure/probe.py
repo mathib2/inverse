@@ -3,7 +3,7 @@ the evidence does not hold), efficiency (calls and seconds per probe) and robust
 queries). Each probe is one expert run, one review, or one plan, not a whole mission, so the score is the agent's, not the crew's.
 Results land in docs/evidence/probe/<label>.json; the table prints at the end.
 
-  PYTHONPATH=core .venv/bin/python scripts/probe.py --label today [--only euler,scout]"""
+  PYTHONPATH=core .venv/bin/python scripts/measure/probe.py --label today [--only euler,scout]"""
 import argparse
 import copy
 import json
@@ -14,7 +14,7 @@ import time
 
 from dotenv import load_dotenv
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # scripts/<group>/<this file> -> the checkout
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
 

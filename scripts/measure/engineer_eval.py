@@ -2,7 +2,7 @@
 edits with a known right answer, each decided by a test the model is shown failing, plus (--tasks all) the real backlog items,
 decided by the test suite. Run from the sandbox clone, with Tinker stopped (it resets the clone at every cycle):
 
-    PYTHONPATH=core:scripts .venv/bin/python scripts/engineer_eval.py --label coder7b --model qwen2.5-coder:7b
+    PYTHONPATH=core:scripts .venv/bin/python scripts/measure/engineer_eval.py --label coder7b --model qwen2.5-coder:7b
 
 Writes docs/evidence/engineer/<label>.json and prints one line per task and the totals. The live checkout is never touched:
 edit_file and run_tests work only where INVERSE_SANDBOX is the checkout, which importing tinker sets to this one."""
@@ -13,7 +13,7 @@ import subprocess
 import sys
 import time
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # scripts/<group>/<this file> -> the checkout
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 sys.path.insert(0, os.path.join(ROOT, "core"))
 

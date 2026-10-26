@@ -28,7 +28,7 @@ def test_every_expert_record_has_the_same_fields_and_a_prompt_that_exists():
 
 def test_every_built_in_agent_has_a_probe_set():
     import importlib.util
-    spec = importlib.util.spec_from_file_location("probe", os.path.join(ROOT, "scripts", "probe.py"))
+    spec = importlib.util.spec_from_file_location("probe", os.path.join(ROOT, "scripts", "measure", "probe.py"))
     probe = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(probe)
     for name in ("EULER", "SCOUT", "ADA", "SENTINEL", "ATLAS", "VERA"):

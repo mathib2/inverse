@@ -230,7 +230,7 @@ def agent_of(item):
 
 
 def lanes_for_tinker():
-    """The crew's lanes plus an `engineer` lane: TINKER_ENGINEER_MODEL when set (a coder model measured by scripts/engineer_eval.py),
+    """The crew's lanes plus an `engineer` lane: TINKER_ENGINEER_MODEL when set (a coder model measured by scripts/measure/engineer_eval.py),
     else the deep lane's model. The crew's own lanes are not touched."""
     lanes = Lanes()
     lanes.mapping["engineer"] = os.environ.get("TINKER_ENGINEER_MODEL", "").strip() or lanes.mapping["deep"]
@@ -337,7 +337,7 @@ def changed_files():
 
 
 def probe_mark(agent):
-    rc, out = sh([sys.executable, "scripts/probe.py", "--label", f"tinker-{agent}", "--only", agent], timeout=1200, env={"PYTHONPATH": "core"})
+    rc, out = sh([sys.executable, "scripts/measure/probe.py", "--label", f"tinker-{agent}", "--only", agent], timeout=1200, env={"PYTHONPATH": "core"})
     try:
         with open(os.path.join(ROOT, "docs", "evidence", "probe", f"tinker-{agent}.json")) as f:
             return json.load(f)["agents"][agent]["rating"]["score"]

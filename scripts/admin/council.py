@@ -1,9 +1,9 @@
 """The council from a shell. Usage (from the repository root, PYTHONPATH=core):
-  python scripts/council.py list                                  open proposals, recent decisions, whether a session is due
-  python scripts/council.py propose '{"k":"cfg","t":"research","w":"raise tool calls to 8","y":"ran out twice","p":{"budget.tool_calls":8}}'
-  python scripts/council.py support P-3f9a2c
-  python scripts/council.py session                               hold a session now (at most four model calls)
-  python scripts/council.py undo P-3f9a2c"""
+  python scripts/admin/council.py list                                  open proposals, recent decisions, whether a session is due
+  python scripts/admin/council.py propose '{"k":"cfg","t":"research","w":"raise tool calls to 8","y":"ran out twice","p":{"budget.tool_calls":8}}'
+  python scripts/admin/council.py support P-3f9a2c
+  python scripts/admin/council.py session                               hold a session now (at most four model calls)
+  python scripts/admin/council.py undo P-3f9a2c"""
 import json
 import os
 import sys
@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv(".env")
 from inverse_core.team.council import Council  # noqa: E402
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # scripts/<group>/<this file> -> the checkout
 
 
 def main():

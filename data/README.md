@@ -12,4 +12,4 @@ seeds (numpy only): deterministic, reproducible, and small.
   injection guard withholds before any model sees it (`tests/test_guard.py`).
 
 Zetaris exposes these as `obs.equipment_table`, `obs.sensors_table`, `obs.maintenance_table` and `obs.*_samples`
-(`zetaris/sql/`, `scripts/setup_zetaris.py`). The crew only ever reads them.
+(`data/zetaris/`, `scripts/admin/setup_zetaris.py`). The crew only ever reads them.

@@ -1,9 +1,9 @@
-"""Benchmark the crew on checkable goals (bench/cases.yaml): run each goal as a mission, check the final answer, and record
+"""Benchmark the crew on checkable goals (scripts/measure/bench_cases.yaml): run each goal as a mission, check the final answer, and record
 how long it took, how many model calls and tokens it cost, and what the reviewer decided. Results land in
 docs/evidence/bench/<label>.json so two runs can be compared.
 
-  PYTHONPATH=core .venv/bin/python scripts/bench.py --label baseline [--only arithmetic,registry] [--collaborate auto|on|off] [--parallel 2]
-  PYTHONPATH=core .venv/bin/python scripts/bench.py --compare docs/evidence/bench/baseline.json docs/evidence/bench/tuned.json
+  PYTHONPATH=core .venv/bin/python scripts/measure/bench.py --label baseline [--only arithmetic,registry] [--collaborate auto|on|off] [--parallel 2]
+  PYTHONPATH=core .venv/bin/python scripts/measure/bench.py --compare docs/evidence/bench/baseline.json docs/evidence/bench/tuned.json
 
 A case passes when every expected item is in the answer (a number within 1 %, text as a case-insensitive substring) and at least
 one task was accepted; it is clean when no task failed. Stop Warden first, or its missions share the CPU with the benchmark."""
@@ -18,7 +18,7 @@ import time
 import yaml
 from dotenv import load_dotenv
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # scripts/<group>/<this file> -> the checkout
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
 
@@ -115,7 +115,7 @@ def compare(a, b):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--label", default=time.strftime("%Y%m%d-%H%M%S"))
-    ap.add_argument("--cases", default=os.path.join(ROOT, "bench", "cases.yaml"))
+    ap.add_argument("--cases", default=os.path.join(ROOT, "scripts", "measure", "bench_cases.yaml"))
     ap.add_argument("--only", default="", help="comma-separated case names")
     ap.add_argument("--collaborate", default="auto", choices=["auto", "on", "off"], help="experts review the plan: auto = only when it has 3 or more tasks")
     ap.add_argument("--parallel", type=int, default=2)

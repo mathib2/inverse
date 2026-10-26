@@ -1,11 +1,11 @@
-"""Send a test alert to the phone on every configured channel: python scripts/notify.py "text" [--urgent] [--url URL]"""
+"""Send a test alert to the phone on every configured channel: python scripts/admin/send_alert.py "text" [--urgent] [--url URL]"""
 import argparse
 import os
 import sys
 
 from dotenv import load_dotenv
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # scripts/<group>/<this file> -> the checkout
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
 

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Keep INVERSE watch mode running on this workstation from the live checkout (~/inverse-live), in tmux session "inverse-watch".
+# usage: inverse-watch start|stop|restart|status|log [n]|once
+# Install: cp scripts/inverse-watch ~/.local/bin/ && chmod +x ~/.local/bin/inverse-watch
+set -u
+LIVE="$HOME/inverse-live"
+S=inverse-watch
+mkdir -p "$HOME/logs"
+case "${1:-status}" in
+  start)
+    [ -f "$LIVE/scripts/watch.py" ] || { echo "no scripts/watch.py in $LIVE yet (deploy first)"; exit 1; }
+    if tmux has-session -t "$S" 2>/dev/null; then echo "$S already running"; exit 0; fi
+    tmux new-session -d -s "$S" "cd $LIVE && while true; do PYTHONPATH=core .venv/bin/python scripts/watch.py --interval \${WATCH_INTERVAL:-1800} >> $HOME/logs/watch.log 2>&1; echo \"\$(date -Is) watcher exited, restarting in 30s\" >> $HOME/logs/watch.log; sleep 30; done"
+    echo "$S started (tmux session $S; log $HOME/logs/watch.log)";;
+  stop) tmux kill-session -t "$S" 2>/dev/null && echo "$S stopped" || echo "$S was not running";;
+  restart) "$0" stop; sleep 1; "$0" start;;
+  status)
+    tmux has-session -t "$S" 2>/dev/null && echo "tmux: running" || echo "tmux: not running"
+    cd "$LIVE" && PYTHONPATH=core .venv/bin/python scripts/watch.py --status;;
+  log) tail -n "${2:-40}" "$LIVE/state/watch.log" 2>/dev/null || echo "no log yet";;
+  once) cd "$LIVE" && PYTHONPATH=core .venv/bin/python scripts/watch.py --once --force --verbose;;
+  *) echo "usage: $0 start|stop|restart|status|log [n]|once"; exit 2;;
+esac
