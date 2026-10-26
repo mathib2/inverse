@@ -66,7 +66,7 @@ def _begin(goal, ledger, sidecar):
     th, box = team._run_in_thread(mission)
     crew.LIVE["run"] = {"thread": th, "box": box, "holder": holder, "events": events, "ctx": ctx, "goal": goal, "t0": time.time()}
     crew._busy(True, goal)
-    ss.panel_pick = "Live"
+    ss.panel_next = "Live"                                                     # applied before the pills widget exists on the next run
     st.rerun()
 
 
@@ -79,7 +79,7 @@ def _collect():
                          "dir": ss.crew_dir, "took": last.get("took", ""), "stopped": bool(last.get("stopped"))})
         ss.panel_turn = ss.crew_dir
         if ss.get("panel_pick") == "Live":
-            ss.panel_pick = "Answer"
+            ss.panel_next = "Answer"
     if ss.get("crew_error"):
         err, equipment = ss.pop("crew_error")
         title, what = plain.error(err, equipment)
@@ -125,7 +125,7 @@ def _turn(t, configs):
         with st.container(horizontal=True, gap="small"):
             for label in ("Evidence", "Who did what", "Steps"):
                 if st.button(label, key=f"art_{t['dir']}_{label}", type="tertiary", icon=PANEL_ICONS[label]):
-                    st.session_state.panel_pick, st.session_state.panel_turn = label, t["dir"]
+                    st.session_state.panel_next, st.session_state.panel_turn = label, t["dir"]
                     st.rerun()
 
 
@@ -254,7 +254,12 @@ def _artifacts(ledger, sidecar, configs):
 
 def render(ledger, ai_online, sidecar, health=None):
     ss, configs = st.session_state, crew._configs()
+    ss.setdefault("panel_pick", "Answer")
+    if ss.get("panel_next"):                                                   # a widget key may only change before the widget is drawn
+        ss.panel_pick = ss.pop("panel_next")
     _collect()
+    if ss.get("panel_next"):
+        ss.panel_pick = ss.pop("panel_next")
     live_run = crew.LIVE.get("run")
     running = bool(live_run and live_run["thread"].is_alive())
     data_online = bool(health and health["data"]["ok"]) if health else True
