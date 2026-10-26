@@ -66,7 +66,8 @@ def deterministic(result):
     missing = asked_but_missing(task_goal(result), answer, sql)
     if missing:
         return "revise", "the task asks for " + "; ".join(f"{word} and the rows hold {col} = {val}" for word, col, val in missing[:3]) + "; say those values"
-    loose = unsupported_words(task_goal(result), answer, evidence) if len(task_goal(result).split()) >= 3 else []   # no task text, no judgement
+    plain_kinds = evidence and all(e.get("type") in ("sql", "calc", "step") for e in evidence)   # Scout's and Euler's answers: facts and arithmetic only
+    loose = unsupported_words(task_goal(result), answer, evidence) if plain_kinds and len(task_goal(result).split()) >= 3 else []
     if len(loose) >= 2 or (loose and len(answer.split()) <= 12):               # a short answer with one word from nowhere, or any answer with two
         return "revise", f"the word(s) {', '.join(loose[:4])} in the answer rest on nothing in the task or the evidence; say only what the evidence holds"
     try:
@@ -80,7 +81,10 @@ def deterministic(result):
 PLAIN = set("therefore because result results answer answers value values total number numbers means equals equal approximately about rows query "
             "queries record records found shows given provided using where which there these those their while after before since hence thus "
             "machine machines registry dataset datasets sensor sensors sample samples maintenance equipment newtons seconds percent according "
-            "respectively between within without around during through should would could might every other first second third".split())
+            "respectively between within without around during through should would could might every other first second third "
+            "returned returns computed calculated expected measured recorded stored listed reported contains includes matches equals "
+            "supported covered checked verified evidence queried selected counted rounded converted derived multiplied divided applied "
+            "assumed assuming expert experts created tested design designed converter summary findings finding reviewed weakness".split())
 
 
 def unsupported_words(goal, answer, evidence):
