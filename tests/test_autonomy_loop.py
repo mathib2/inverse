@@ -83,7 +83,7 @@ def _budget():
 
 def test_live_commands_and_tinker_signals(tmp_path, monkeypatch):
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui"))
-    import live
+    import live_ui as live
     import tinker
     assert live.command_of("veto auto/20261025-x") == "veto" and live.command_of("Approve auto/x") == "approve" and live.command_of("vetoing") is None
     assert live.command_of("What is the mass of P-104?") is None

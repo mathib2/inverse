@@ -113,8 +113,8 @@ def render(root, configs=None):
             c1, c2 = st.columns([5, 1])
             pick = c1.selectbox("A mission Warden ran", finished, format_func=lambda r: f"{r['when']} · {_why(r.get('trigger'))}", key="warden_pick", label_visibility="collapsed")
             if c2.button("Show it", key="warden_show", width="stretch"):
-                import team
-                if team._load_run(pick["dir"]):
+                import advanced_ui
+                if advanced_ui._load_run(pick["dir"]):
                     ss = st.session_state
                     ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = ss.team_out, ss.team_plan, ss.team_dir, ss.team_events, True
                     st.rerun(scope="app")

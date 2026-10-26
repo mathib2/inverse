@@ -1,5 +1,6 @@
-"""INVERSE UI (Streamlit, :8501). The Crew page is the default: give the agents a goal, watch them work, see what they do on
-their own. Advanced keeps the plan editor, the experts editor and the replay with traces. Wording lives in ui/plain.py."""
+"""INVERSE UI (Streamlit, :8501). The front page is a chat with the crew and a panel of artifacts (ui/chat_ui.py); the sidebar holds
+New chat, Recent missions, Connections, Memory and the Advanced view (ui/advanced_ui.py: plan editor, agent editor, replay with traces).
+The sign-in page (ui/auth.py) comes first when UI_PASSWORD_HASH is set. Wording lives in ui/plain.py, shared pieces in ui/parts.py."""
 import getpass
 import json
 import os
@@ -77,7 +78,7 @@ def confirm_reset():
 
 h = health()
 ai_online = h["ai"]["status"] == "online"
-import team  # noqa: E402
+import advanced_ui  # noqa: E402
 
 with st.sidebar:
     st.markdown("<div class='inv-brand'>INVERSE</div><div class='inv-tagline'>a crew of local AI agents</div>", unsafe_allow_html=True)
@@ -88,9 +89,9 @@ with st.sidebar:
         st.rerun()
     mode = st.segmented_control("View", ["Chat", "Advanced"], key="mode", default="Chat", label_visibility="collapsed", width="stretch") or "Chat"
     st.caption("Recent")
-    for r in team.saved_runs(limit=8):
+    for r in advanced_ui.saved_runs(limit=8):
         if st.button(r["goal"][:46] + ("…" if len(r["goal"]) > 46 else ""), key="recent_" + os.path.basename(r["dir"]), type="tertiary", help=f"{r['when']} · {r['goal']}"):
-            if team._load_run(r["dir"]):
+            if advanced_ui._load_run(r["dir"]):
                 turns = ss.setdefault("turns", [])
                 if all(t.get("dir") != ss.team_dir for t in turns):
                     turns.append({"goal": ss.team_plan.goal, "out": ss.team_out, "plan": ss.team_plan, "events": list(ss.team_events or []), "dir": ss.team_dir, "took": r["when"], "stopped": False})
@@ -115,7 +116,7 @@ with st.sidebar:
     auth.sign_out_button()
 
 if mode == "Advanced":
-    team.render(ledger, ai_online, SIDECAR, h)
+    advanced_ui.render(ledger, ai_online, SIDECAR, h)
     st.stop()
 
 import chat_ui  # noqa: E402

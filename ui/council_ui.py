@@ -104,13 +104,13 @@ def render(root, configs, ledger, sidecar):
     st.caption("The agents propose changes to their own crew; Vera and the agent concerned vote; a rule decides; everything can be undone.")
     last = s["sessions"][-1] if s["sessions"] else None
     if ss.pop("council_session", False):
-        import team
+        import advanced_ui
         from inverse_core.clients.world import WorldClient
         from inverse_core.clients.zetaris import ZetarisClient
         from inverse_core.team.build import build
         from inverse_core.team.lanes import Lanes
         try:
-            lead, ctx = build(ZetarisClient(), ledger, WorldClient(sidecar), root=team.ROOT, runs_dir=team.RUNS_DIR, lanes=Lanes())
+            lead, ctx = build(ZetarisClient(), ledger, WorldClient(sidecar), root=advanced_ui.ROOT, runs_dir=advanced_ui.RUNS_DIR, lanes=Lanes())
             with st.spinner(f"The council is in session: {crew_name('critic')} is voting…"):
                 rec = ctx.council.session(ctx, lead.registry, lead.memory, WorldClient(sidecar), reason="a person asked", by="human")
             st.success(f"Session of {_sid(rec['s'])}: {_decisions_line(rec)} · {rec.get('calls', 0)} model call(s)" + (f" · {rec['note']}" if rec.get("note") else ""))
@@ -144,7 +144,7 @@ def render(root, configs, ledger, sidecar):
             c1, c2 = st.columns([5, 1])
             pick = c1.selectbox("Undo an applied change", applied, format_func=lambda p: f"{p['id']} · {_about(p, configs)} · {p['w'][:60]}", key="undo_pick", label_visibility="collapsed")
             if c2.button("Undo it", width="stretch"):
-                import team
+                import advanced_ui
                 from inverse_core.budget import Budget
                 from inverse_core.team.lanes import Lanes
                 from inverse_core.team.llmcall import Ctx
@@ -152,8 +152,8 @@ def render(root, configs, ledger, sidecar):
                 from inverse_core.team.registry import Registry
                 from inverse_core.trace import Trace
                 try:
-                    ctx = Ctx(Lanes(), Trace(team.RUNS_DIR), Budget())
-                    reg = Registry(ctx, team.EXPERTS_DIR, team.ROOT)
+                    ctx = Ctx(Lanes(), Trace(advanced_ui.RUNS_DIR), Budget())
+                    reg = Registry(ctx, advanced_ui.EXPERTS_DIR, advanced_ui.ROOT)
                     ok = Council(root).revert(pick["id"], reg, memory=TeamMemory(ledger))
                     st.success("Undone." if ok else "Nothing to undo.")
                 except Exception as e:

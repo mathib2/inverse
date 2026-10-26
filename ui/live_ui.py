@@ -89,15 +89,6 @@ def send_box(root):
             st.toast("Queued for Warden")
 
 
-def render(root, configs):
-    st.markdown("## Live")
-    st.caption("What the agents say to each other, as they say it: missions, Warden's watch, the council, and Tinker working on the crew's own code and knowledge. "
-               "Newest at the bottom. Refreshes every three seconds.")
-    who = st.radio("Show", ["everyone", "missions", "Tinker", "Warden", "council", "alerts"], horizontal=True, key="live_filter", label_visibility="collapsed")
-    feed(root, configs, who)
-    send_box(root)
-
-
 def command_of(text):
     """'veto auto/...' -> 'veto'; 'approve ...' -> 'approve'; anything else -> None (a goal for Warden)."""
     low = str(text or "").strip().lower()

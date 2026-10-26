@@ -1,6 +1,6 @@
-"""Team-of-experts mode (Streamlit). Goal -> editable plan -> approve & run -> per-expert results, Critic verdicts, trace, cited answer.
-Experts are config: this page also edits them (saved to experts.local/, used by the next plan) and can keep an expert the lead created.
-Saved runs replay without a model. The single-machine page in app.py is unchanged and remains the fallback demo."""
+"""The Advanced view (sidebar: Advanced). Goal -> editable plan -> approve & run -> per-agent results, Vera's verdicts, the trace and
+the cited answer. Agents are config: this page also edits them (saved to experts.local/, used by the next plan) and can keep an
+agent Atlas created. Saved runs replay without a model; the front page's Recent list and its panels use saved_runs and _load_run."""
 import json
 import os
 import threading
@@ -9,7 +9,7 @@ import time
 import pandas as pd
 import streamlit as st
 
-import autonomy
+import warden_ui
 import parts
 import plain
 from inverse_core.clients.world import WorldClient
@@ -223,7 +223,7 @@ def render(ledger, ai_online, sidecar, health=None):
     with st.expander("Experts · customize the team", icon=":material/groups:"):
         experts_editor(lanes)
     with st.expander("Runs on its own · watch mode", icon=":material/autorenew:"):
-        autonomy.render(ROOT)
+        warden_ui.render(ROOT)
 
     st.markdown("### 1 · Goal and plan")
     cols = st.columns(len(EXAMPLES))

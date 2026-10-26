@@ -1,6 +1,6 @@
 """The front page: a conversation with the crew. You ask on the left; the right-hand panel holds the artifacts of the current
 answer (its evidence, who did what, the steps), the live feed of everything the agents say, the crew with what each one is
-working to fix, Warden, the council and the alerts sent to your phone. The running mission lives in crew.LIVE, so a click,
+working to fix, Warden, the council and the alerts sent to your phone. The running mission lives in LIVE below, so a click,
 a rerun or a page reload re-attaches to it instead of losing it. Wording lives in plain.py; nothing here edits plans or agents."""
 import json
 import os
@@ -8,25 +8,102 @@ import time
 
 import streamlit as st
 
-import autonomy
+import advanced_ui
 import council_ui
-import crew
-import live
+import live_ui
 import parts
 import plain
-import team
+import warden_ui
 from inverse_core import notify
 from inverse_core.clients.world import WorldClient
 from inverse_core.clients.zetaris import ZetarisClient
 from inverse_core.team import limits
 from inverse_core.team.build import build
-from inverse_core.team.crew import name as crew_name, roster
+from inverse_core.team.crew import CREW, name as crew_name, rename, roster
 from inverse_core.team.lanes import Lanes
+from inverse_core.team.registry import load_configs
 
-ROOT, RUNS_DIR = team.ROOT, team.RUNS_DIR
+ROOT, RUNS_DIR, EXPERTS_DIR = advanced_ui.ROOT, advanced_ui.RUNS_DIR, advanced_ui.EXPERTS_DIR
 PANELS = ["Answer", "Evidence", "Who did what", "Steps", "Live", "Crew", "Warden", "Council", "Alerts"]
 PANEL_ICONS = {"Answer": ":material/article:", "Evidence": ":material/fact_check:", "Who did what": ":material/groups:", "Steps": ":material/route:",
                "Live": ":material/podcasts:", "Crew": ":material/badge:", "Warden": ":material/visibility:", "Council": ":material/gavel:", "Alerts": ":material/notifications:"}
+EXAMPLES = [("What do we know about P-104?", "From the registry, the sensor specifications and the maintenance history, what do we know about P-104, and how much sensor data is there for it?"),
+            ("Check our own code", "Review core/inverse_core/team/tools.py for security weaknesses and propose the smallest fix for each verified finding."),
+            ("What do we know so far?", "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.")]
+
+LIVE = {}                                                                     # the one mission running in this process, shared by every browser session
+
+ENDED = {"task_failed", "task_rejected", "task_skipped"}
+
+def _configs():
+    try:
+        return load_configs(EXPERTS_DIR, Lanes())
+    except Exception:
+        return {}
+
+def _say(e, configs):
+    """One plain line per trace event, with the agents' names; None for events too technical to show."""
+    if e.get("kind") == "message":
+        if e.get("type") == "review":
+            return None
+        return f"{crew_name(e.get('from'), configs)} → {crew_name(e.get('to'), configs)}: {str(e.get('text') or '')[:140]}"
+    line = plain.team_step(e, agents=set(configs) | set(CREW))
+    if not line:
+        return None
+    line = line.replace("The lead", crew_name("lead")).replace("the lead", crew_name("lead")).replace("the reviewer", crew_name("critic"))
+    return rename(line, configs)                                              # roles first, then identifiers, so "The lead" never becomes "The Atlas"
+
+def _busy(on, goal=""):
+    """A flag Tinker reads: the crew page is running a mission, so the improvement loop waits instead of sharing the CPU."""
+    p = os.path.join(ROOT, "state", "ui_mission.json")
+    try:
+        if on:
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w") as f:
+                json.dump({"goal": goal[:200], "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "pid": os.getpid()}, f)
+        elif os.path.exists(p):
+            os.remove(p)
+    except OSError:
+        pass
+
+def _clock(t0, t1=None):
+    secs = int((t1 or time.time()) - t0)
+    return f"{secs // 60} min {secs % 60:02d} s" if secs >= 60 else f"{secs} s"
+
+def _label(live, configs):
+    """What the crew is doing right now, read from the trace: who is on which task, how many finished, for how long."""
+    ev, clock = live["events"][:], _clock(live["t0"])
+    if live.get("stopping"):
+        return f"Stopping: the step in progress finishes, nothing new starts · {clock}"
+    if any(e["kind"] == "composing" for e in ev):
+        return f"{crew_name('lead')} is writing the answer · {clock}"
+    approved = next((e for e in ev if e["kind"] == "plan_approved"), None)
+    if not approved:
+        return f"{crew_name('lead')} is planning · {clock}"
+    total = len(approved.get("tasks") or [])
+    ended = {e.get("task") for e in ev if e["kind"] in ENDED or (e["kind"] == "critic" and e.get("verdict") in ("accept", "unreviewed"))}
+    working = {}
+    for e in ev:
+        if e["kind"] == "delegate":
+            working[e.get("task")] = e.get("expert")
+    busy = [(t, x) for t, x in working.items() if t not in ended]
+    who = ", ".join(f"{crew_name(x, configs)} on {t}" for t, x in busy[-2:]) or f"{crew_name('critic')} is checking"
+    return f"{who} · {len(ended)} of {total} tasks finished · {clock}"
+
+def _ended(live):
+    """The mission is over: keep its answer for this browser session, remember how it ended, free the slot."""
+    ss = st.session_state
+    live.setdefault("t1", time.time())
+    if LIVE.get("run") is live:
+        LIVE.pop("run", None)
+    _busy(False)
+    box = live["box"]
+    if "err" in box:
+        ss.crew_error = (box["err"], live["ctx"].equipment)
+    elif live["holder"].get("plan") is not None:
+        ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = box["v"], live["holder"]["plan"], live["ctx"].trace.dir, list(live["events"]), False
+    ss.crew_last = {"stopped": bool(live.get("stopping")), "took": _clock(live["t0"], live["t1"])}
+
 
 
 def _turns():
@@ -63,15 +140,15 @@ def _begin(goal, ledger, sidecar):
         lead.run(plan, ctx.trace.dir, parallel=2)
         return lead.compose(plan, ctx.trace.dir)
 
-    th, box = team._run_in_thread(mission)
-    crew.LIVE["run"] = {"thread": th, "box": box, "holder": holder, "events": events, "ctx": ctx, "goal": goal, "t0": time.time()}
-    crew._busy(True, goal)
+    th, box = advanced_ui._run_in_thread(mission)
+    LIVE["run"] = {"thread": th, "box": box, "holder": holder, "events": events, "ctx": ctx, "goal": goal, "t0": time.time()}
+    _busy(True, goal)
     ss.panel_next = "Live"                                                     # applied before the pills widget exists on the next run
     st.rerun()
 
 
 def _collect():
-    """A mission that ended (crew._ended put it in session state) becomes the newest turn, once."""
+    """A mission that ended (_ended put it in session state) becomes the newest turn, once."""
     ss = st.session_state
     if ss.get("crew_out") is not None and ss.get("crew_dir") and all(t.get("dir") != ss.crew_dir for t in _turns()):
         last = ss.get("crew_last") or {}
@@ -92,16 +169,16 @@ def _running(live_run, configs):
 
     def body():
         c1, c2 = st.columns([5, 1])
-        c1.caption(crew._label(live_run, configs) if th.is_alive() else "Mission over")
+        c1.caption(_label(live_run, configs) if th.is_alive() else "Mission over")
         if c2.button("Stop", key="chat_stop", width="stretch", disabled=live_run.get("stopping", False), help="The step in progress finishes; nothing new starts."):
             live_run["stopping"] = True
             live_run["ctx"].stop.set()
-        lines = [s for s in (crew._say(e, configs) for e in live_run["events"][:]) if s]
+        lines = [s for s in (_say(e, configs) for e in live_run["events"][:]) if s]
         if lines:
             st.markdown("\n".join(f"- {s}" for s in lines[-8:]))
         if not th.is_alive():
             st.session_state.pending_goal = live_run["goal"]
-            crew._ended(live_run)
+            _ended(live_run)
             st.rerun(scope="app")
 
     st.fragment(run_every="2s" if th.is_alive() else None)(body)()
@@ -132,9 +209,9 @@ def _turn(t, configs):
 def _welcome(ledger, sidecar, enabled):
     st.markdown("#### What would you like the crew to find out?")
     st.caption("Eight agents on local models plan the work, look things up, compute, check each other and answer with evidence. Try one of these, or ask your own question below.")
-    pick = st.pills("Try one", [label for label, _ in crew.EXAMPLES], key="example_pick", label_visibility="collapsed", selection_mode="single", disabled=not enabled)
+    pick = st.pills("Try one", [label for label, _ in EXAMPLES], key="example_pick", label_visibility="collapsed", selection_mode="single", disabled=not enabled)
     if pick:
-        text = dict(crew.EXAMPLES)[pick]
+        text = dict(EXAMPLES)[pick]
         st.session_state.example_pick = None
         st.session_state.pending_goal = text
         _begin(text, ledger, sidecar)
@@ -158,7 +235,7 @@ def _evidence(t):
 
 def _who(t, configs):
     for task in t["plan"].tasks:
-        icon = team.ICON.get(task.status, "")
+        icon = advanced_ui.ICON.get(task.status, "")
         with st.expander(f"{icon} {crew_name(task.expert, configs)} · {task.id} · {task.status} · {task.attempts} attempt(s)", expanded=len(t["plan"].tasks) == 1):
             st.markdown(f"**Task:** {task.goal}")
             if task.result:
@@ -170,7 +247,7 @@ def _who(t, configs):
 
 
 def _steps(t, configs):
-    lines = [(e.get("t"), crew._say(e, configs)) for e in t.get("events") or []]
+    lines = [(e.get("t"), _say(e, configs)) for e in t.get("events") or []]
     lines = [(tt, s) for tt, s in lines if s]
     if not lines:
         st.caption("No steps were recorded for this answer.")
@@ -228,7 +305,7 @@ def _artifacts(ledger, sidecar, configs):
         panel = st.pills("Artifacts", PANELS, key="panel_pick", label_visibility="collapsed", selection_mode="single") or "Answer"
         t = _current()
         if panel in ("Answer", "Evidence", "Who did what", "Steps") and not (t and t.get("out")):
-            st.caption("The artifacts of an answer appear here once the crew has answered." if not crew.LIVE.get("run") else "The crew is working; the answer's artifacts appear here when it is done.")
+            st.caption("The artifacts of an answer appear here once the crew has answered." if not LIVE.get("run") else "The crew is working; the answer's artifacts appear here when it is done.")
             return
         if panel == "Answer":
             st.markdown(t["out"]["answer"])
@@ -245,11 +322,12 @@ def _artifacts(ledger, sidecar, configs):
             _steps(t, configs)
         elif panel == "Live":
             who = st.pills("Show", ["everyone", "missions", "Tinker", "Warden", "council", "alerts"], key="live_pick", default="everyone", label_visibility="collapsed") or "everyone"
-            live.feed(ROOT, configs, who, height=440)
+            live_ui.feed(ROOT, configs, who, height=440)
+            live_ui.send_box(ROOT)                                            # a goal for Warden, or 'veto auto/...' / 'approve auto/...' for Tinker
         elif panel == "Crew":
             _crew(configs)
         elif panel == "Warden":
-            autonomy.render(ROOT, configs)
+            warden_ui.render(ROOT, configs)
         elif panel == "Council":
             council_ui.render(ROOT, configs, ledger, sidecar)
         elif panel == "Alerts":
@@ -257,14 +335,14 @@ def _artifacts(ledger, sidecar, configs):
 
 
 def render(ledger, ai_online, sidecar, health=None):
-    ss, configs = st.session_state, crew._configs()
+    ss, configs = st.session_state, _configs()
     ss.setdefault("panel_pick", "Answer")
     if ss.get("panel_next"):                                                   # a widget key may only change before the widget is drawn
         ss.panel_pick = ss.pop("panel_next")
     _collect()
     if ss.get("panel_next"):
         ss.panel_pick = ss.pop("panel_next")
-    live_run = crew.LIVE.get("run")
+    live_run = LIVE.get("run")
     running = bool(live_run and live_run["thread"].is_alive())
     data_online = bool(health and health["data"]["ok"]) if health else True
     enabled = ai_online and data_online and not running
