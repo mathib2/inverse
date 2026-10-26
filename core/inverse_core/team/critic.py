@@ -10,6 +10,7 @@ import json
 import re
 
 from .llmcall import BadReply, ask
+from . import limits
 from .verify import claim_numbers, unverified_numbers
 
 SYSTEM = ("You are an adversarial reviewer. You get a task, an expert's answer and its evidence. Try to break the answer: "
@@ -199,6 +200,7 @@ def _read(j):
 class Critic:
     def __init__(self, ctx, lane="critic"):
         self.ctx, self.lane = ctx, lane
+        self.note = limits.note(getattr(ctx, "root", "."), "critic")          # what Vera is known to get wrong, and the aim to fix it
 
     def review(self, task, result):
         result["task_goal"] = task.goal                                       # the rules read what the task asked for
@@ -210,7 +212,7 @@ class Critic:
                    "not_checked": result.get("not_checked"),
                    "evidence": [{k: v for k, v in e.items() if k not in ("rows", "result")} | ({"rows": e["rows"][:8]} if isinstance(e.get("rows"), list) else {})
                                 for e in result.get("evidence") or [] if isinstance(e, dict)]}
-        messages = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": json.dumps(payload, default=str)}]
+        messages = [{"role": "system", "content": SYSTEM + self.note}, {"role": "user", "content": json.dumps(payload, default=str)}]
         read, model, calls = None, None, 0
         for attempt in (1, 2):                                                # a reply that cannot be read is asked for once more
             calls += 1

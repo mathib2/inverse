@@ -11,6 +11,8 @@ import plain
 CSS = """
 <style>
 .inv-muted{color:#9FB0CC;font-size:.9rem}
+[data-testid="stChatMessage"]{padding:.35rem .6rem;border-radius:12px}
+[data-testid="stBottom"] > div{max-width:1100px;margin:0 auto}
 @media (max-width:820px){h2{font-size:1.6rem}}
 </style>
 """

@@ -1,10 +1,13 @@
 """JSONL trace per run in runs/<timestamp>/trace.jsonl: inputs, prompts, model used, tool calls, validator results, timings."""
 import json, os, threading, time
 
+from . import chat
+
 
 class Trace:
     def __init__(self, root="runs", on_event=None):
         self.on_event = on_event
+        self.root = os.path.dirname(os.path.abspath(root))                    # the checkout: its state/chat.jsonl gets the plain lines
         self.dir = os.path.join(root, time.strftime("%Y%m%d-%H%M%S"))
         os.makedirs(self.dir, exist_ok=True)
         self.path = os.path.join(self.dir, "trace.jsonl")
@@ -20,4 +23,8 @@ class Trace:
                 f.write(json.dumps(e, default=str) + "\n")
         if self.on_event:
             self.on_event(e)
+        try:
+            chat.narrate(e, root_dir=self.root, run=os.path.basename(self.dir))
+        except Exception:                                                     # a chat line is never worth a failed mission
+            pass
         return e

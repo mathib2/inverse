@@ -9,6 +9,62 @@ import time
 
 MAX_TEXT = 600
 _lock = threading.Lock()
+NAMES = {"lead": "Atlas", "critic": "Vera", "watch": "Warden", "research": "Scout", "reasoning": "Euler", "solver": "Ada",
+         "vulnerability": "Sentinel", "architect": "Forge", "tinker": "Tinker"}
+QUIET = ("summary_by_code", "scout_numbers_dropped", "forge_by_rule", "sql_completed", "sql_pinned", "calc_nudge", "bare_answer", "critic_reask",
+         "stuck", "escalate", "tool_repeat")
+
+
+def _n(x):
+    return NAMES.get(str(x or ""), str(x or ""))
+
+
+def narrate(e, root_dir=None, run=None):
+    """A chat line for the trace events a person wants to see as they happen: the plan, the hand-outs, tool calls, results,
+    reviews, retries and the answer. None for the rest (model calls, timings). Messages between agents are written by the bus."""
+    k = e.get("kind")
+    who, to, kind, text = "lead", "all", "note", None
+    if k == "plan":
+        tasks = e.get("tasks") or []
+        text = ("Plan by rule: " if e.get("by") == "rule" else "Plan: ") + "; ".join(f"{t.get('id')} {_n(t.get('expert'))}: {str(t.get('goal') or '')[:80]}" for t in tasks[:5])
+    elif k == "plan_guard":
+        text = "Routing by rule: " + "; ".join(str(c) for c in (e.get("changes") or []))[:400]
+    elif k == "delegate":
+        who, to, kind = "lead", e.get("expert") or "all", "question"
+        text = f"{e.get('task')}: {str(e.get('goal') or '')[:160]}" if e.get("goal") else f"{e.get('task')} is yours"
+    elif k == "tool":
+        who, kind = e.get("agent") or "lead", "log"
+        err = e.get("error")
+        text = f"{e.get('tool')}({str(e.get('args') or '')[:140]})" + (f" -> {str(err)[:120]}" if err not in (None, "", "None") else "")
+    elif k == "expert_result":
+        who, kind = e.get("expert") or "lead", "result"
+        try:
+            conf = f"{float(e.get('confidence')):.2f}"
+        except (TypeError, ValueError):
+            conf = str(e.get("confidence"))
+        text = f"Finished {e.get('task')}: confidence {conf}, {e.get('evidence')} evidence item(s), {e.get('tool_calls') or 0} tool call(s)"
+    elif k == "critic":
+        who, to, kind = "critic", "lead", "review"
+        by = {"rule": "by rule", "code": "by code", "error": "unreviewed", "llm": "by judgement"}.get(str(e.get("by")), str(e.get("by") or ""))
+        text = f"{str(e.get('verdict') or '').upper()} {e.get('task')} ({by}): {str(e.get('reason') or '')[:220]}"
+    elif k == "retry":
+        text = f"{e.get('task')} goes back for attempt {e.get('next_attempt')}: {str(e.get('reason') or '')[:160]}"
+    elif k in ("task_failed", "task_rejected", "task_skipped"):
+        kind = "note" if k == "task_skipped" else "alert"
+        text = f"{e.get('task')} {k.split('_', 1)[1]}: {str(e.get('reason') or e.get('blocked_by') or '')[:160]}"
+    elif k == "composing":
+        kind, text = "log", "Writing the answer"
+    elif k == "compose":
+        kind = "result"
+        text = (f"Answer ready: {e.get('cited', 0)} citation(s)" + ("; composed by code" if e.get("fallback") else "")
+                + (f"; {e.get('unfinished')} task(s) unfinished" if e.get("unfinished") else ""))
+    elif k in QUIET:
+        who, kind = e.get("expert") or e.get("agent") or "lead", "log"
+        detail = {kk: vv for kk, vv in e.items() if kk not in ("kind", "t", "expert", "agent", "task")}
+        text = k.replace("_", " ") + (f" on {e.get('task')}" if e.get("task") else "") + (": " + json.dumps(detail, default=str)[:160] if detail else "")
+    if not text:
+        return None
+    return say(who, text, to=to, kind=kind, root_dir=root_dir, run=run)
 
 
 def root():

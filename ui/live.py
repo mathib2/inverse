@@ -35,15 +35,11 @@ def _line(m, configs):
             f"<b style='color:{color}'>{name}</b><span style='color:#9FB0CC'>{arrow}</span> {KIND.get(m.get('kind'), '')} <span>{text}</span></div>")
 
 
-def render(root, configs):
-    ss = st.session_state
-    st.markdown("## Live")
-    st.caption("What the agents say to each other, as they say it: missions, Warden's watch, the council, and Tinker working on the crew's own code and knowledge. "
-               "Newest at the bottom. Refreshes every three seconds.")
-    who = st.radio("Show", ["everyone", "missions", "Tinker", "Warden", "council", "alerts"], horizontal=True, key="live_filter", label_visibility="collapsed")
+def feed(root, configs, who="everyone", height=None):
+    """The chat, filtered, refreshing itself every three seconds, with Tinker's heartbeat above it."""
 
     @st.fragment(run_every="3s")
-    def feed():
+    def body():
         lines = chat.tail(300, root)
         if who == "Tinker":
             lines = [m for m in lines if m.get("who") == "tinker"]
@@ -67,9 +63,14 @@ def render(root, configs):
         if not lines:
             st.info("Nothing said yet. Give the crew a goal, or wait for Warden's next cycle.")
             return
-        st.markdown("<div style='max-height:60vh;overflow-y:auto;padding-right:6px'>" + "".join(_line(m, configs) for m in lines) + "</div>", unsafe_allow_html=True)
+        box = f"max-height:{height}px" if height else "max-height:60vh"
+        st.markdown(f"<div style='{box};overflow-y:auto;padding-right:6px'>" + "".join(_line(m, configs) for m in lines) + "</div>", unsafe_allow_html=True)
 
-    feed()
+    body()
+
+
+def send_box(root):
+    """A goal for Warden, or 'veto auto/...' / 'approve auto/...' for Tinker."""
     c1, c2 = st.columns([5, 1])
     text = c1.text_input("Say something to the crew", key="live_say", placeholder="A goal for the crew (Warden starts it within a minute); 'veto auto/…' or 'approve auto/…' answers Tinker", label_visibility="collapsed")
     if c2.button("Send", width="stretch", disabled=not text.strip()):
@@ -86,6 +87,15 @@ def render(root, configs):
                 f.write(json.dumps({"goal": text.strip(), "by": "live", "ts": time.strftime("%Y-%m-%dT%H:%M:%S")}) + "\n")
             chat.say("you", text.strip(), kind="question", root_dir=root)
             st.toast("Queued for Warden")
+
+
+def render(root, configs):
+    st.markdown("## Live")
+    st.caption("What the agents say to each other, as they say it: missions, Warden's watch, the council, and Tinker working on the crew's own code and knowledge. "
+               "Newest at the bottom. Refreshes every three seconds.")
+    who = st.radio("Show", ["everyone", "missions", "Tinker", "Warden", "council", "alerts"], horizontal=True, key="live_filter", label_visibility="collapsed")
+    feed(root, configs, who)
+    send_box(root)
 
 
 def command_of(text):
