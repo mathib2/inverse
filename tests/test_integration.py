@@ -3,15 +3,16 @@ import os
 import shutil
 import signal
 import subprocess
+import tempfile
 import time
 
 import pytest
 import requests
+from dotenv import load_dotenv
 
-from inverse_core import ledger as L
-from inverse_core.clients.zetaris import ZetarisClient
-
-import tempfile
+load_dotenv()                                                                 # ZETARIS_API_KEY decides whether the live tests run
+from inverse_core import ledger as L  # noqa: E402
+from inverse_core.clients.zetaris import ZetarisClient  # noqa: E402
 
 
 def zetaris_up():

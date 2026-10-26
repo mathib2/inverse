@@ -5,6 +5,7 @@ import os
 import shutil
 import signal
 import subprocess
+import tempfile
 import time
 
 import pytest
@@ -17,7 +18,6 @@ from inverse_core.team.expert import ExpertBudget, Task
 from inverse_core.team.memory import TeamMemory
 from inverse_core.team.vulnerability import VulnerabilityExpert
 
-import tempfile
 from fakes import events, make_ctx, repo
 
 
