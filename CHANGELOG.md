@@ -3,6 +3,11 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## A benchmark, faster missions, fewer failed tasks, and the agents measured (2026-10-25)
+- `scripts/bench.py` + `bench/cases.yaml`: eight checkable goals, pass/clean/seconds/calls/tokens per case, results under `docs/evidence/bench/`; `scripts/probe.py`: each agent alone on its own questions, marked 0-10; `scripts/warmup.py` warms the model server's prefix cache. Write-ups: `docs/BENCH.md`, `docs/AGENT_REPORT.md`.
+- Speed: reply caps per call, the composer skipped for one or two short results (cited by code), Scout answering in one conversation, smaller tool results and a lazy fold, plan review only for three or more tasks, `prompt_too_long` traced. Rounds 7 and 8: 7 of 8 goals in about 370 s against 4 of 8 in 588 s at the start.
+- Effectiveness, by code where code can decide: a value-annotated SQL schema with examples; a rejected query is evidence with the platform's message; a column the task asks for is added to the query; row values the answer leaves out ride along, cited; a routing guard on every model plan (`plan_guard`); the reviewer judges quotes against evidence values, sends back "not available" with the rows, a number from nowhere, and an asked value left out, and retries a model's reject once; a calc that names a quantity is resolved from the context; a clean scan is answered by code; a summary starts from the shared memory; a repeated tool call ends the loop by code; chunked reviews in JSON.
+
 ## Sign-in page (2026-10-25)
 - `ui/auth.py`: with `UI_PASSWORD_HASH` in `.env` (written by `scripts/set_password.py`, a salted PBKDF2 hash, never the password), the UI shows a sign-in page first; a signed cookie keeps a device signed in for a week; **Sign out** in the sidebar revokes it; a wrong password slows the next try. Phone access through the tailnet is documented in the README.
 

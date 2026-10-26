@@ -103,6 +103,28 @@ mission it starts is only as good as the planner, and it runs standing missions 
    (no unreadable replies, no re-asks), then a measured trial of `nemotron-3-nano:4b` (pulled, never loaded) against this same
    probe set, which is the only fair way to decide whether a newer Nemotron is smarter on this CPU.
 
+## After three batches of fixes (the same evening)
+
+Every item in the list above that could be a rule was made one, in three batches, each measured by the same probes and one
+benchmark round (`docs/evidence/probe/probe3.json`, `probe4.json`; `docs/BENCH.md` rounds 9 and 10).
+
+| agent | before | after | what moved it | what still fails |
+|---|---|---|---|---|
+| Scout | 8.5 (acc 6.7) | 10.0 (acc 10) | the ids are listed when the task says which; a named sensor is selected by its id | nothing in the probes |
+| Vera | 8.1 (acc 5.7) | 10.0 (acc 10) | a number from nowhere, an asked value left out, a phrase from nowhere: all rules | nothing in the probes; she is now mostly rules with a model behind them |
+| Sentinel | 10.0 | 10.0 | unchanged | one of three probes exercises the model |
+| Euler | 8.1 (acc 6.7) | 9.5 (acc 10) | an empty answer is asked once more; names in a calc resolved from the context | one unverified number on the cube root (a text step) |
+| Ada | 6.6 (acc 2.5) | 8.9 (acc 7.5) | facts and consultations fetched by code; a bare word is not an answer; a computation ends with the calculator | the total across two datasets: she had both counts and answered 9.81 |
+| Atlas | 8.3 (raw 4/6) | 8.3 (raw 4/6) | nothing on the raw planner; the guard makes missions 8 of 8 right-expert | a summary to Euler, a computation to Scout alone: the guard's two most frequent repairs |
+| Forge | 5.5 (never planned in) | 5.5 (planned in, built by rule) | the guard plans it in; when it loops, a rule builds the expert from a template and the work goes on | the architect's own loop still fails; the template expert answered the Earth weight, not the Moon's |
+
+The benchmark went from 7 of 8 (rounds 7 to 9) to **8 of 8, all clean, in 405 s** (round 10): the two-part registry question
+passed once Scout carried the whole goal and listed the ids. One run is one run; the next failure will show up in a trace.
+
+What is left is the model's own judgement, which no rule reaches: Atlas routing a summary to the arithmetic agent in its raw
+plan, Ada adding two numbers she has in front of her, Forge designing an expert without looping. Those three are where a
+better 4B model (the newer Nemotron, measured by this same probe set) or structured outputs would pay, and nothing else would.
+
 ## How to re-measure
 
 ```bash

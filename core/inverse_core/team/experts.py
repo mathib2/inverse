@@ -37,7 +37,7 @@ class BaseExpert:
 QUERY_MAX_TOKENS, ANSWER_MAX_TOKENS, STEPS_MAX_TOKENS = 300, 500, 700         # reply caps per call: three short SELECTs, one answer, at most five steps
 SCHEMA = """Tables (Zetaris, read-only; always the obs. prefix; text values in single quotes; no semicolon):
 obs.equipment_table(equipment_id text like 'P-104' or 'T-200', name text, mass_kg number, baseline_dataset text: a dataset id or the text 'none', current_dataset text)
-obs.sensors_table(sensor_id text like 'P104-DISP-1', equipment_id text, quantity text: 'x' is displacement and 'v' is velocity, unit text, sigma number = the noise level, sampling_hz number = the sampling rate)
+obs.sensors_table(sensor_id text like 'P104-DISP-1': a sensor named in the task is selected by sensor_id, equipment_id text, quantity text: 'x' is displacement and 'v' is velocity, unit text, sigma number = the noise level, sampling_hz number = the sampling rate)
 obs.maintenance_table(record_id text like 'M-001', equipment_id text, date text 'YYYY-MM-DD', note text)
 obs.p104_baseline_samples, obs.p104_current_samples, obs.trap_current_samples(dataset_id text, t number in seconds, x number, v number): use COUNT(*), MIN, MAX or AVG on these, never SELECT *.
 Examples of the dialect: SELECT COUNT(*) AS n FROM obs.p104_baseline_samples | SELECT sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = 'P-104' AND quantity = 'x' | SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date | SELECT equipment_id FROM obs.equipment_table WHERE baseline_dataset = 'none'"""
@@ -53,6 +53,34 @@ CONCEPTS = [                                                                  # 
     (re.compile(r"\b(notes?|what was done|work|summary|describ\w*)\b", re.I), "maintenance_table", "note"),
 ]
 _SELECT = re.compile(r"^\s*SELECT\s+(?P<cols>.+?)\s+FROM\s+obs\.(?P<table>\w+)(?P<rest>.*)$", re.I | re.S)
+
+
+IDS_WORDS = re.compile(r"\b(which|what are (?:their|the) (?:ids?|names?)|list (?:them|the (?:machines|sensors|records)))\b", re.I)
+ID_COLUMN = {"equipment_table": "equipment_id", "sensors_table": "sensor_id", "maintenance_table": "record_id"}
+_COUNT_ONLY = re.compile(r"^\s*SELECT\s+COUNT\(\*\)(?:\s+AS\s+\w+)?\s+FROM\s+obs\.(\w+)(.*)$", re.I | re.S)
+
+
+SENSOR_ID = re.compile(r"\b[A-Z]\d{3}-[A-Z]{3,4}-\d\b")
+
+
+def pin_sensor(sql, goal):
+    """A query on the sensors table for a task that names a sensor ('T200-DISP-1') selects it by sensor_id; a filter the model guessed
+    (equipment and quantity) is replaced, because a guessed quantity finds nothing. Returns (sql, pinned id or None)."""
+    ids = SENSOR_ID.findall(goal or "")
+    if not ids or "obs.sensors_table" not in (sql or "").lower() or "sensor_id" in (sql or "").lower():
+        return sql, None
+    head = re.split(r"\sWHERE\s", sql, maxsplit=1, flags=re.I)[0].rstrip()
+    tail = re.search(r"\s(ORDER\s+BY\s.*|LIMIT\s.*)$", sql, re.I | re.S)
+    return f"{head} WHERE sensor_id = '{ids[0]}'" + (" " + tail.group(1).strip() if tail else ""), ids[0]
+
+
+def widen_count(sql, goal):
+    """'which machines' answered with COUNT(*) alone: the ids are asked for too, so a second query lists them. Returns the extra
+    query or None."""
+    m = _COUNT_ONLY.match(sql or "")
+    if not m or not IDS_WORDS.search(goal or "") or m.group(1).lower() not in ID_COLUMN:
+        return None
+    return f"SELECT {ID_COLUMN[m.group(1).lower()]} FROM obs.{m.group(1)}{m.group(2)}"
 
 
 def complete_columns(sql, goal):
@@ -121,7 +149,13 @@ class ResearchExpert(BaseExpert):
         q = ask(self.ctx, self.lane, [{"role": "system", "content": sys1}, {"role": "user", "content": self._task_text(task)}],
                 self.name, budget, json_reply=True, max_tokens=QUERY_MAX_TOKENS)
         models, evidence, rows_all = [q["model"]], [], []
-        for sql in q["json"].get("queries", [])[:3]:
+        queries = list(q["json"].get("queries", []))[:3]
+        for sql in list(queries):
+            extra = widen_count(sql, task.goal)
+            if extra and extra not in queries and len(queries) < 4:
+                queries.append(extra)
+                self.ctx.trace.event("sql_widened", expert=self.name, task=task.id, sql=extra[:160])
+        for sql in queries:
             try:
                 sql = check_sql(sql)
             except UnsafeSQL as e:
@@ -130,6 +164,9 @@ class ResearchExpert(BaseExpert):
             sql, added = complete_columns(sql, task.goal)
             if added:                                                                 # the task asked for these too; the model left them out
                 self.ctx.trace.event("sql_completed", expert=self.name, task=task.id, added=added, sql=sql[:160])
+            sql, pinned = pin_sensor(sql, task.goal)
+            if pinned:
+                self.ctx.trace.event("sql_pinned", expert=self.name, task=task.id, sensor=pinned, sql=sql[:160])
             budget.charge_tool()
             cache = getattr(self.ctx, "sql_cache", None)
             try:
@@ -283,7 +320,17 @@ class ReasoningExpert(BaseExpert):
             models.append(r["model"])
             j = r["json"]
             ev, bad = self._check(j.get("steps", []), task.context)
-        answer = str(j.get("answer") or "")
+        answer = str(j.get("answer") or "").strip()
+        if not answer or answer.lower() in ("none", "null", "error", "n/a"):      # a number or nothing where a sentence was due: once more, by code
+            self.ctx.trace.event("bare_answer", agent=self.name, answer=answer[:60])
+            msgs += [{"role": "assistant", "content": r["text"]}, {"role": "user", "content": 'Your "answer" was empty. Write the answer as one sentence with the number in it, in the same JSON shape.'}]
+            r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
+            models.append(r["model"])
+            j = r["json"]
+            ev2, bad2 = self._check(j.get("steps", []), task.context)
+            if ev2:
+                ev, bad = ev2, bad2
+            answer = str(j.get("answer") or "").strip()
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
         not_checked = [f"unresolved: {b}" for b in bad] + ["steps without arithmetic are the model's reasoning, not machine-verified"]
         res = require_evidence(ExpertResult(answer, ev, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))

@@ -34,7 +34,7 @@ def test_a_numeric_or_null_answer_is_retried_not_a_crash(tmp_path):
     ctx = make_ctx(tmp_path / "runs", lambda m, msgs: next(replies) if msgs[0]["content"].startswith("You are the Reasoning") else json.dumps({"verdict": "accept", "reason": "ok"}))
     t = Task("T1", "weight", "reasoning")
     lead_for(ctx)._execute(t)
-    assert t.status == "done" and t.attempts == 2 and "not text" in events(ctx, "expert_error")[0]["error"]   # null: asked again
+    assert t.status == "done" and t.attempts == 1 and events(ctx, "bare_answer")                              # null: the expert itself asks once more
     assert t.result["answer"] == "122.625"                                                                          # a number: kept as text
 
 

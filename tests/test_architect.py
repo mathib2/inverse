@@ -101,13 +101,15 @@ def test_task_for_an_expert_the_architect_never_created_fails_clearly(tmp_path):
             return json.dumps({"answer": "I could not design it", "created": [], "confidence": 0.2, "assumptions": [], "not_checked": ["the need"]})
         if sys.startswith("You are an adversarial reviewer"):
             return json.dumps({"verdict": "accept", "reason": "honest"})
+        if sys.startswith("You are ghost_expert"):                                          # the expert a rule built when the architect did not
+            return json.dumps({"tool": "calc", "args": {"expr": "1+1"}, "why": "x"}) if "tool_result" not in messages[-1]["content"] else                 json.dumps({"answer": "ghost says 2", "confidence": 0.8, "assumptions": [], "not_checked": []})
         raise AssertionError(sys[:40])
     ctx = make_ctx(tmp_path / "runs", script)
     lead = Lead(ctx, team(ctx), TeamMemory(InMemoryLedger()))
     plan = Plan("g", [Task("T1", "make it", "architect"), Task("T2", "use it", "ghost_expert", ["T1"])])
     lead.run(plan, str(tmp_path))
-    assert plan.tasks[0].status == "done" and plan.tasks[1].status == "failed" and "architect task did not create it" in plan.tasks[1].feedback
-    assert not events(ctx, "expert_created")
+    assert plan.tasks[0].status == "done" and plan.tasks[1].status == "done" and plan.tasks[1].result["answer"] == "ghost says 2"
+    assert events(ctx, "forge_by_rule")[0]["name"] == "ghost_expert" and events(ctx, "expert_created")[0]["name"] == "ghost_expert"   # built by rule, traced
 
 
 def test_only_an_architect_may_hold_architect_tools(tmp_path):
