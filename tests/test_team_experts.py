@@ -142,7 +142,7 @@ def test_unparseable_reply_is_traced_and_the_retry_asks_for_one_json_object(tmp_
         seen.append(messages[-1]["content"])
         if len(seen) == 1:
             return "I think the answer is 42, roughly."                        # no JSON at all
-        return json.dumps({"steps": [{"claim": "the answer is 42", "calc": None, "expect": None}], "answer": "42", "confidence": 0.9, "assumptions": []})
+        return json.dumps({"steps": [{"claim": "the answer is forty-two", "calc": None, "expect": None}], "answer": "42", "confidence": 0.9, "assumptions": []})   # a number in prose would now be sent back
     ctx = make_ctx(tmp_path / "runs", flaky)
     lead = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), TeamMemory(InMemoryLedger()), max_attempts=3)
     lead.critic.review = lambda task, result: {"verdict": "accept", "reason": "", "by": "rule"}

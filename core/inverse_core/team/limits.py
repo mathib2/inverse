@@ -59,7 +59,7 @@ def all_known(root):
 def note(root, agent, known=None):
     """The standing note for one agent's system prompt, or '' when nothing is known against it."""
     lines = (known if known is not None else all_known(root)).get(agent) or []
-    if not lines:
+    if not lines or os.environ.get("LIMITS_NOTE", "").lower() in ("off", "0", "no"):   # LIMITS_NOTE=off: measure an agent without its note
         return ""
     return ("\nKNOWN LIMITATIONS, from your own measurements (your standing aim is to remove them):\n" + "\n".join(f"- {ln}" for ln in lines)
             + "\nBefore you finish, check your answer against each of these. When a rule of the crew would prevent one, propose it.")

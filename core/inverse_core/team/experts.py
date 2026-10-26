@@ -64,7 +64,7 @@ SENSOR_ID = re.compile(r"\b[A-Z]\d{3}-[A-Z]{3,4}-\d\b")
 
 
 QUANTITY_WORDS = re.compile(r"\b(displacement|velocity|disp|vel|quantity)\b|'[xv]'", re.I)
-_QFILTER = re.compile(r"\s+AND\s+quantity\s*=\s*'[^']*'|\bWHERE\s+quantity\s*=\s*'[^']*'\s+AND\s+|\s+WHERE\s+quantity\s*=\s*'[^']*'", re.I)
+_QFILTER = re.compile(r"\s+AND\s+quantity\s*=\s*'[^']*'|\s+WHERE\s+quantity\s*=\s*'[^']*'\s+AND\s+|\s+WHERE\s+quantity\s*=\s*'[^']*'", re.I)
 
 
 def unfilter_quantity(sql, goal):
