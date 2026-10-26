@@ -138,6 +138,8 @@ def probe_mark(agent):
 
 def say(text, kind="log", **extra):
     chat.say("tinker", text, kind=kind, root_dir=ROOT, **extra)
+    if os.path.isdir(LIVE) and os.path.realpath(LIVE) != os.path.realpath(ROOT):   # the Live tab reads the live checkout's chat
+        chat.say("tinker", text, kind=kind, root_dir=LIVE, **extra)
     print(time.strftime("%H:%M:%S"), text[:160], flush=True)
 
 
@@ -214,7 +216,7 @@ def cycle():
                         sent = notify.notify(text, title="INVERSE needs your approval", urgent=True, url=url)
                         say(text + f" {url}", kind="alert", url=url, notified=sent)
                         try:
-                            Council(ROOT).file({"k": "code", "t": "repo", "w": f"merge {branch}: {item[:100]}", "y": "tests pass in the sandbox; a person approves the merge"}, by="tinker")
+                            Council(LIVE if os.path.isdir(LIVE) else ROOT).file({"k": "code", "t": "repo", "w": f"merge {branch}: {item[:100]}", "y": "tests pass in the sandbox; a person approves the merge"}, by="tinker")   # the task card where the page shows it
                         except Exception:
                             pass
                     sh(["git", "checkout", "-q", "lab"])
