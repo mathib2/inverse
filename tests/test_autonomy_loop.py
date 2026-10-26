@@ -102,4 +102,8 @@ def test_tinker_knows_where_each_item_lives():
     path, excerpt = tinker.place_of("Scout must answer the whole question.")
     assert path.endswith("experts.py") and "def complete_columns" in excerpt
     assert tinker.place_of("something about nothing")[0] == "prompts/research.md"
+    path, excerpt = tinker.place_of("Atlas must route right in the raw plan")                      # a phrase of the item wins over the agent map
+    assert path.endswith("lead.py") and "PLAN_SYSTEM = " in excerpt.splitlines()[0]
+    path, excerpt = tinker.place_of("Scout must not add a filter the task did not ask for")
+    assert path.endswith("experts.py") and "def pin_sensor" in excerpt.splitlines()[0]
 
