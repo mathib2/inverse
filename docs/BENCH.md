@@ -49,6 +49,8 @@ in under a second. Everything below follows from those three numbers: fewer call
 | 12 | 7/8 | 7 | 507 | 4.8 | a one-task plan carries the goal verbatim, placeholder tasks are refused, plain arithmetic goes to Euler, a lookup that feeds a computation is rewritten as a lookup, and numbers Scout states that the rows do not contain are replaced by the row values (the arithmetic case: 37 s and 3 calls; the summary case failed: Ada reported zero confidence three times on a memory of ten refuted findings) |
 | 13 | 7/8 | 7 | 496 | 4.8 | a summary the model doubts, or leaves empty, is read out of the memory by code (`summary_by_code`); the digest fired, and the number rule refused it: a finding cut at "2026-09" read as minus nine on the evidence side |
 | 14 | 8/8 | 8 | 548 | 5.5 | a hyphen after a digit is a separator on the evidence side too, and evidence numbers carry no sign, as claim numbers never did; the second fully passing round, on the deployed code (b2250af), with Tinker and Warden stopped |
+| nano | stopped | | | | `nemotron-3-nano:4b` on every lane (26 Oct): the arithmetic case took 130 s against 31 s, so the round was stopped; a newer 4B is not faster on this CPU |
+| hosted | 7/8 | 7 | 893 | 7.4 | the sponsor's hosted Nemotron through the tunnel (26 Oct, `MODEL_PROVIDER=nightshift`, served by `nemotron-3-ultra-550b`): a 40-token request answers in 2 s, but the whole benchmark is slower than local round 14 because the big model writes five times more (146k prompt + 14.8k completion tokens against 37k + 3k) and the pipeline makes more calls; the code case alone took 409 s and 15 calls; the summary case failed by rule twice. Not adopted |
 
 The failures that remained longest, and what decided them:
 
@@ -69,6 +71,14 @@ The failures that remained longest, and what decided them:
   rewritten as "look up the values; the computation is another task's", and when Scout's answer states numbers the rows do not
   contain, the code-made row values become the answer (`scout_numbers_dropped`): Scout and Vera agree by construction instead of
   after three refusals.
+
+## Bigger is not faster here
+
+Two measurements on 26 October settle the "use something bigger" question for this machine. A newer 4B (`nemotron-3-nano`) is four
+times slower per case on the CPU. The sponsor's hosted 550B answers a short request in two seconds, yet the full benchmark through it
+took 893 s against 548 s locally: the hosted model generates far more text per call and the mission makes more calls, and the
+benchmark measures missions, not tokens. The crew stays on the local 4B; the levers that moved the benchmark were always fewer calls
+and shorter replies, and they would apply to a hosted model too.
 
 ## What the research said, and what was kept
 
