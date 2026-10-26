@@ -139,3 +139,11 @@ def test_tinker_gate_reads_changed_lines_and_skips_merged_items(monkeypatch):
     assert tinker.pick(["A", "B"], state) == "B"                                                          # a merged item is not picked again
     assert tinker.pick(["A"], state) == "A"                                                               # unless nothing else is left
     assert tinker.test_file_for("Euler must compute roots and powers with the calculator").endswith(os.path.join("backlog_tests", "test_euler_must_compute_roots_and_powers_with.py"))
+
+def test_tinker_merges_only_a_measured_improvement_against_a_real_baseline(monkeypatch):
+    import tinker
+    assert tinker.mergeable(True, None) and tinker.mergeable(False, True) and not tinker.mergeable(False, None) and not tinker.mergeable(False, False)
+    monkeypatch.setattr(tinker, "latest_probes", lambda: {"forge": {"rating": {"score": 5.5}}})
+    assert tinker.baseline("forge", {"marks": {}}) == 5.5 and tinker.baseline("forge", {"marks": {"forge": 7.0}}) == 7.0     # a no-op that drops forge to 3.5 is now caught
+    assert tinker.baseline("nobody", {}) is None
+
