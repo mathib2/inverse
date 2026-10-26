@@ -3,6 +3,13 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## The repository reorganized: what's where (2026-10-26, evening)
+- Code, one module per agent: `team/research.py` (Scout), `team/reasoning.py` (Euler), `team/sql_guard.py` (from `team/experts.py`); `team/vulnerability.py` (Sentinel, from `team/custom.py`, which keeps Ada); `team/watch.py` (Warden, from `core/inverse_core/watch.py`); `core/inverse_core/injection_guard.py` (from `agents/guard.py`); `team/council_wire.py` (from `team/wire.py`). No behaviour changes.
+- Page modules named after what the sidebar shows: `ui/advanced_ui.py` (was `team.py`), `ui/warden_ui.py` (was `autonomy.py`), `ui/live_ui.py` (was `live.py`); the dead old crew page is gone and its live helpers live in `ui/chat_ui.py`. The Live panel has the veto and approve box again, which Tinker's phone alert points to.
+- Scripts by role: the services at the top of `scripts/`, plus `deploy-live` and `inverse-watch`, which existed only on the workstation; `scripts/measure/` and `scripts/admin/` (`notify.py` is `send_alert.py`); the data platform's SQL in `data/zetaris/`.
+- Documents: current reference at the top of `docs/`, `docs/operations/`, `docs/hackathon/`, `docs/archive/`; `docs/README.md` and the README say what's where.
+- Tests: one file per agent or subsystem, the same 188 tests; shared helpers in `tests/fakes.py`.
+
 ## Agents that get things done, and take turns (2026-10-26, afternoon)
 - The conflicts the logs showed, fixed at their cause: a tool ignores arguments it does not take (the model's `why` inside `args` had crashed Ada's queries); Sentinel's answer carries no number the evidence lacks (a code-made count sent the daily code review back three times until it ran out of time); the same rule objection twice ends a task; a question about the crew ("what are you capable of") is answered from its records with no model call (it had taken 27 calls and 431 s and failed); Warden reviews code four files at a time, changed files first, every six hours.
 - Turns on the one CPU (`core/inverse_core/team/gate.py`): people and benchmarks first, Warden second, Tinker last, before every model call; markers carry their pid so a crash never blocks anyone.
