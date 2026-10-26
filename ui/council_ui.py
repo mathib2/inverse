@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from inverse_core.missions import load_missions
-from inverse_core.team import wire
+from inverse_core.team import council_wire as wire
 from inverse_core.team.council import Council
 from inverse_core.team.crew import CREW, name as crew_name
 

@@ -10,12 +10,11 @@ import re
 
 import yaml
 
-from . import architect, custom, limits
+from . import architect, custom, limits, reasoning, research, vulnerability
 from .expert import ExpertBudget
-from .experts import KINDS as BUILTIN
 from .tools import Tools
 
-KINDS = {**BUILTIN, **custom.KINDS, **architect.KINDS}
+KINDS = {**research.KINDS, **reasoning.KINDS, **custom.KINDS, **vulnerability.KINDS, **architect.KINDS}
 TOOL_NAMES = set(Tools.SPECS)
 ARCHITECT_TOOLS = set(architect.ArchitectTools.SPECS)              # only an architect may hold these
 BUDGET_KEYS = {"tool_calls", "tokens", "seconds"}

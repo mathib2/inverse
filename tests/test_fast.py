@@ -56,7 +56,7 @@ def test_an_answer_the_rows_prove_is_accepted_without_a_model_review(tmp_path):
 
 
 def test_a_task_that_asks_for_the_records_gets_every_row():
-    from inverse_core.team.experts import unlimit_list
+    from inverse_core.team.research import unlimit_list
     goal = "List the maintenance records for P-104 with their dates and what was done."
     sql = "SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date DESC LIMIT 1"
     assert unlimit_list(sql, goal) == ("SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date DESC", True)
@@ -80,7 +80,7 @@ def test_a_digest_is_read_out_of_the_memory_without_a_model_call(tmp_path):
 
 def test_four_flaws_the_review_found(tmp_path, monkeypatch):
     from inverse_core.team import lead as L, tools as T
-    from inverse_core.team.experts import pin_sensor
+    from inverse_core.team.research import pin_sensor
     ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
     assert T.Tools(ctx, [], owner="x").allowed == [] and "calc" in T.Tools(ctx, None, owner="x").allowed              # an empty list is no tools
     assert L.CALC_WORDS.search("What does the pump weigh?") and L.CALC_WORDS.search("how much it weighs")              # weigh, weighs, weighed

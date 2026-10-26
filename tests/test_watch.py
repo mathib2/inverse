@@ -3,7 +3,7 @@ import json
 import os
 
 from inverse_core.clients.zetaris import SAMPLE_VIEWS
-from inverse_core.watch import Watcher, data_goal
+from inverse_core.team.watch import Watcher, data_goal
 
 
 class FakeZ:

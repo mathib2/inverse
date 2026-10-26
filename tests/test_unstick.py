@@ -9,7 +9,7 @@ import sys
 from inverse_core.team.expert import ExpertBudget, Task
 from inverse_core.team.lead import ABOUT_US
 from inverse_core.team.tools import Tools
-from inverse_core.watch import review_files
+from inverse_core.team.watch import review_files
 from test_council import crew, events
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))

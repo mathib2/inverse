@@ -5,7 +5,7 @@ import time
 
 from inverse_core.team.crew import CREW, name, rename, roster, who
 from inverse_core.team.registry import load_configs
-from inverse_core.watch import Watcher
+from inverse_core.team.watch import Watcher
 from test_watch import FakeTeam, FakeZ
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

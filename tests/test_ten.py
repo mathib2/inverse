@@ -9,7 +9,7 @@ import sys
 from inverse_core import digest, notify
 from inverse_core.team import lead as L
 from inverse_core.team.expert import ExpertBudget, Task
-from inverse_core.team.experts import unfilter_quantity
+from inverse_core.team.research import unfilter_quantity
 from inverse_core.trace import Trace
 from test_council import crew, events
 

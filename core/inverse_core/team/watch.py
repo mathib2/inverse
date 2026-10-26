@@ -13,13 +13,13 @@ import os
 import threading
 import time
 
-from . import chat, digest
+from .. import chat, digest
 import subprocess
 import traceback
 
 import requests
 
-from .clients.zetaris import SAMPLE_VIEWS
+from ..clients.zetaris import SAMPLE_VIEWS
 
 KEEP_RUNS = 50
 

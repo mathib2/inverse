@@ -12,9 +12,9 @@ from inverse_core.clients.markovian import ensure_marker
 from inverse_core.ledger import InMemoryLedger
 from inverse_core.team import critic as C
 from inverse_core.team.architect import ArchitectTools
-from inverse_core.team.custom import VulnerabilityExpert
+from inverse_core.team.vulnerability import VulnerabilityExpert
 from inverse_core.team.expert import ExpertBudget, Task
-from inverse_core.team.experts import UnsafeSQL, check_sql
+from inverse_core.team.sql_guard import check_sql, UnsafeSQL
 from inverse_core.team.lead import Lead
 from inverse_core.team.memory import TeamMemory
 from inverse_core.team.plan import Plan

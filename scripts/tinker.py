@@ -25,12 +25,13 @@ sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
 
 from inverse_core import chat, notify  # noqa: E402
-from inverse_core.agents import guard  # noqa: E402
+from inverse_core import injection_guard as guard  # noqa: E402
 from inverse_core.budget import Budget  # noqa: E402
 from inverse_core.ledger import SidecarLedger  # noqa: E402
 from inverse_core.team.council import Council  # noqa: E402
 from inverse_core.team import critic as C  # noqa: E402
-from inverse_core.team.custom import CustomExpert, VulnerabilityExpert  # noqa: E402
+from inverse_core.team.custom import CustomExpert  # noqa: E402
+from inverse_core.team.vulnerability import VulnerabilityExpert
 from inverse_core.team.llmcall import ask  # noqa: E402
 from inverse_core.team.expert import ExpertBudget, Task  # noqa: E402
 from inverse_core.team import gate  # noqa: E402
@@ -64,17 +65,17 @@ ENGINEER_PROMPT = ("You are Tinker, the crew's improvement engineer, in the engi
                    "finish with an answer that starts with 'no safe change:' followed by the reason in your own words.")
 PLACES = {                                                                    # where each kind of item lives: the file and a word that finds the region
     "vera": ("core/inverse_core/team/critic.py", "def deterministic"), "atlas": ("core/inverse_core/team/lead.py", "def _guard"),
-    "scout": ("core/inverse_core/team/experts.py", "def complete_columns"), "euler": ("core/inverse_core/team/experts.py", "class ReasoningExpert"),
-    "ada": ("core/inverse_core/team/custom.py", "def _loop"), "sentinel": ("core/inverse_core/team/custom.py", "class VulnerabilityExpert"),
+    "scout": ("core/inverse_core/team/research.py", "def complete_columns"), "euler": ("core/inverse_core/team/reasoning.py", "class ReasoningExpert"),
+    "ada": ("core/inverse_core/team/custom.py", "def _loop"), "sentinel": ("core/inverse_core/team/vulnerability.py", "class VulnerabilityExpert"),
     "forge": ("core/inverse_core/team/lead.py", "def _forge_by_rule"), "prompt": ("prompts/research.md", ""),
 }
 REGIONS = [                                                                   # a phrase of the item -> the file and the region, looked up before the agent map
     ("raw plan", "core/inverse_core/team/lead.py", "PLAN_SYSTEM = "),
     ("two counts", "core/inverse_core/team/custom.py", "every dataset the registry names"),
     ("template expert", "core/inverse_core/team/lead.py", "def _forge_by_rule"),
-    ("roots and powers", "core/inverse_core/team/experts.py", "def _check"),
-    ("a filter", "core/inverse_core/team/experts.py", "def pin_sensor"),
-    ("around each scan hit", "core/inverse_core/team/custom.py", "class VulnerabilityExpert"),
+    ("roots and powers", "core/inverse_core/team/reasoning.py", "def _check"),
+    ("a filter", "core/inverse_core/team/research.py", "def pin_sensor"),
+    ("around each scan hit", "core/inverse_core/team/vulnerability.py", "class VulnerabilityExpert"),
 ]
 
 

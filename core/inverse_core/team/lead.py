@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from ..budget import BudgetExceeded
 from .bus import Bus
 from .critic import Critic
-from .custom import scope_check
+from .vulnerability import scope_check
 from .crew import roster
 from .expert import ExpertBudget, ExpertResult, Task
 from .llmcall import BadReply, ask

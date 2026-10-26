@@ -7,7 +7,7 @@ import time
 
 from inverse_core.budget import Budget
 from inverse_core.ledger import InMemoryLedger
-from inverse_core.team import council as CO, wire
+from inverse_core.team import council as CO, council_wire as wire
 from inverse_core.team.expert import ExpertBudget, Task
 from inverse_core.team.lanes import DEFAULTS as NEMOTRON_LANES, Lanes
 from inverse_core.team.lead import Lead

@@ -6,7 +6,8 @@ import pytest
 from inverse_core.budget import Budget, BudgetExceeded
 from inverse_core.ledger import InMemoryLedger
 from inverse_core.team import critic as C
-from inverse_core.team.experts import UnsafeSQL, check_sql, safe_eval
+from inverse_core.team.sql_guard import check_sql, UnsafeSQL
+from inverse_core.team.reasoning import safe_eval
 from inverse_core.team.expert import ExpertBudget, ExpertResult, NoEvidence, Task, require_evidence
 from inverse_core.team.lanes import DEFAULTS as NEMOTRON_LANES, Lanes
 from inverse_core.team.lead import Lead

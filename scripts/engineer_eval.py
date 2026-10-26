@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 sys.path.insert(0, os.path.join(ROOT, "core"))
 
 import tinker  # noqa: E402  (sets INVERSE_SANDBOX to this checkout and loads .env)
-from inverse_core.agents import guard  # noqa: E402
+from inverse_core import injection_guard as guard  # noqa: E402
 from inverse_core.budget import Budget  # noqa: E402
 from inverse_core.ledger import SidecarLedger  # noqa: E402
 from inverse_core.team.custom import CustomExpert  # noqa: E402

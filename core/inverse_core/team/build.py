@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from ..agents import guard
+from .. import injection_guard as guard
 from ..budget import Budget
 from ..clients.markovian import MarkovianClient
 from ..trace import Trace

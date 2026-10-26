@@ -108,7 +108,7 @@ def test_a_phrase_that_rests_on_nothing_is_sent_back():
     assert C.deterministic(res) is None                                                                              # ordinary phrasing is not a phrase from nowhere
 
 def test_a_sensor_named_in_the_task_is_selected_by_its_id():
-    from inverse_core.team.experts import pin_sensor
+    from inverse_core.team.research import pin_sensor
     goal = "What are the noise level and the sampling rate of sensor T200-DISP-1?"
     assert pin_sensor("SELECT sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = 'T-200' AND quantity = 'v'", goal) == \
         ("SELECT sigma, sampling_hz FROM obs.sensors_table WHERE sensor_id = 'T200-DISP-1'", "T200-DISP-1")

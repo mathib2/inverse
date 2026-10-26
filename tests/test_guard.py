@@ -1,8 +1,8 @@
 """The injection guard: text that reads as instructions for a model is withheld from every row and column before any model sees it."""
 import os
 
-from inverse_core.agents import guard
-from inverse_core.team.experts import UnsafeSQL, check_sql
+from inverse_core import injection_guard as guard
+from inverse_core.team.sql_guard import check_sql, UnsafeSQL
 
 import pytest
 

@@ -9,7 +9,8 @@ from test_team import events, make_ctx
 from inverse_core.budget import BudgetExceeded
 from inverse_core.ledger import InMemoryLedger
 from inverse_core.team import critic as C
-from inverse_core.team.custom import CustomExpert, VulnerabilityExpert, scope_check
+from inverse_core.team.custom import CustomExpert
+from inverse_core.team.vulnerability import scope_check, VulnerabilityExpert
 from inverse_core.team.expert import ExpertBudget, Task
 from inverse_core.team.lead import Lead
 from inverse_core.team.memory import TeamMemory
@@ -219,7 +220,7 @@ def test_run_survives_a_failing_reviewer_and_a_failing_writer(tmp_path):
 
 
 def test_sql_guard_rejects_comma_joins_and_other_schemas():
-    from inverse_core.team.experts import UnsafeSQL, check_sql
+    from inverse_core.team.sql_guard import check_sql, UnsafeSQL
     assert check_sql("SELECT s.t FROM obs.p104_current_samples s JOIN obs.equipment_table e ON e.equipment_id = 'P-104'")
     assert check_sql("SELECT * FROM obs.equipment_table AS e, obs.sensors_table sp")
     for bad in ["SELECT * FROM obs.equipment_table, other.hidden", "SELECT * FROM obs.equipment_table JOIN secrets ON 1=1",

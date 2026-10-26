@@ -15,7 +15,7 @@ from test_team_experts import repo
 
 from inverse_core.clients.markovian import MarkovianClient, checkpoint, content_of, ensure_marker
 from inverse_core.ledger import InMemoryLedger
-from inverse_core.team.custom import VulnerabilityExpert
+from inverse_core.team.vulnerability import VulnerabilityExpert
 from inverse_core.team.expert import ExpertBudget, Task
 from inverse_core.team.memory import TeamMemory
 

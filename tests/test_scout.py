@@ -30,7 +30,7 @@ def test_a_rejected_query_is_evidence_and_the_reviewer_names_it(tmp_path):
 
 
 def test_the_schema_the_agents_see_names_the_values_and_the_dialect():
-    from inverse_core.team.experts import SCHEMA
+    from inverse_core.team.sql_guard import SCHEMA
     from inverse_core.team.tools import Tools
     assert "'none'" in SCHEMA and "'x' is displacement" in SCHEMA and "WHERE equipment_id = 'P-104'" in SCHEMA
     t = Tools.__new__(Tools)                                                                       # describe() needs only the allowed list
@@ -102,7 +102,7 @@ def test_a_value_the_rows_contain_is_never_not_available():
     assert C.deterministic(res) is None
 
 def test_a_query_that_forgets_a_column_the_task_asks_for_gets_it_added():
-    from inverse_core.team.experts import complete_columns
+    from inverse_core.team.research import complete_columns
     goal = "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?"
     sql, added = complete_columns("SELECT sigma FROM obs.sensors_table WHERE equipment_id = 'P-104' AND quantity = 'x'", goal)
     assert sql == "SELECT sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = 'P-104' AND quantity = 'x'" and added == ["sampling_hz"]
@@ -131,7 +131,7 @@ def test_a_lenient_ask_returns_none_instead_of_raising_on_an_unreadable_reply(tm
     assert out["json"] is None and out["text"] == "no json here" and events(ctx, "llm_parse_error")
 
 def test_values_the_answer_leaves_out_ride_along_from_the_rows():
-    from inverse_core.team.experts import ResearchExpert
+    from inverse_core.team.research import ResearchExpert
     ran = [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"sigma": "0.01", "sampling_hz": "100"}]}]
     assert ResearchExpert._facts(ran, "0.01") == "Rows: sigma = 0.01, sampling_hz = 100 [Q1]"
     assert ResearchExpert._facts(ran, "The noise level is 0.01 and the rate is 100 Hz.") == ""                     # nothing left out
@@ -172,14 +172,14 @@ def test_two_short_results_are_composed_by_code(tmp_path):
 
 def test_every_agent_exposes_the_system_prompt_a_warm_up_sends(tmp_path):
     from inverse_core.team import critic as CR
-    from inverse_core.team.experts import SCHEMA
+    from inverse_core.team.sql_guard import SCHEMA
     ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
     assert "Experts:" in lead.plan_system() and "research" in lead.plan_system()
     assert SCHEMA in lead.registry.experts["research"].system() and "steps" in lead.registry.experts["reasoning"].system()
     assert "TOOLS:" in lead.registry.experts["solver"].system() and CR.SYSTEM.startswith("You are an adversarial reviewer")
 
 def test_a_calc_that_names_a_quantity_is_resolved_from_the_accepted_results():
-    from inverse_core.team.experts import ReasoningExpert
+    from inverse_core.team.reasoning import ReasoningExpert
     ctx = "[T1] 9.81. Rows: mass_kg = 1.0 [Q1]"
     assert ReasoningExpert.resolve("calc(mass_kg * 9.81)", ctx) == "1.0 * 9.81"
     assert ReasoningExpert.resolve("sqrt(mass_kg) + pi", ctx) == "sqrt(1.0) + pi"
@@ -221,7 +221,7 @@ def test_euler_is_asked_once_more_when_its_answer_is_empty_and_scout_lists_ids_w
     ctx, lead = crew(tmp_path, lambda m, msgs: next(replies))
     res = ctx.registry.experts["reasoning"].run(Task("T1", "12.5 kg times 9.81", "reasoning"), lead.memory, ExpertBudget())
     assert res.answer == "The weight is 122.625 N." and events(ctx, "bare_answer") and len(events(ctx, "llm")) == 2
-    from inverse_core.team.experts import widen_count
+    from inverse_core.team.research import widen_count
     assert widen_count("SELECT COUNT(*) AS n FROM obs.equipment_table", "How many machines are in the registry, and what are their ids?") == "SELECT equipment_id FROM obs.equipment_table"
     assert widen_count("SELECT COUNT(*) FROM obs.equipment_table", "How many machines are there?") is None
     assert widen_count("SELECT equipment_id FROM obs.equipment_table", "Which machines are there?") is None
