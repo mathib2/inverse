@@ -6,7 +6,7 @@ submitted. Rated on 25 October against what a judge sees in the first ten minute
 | criterion | mark | why |
 |---|---|---|
 | Innovation | 8 | Agents that propose changes to their own crew in a tiny wire protocol, decided by rule in bounded sessions with undo, is a real idea and it runs. The checkable reviewer (quotes judged by code) and the plan guard are the kind of reasoning-architecture choices the track asks for. |
-| Technical | 8 | Fully local, no cloud, every number in an answer checked against a tool result, replayable missions, 135 tests, a benchmark and per-agent probes with written-up rounds. The 4B model's own judgement is the weak link, and the write-ups say so instead of hiding it. |
+| Technical | 8.5 | Fully local, no cloud, every number in an answer checked against a tool result, replayable missions, 142 tests, a benchmark (8 of 8 goals in round 10) and per-agent probes with written-up rounds. The 4B model's own judgement is the weak link, and the write-ups say so instead of hiding it. |
 | Product and UX | 7 | One page, one box, plain sentences with the agents' names, a live view that survives a reload, a Stop button, a sign-in page, phone access. No screenshots in the README yet; the council section still needs a judge to read a caption. |
 | Demo | 5 | No video and no deck exist yet. The demo script is replay-first and the saved missions are good, so the material is ready; the recording is not. This mark decides the result more than any other. |
 | Impact | 7 | The pitch is sharp: a small team with data it cannot send to a cloud and no API budget gets a crew that checks its data, reviews its code and keeps a memory. The impact statement sits in the README; the submission form still needs it in its own words. |

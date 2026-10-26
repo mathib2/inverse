@@ -44,6 +44,7 @@ in under a second. Everything below follows from those three numbers: fewer call
 | 7 | 7/8 | 7 | 365 | 4.5 | a calc that names a quantity resolved from the context; a clean scan answered by code; summaries start from the shared memory |
 | 8 | 7/8 | 7 | 383 | 4.5 | a repeated tool call ends the loop by code (the same seven passes twice in a row: the gain holds; the registry case is the known remaining failure) |
 | 9 | 7/8 | 7 | 513 | 4.6 | the second batch from the agent report: Ada's facts and consultations by code, a bare word is not an answer, Forge planned in when the goal says the crew lacks something, a phrase from nowhere sent back (the summary case took 242 s: Ada writes long from a full memory) |
+| 10 | 8/8 | 8 | 405 | 4.6 | the third batch: a computation ends with the calculator, a named sensor selected by its id, the ids listed when the task says which, the expert the architect did not build is built by rule; the first fully passing round |
 
 The failures that remained longest, and what decided them:
 
