@@ -9,6 +9,8 @@ import os
 import threading
 import time
 
+from .. import chat
+
 MAX_TEXT = 600
 
 
@@ -31,6 +33,9 @@ class Bus:
                     f.write(json.dumps(m, default=str) + "\n")
         if self.trace is not None:
             self.trace.event("message", **{k: v for k, v in m.items() if k != "ts"})
+        if self.run_dir:                                                      # the one chat log of the checkout (runs/<ts> -> the root)
+            chat.say(m["from"], m["text"], to=m["to"], kind=m["type"], root_dir=os.path.dirname(os.path.dirname(os.path.realpath(self.run_dir))),
+                     task=task, run=os.path.basename(os.path.normpath(self.run_dir)))
         return m
 
     def inbox(self, name, limit=8):

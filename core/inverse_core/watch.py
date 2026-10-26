@@ -12,6 +12,8 @@ import json
 import os
 import threading
 import time
+
+from . import chat
 import traceback
 
 import requests
@@ -88,6 +90,7 @@ class Watcher:
         line = f"{_now()} {msg}"
         with open(self.log_path, "a") as f:
             f.write(line + "\n")
+        chat.say("warden", msg, kind="log", root_dir=self.root)
         if self._print:
             self._print(line)
 

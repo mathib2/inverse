@@ -23,7 +23,7 @@ Open Agent Hackathon 2026 · Track 03 (Reasoning Architecture) · Zetaris + Mete
  findings → shared memory (Meterless H-MEM, trust order) · proposals → the council · every step → runs/<ts>/, replayable
 ```
 
-**Read next:** [The crew](docs/CREW.md) · [The council](docs/COUNCIL.md) · [On its own](docs/agent/AUTONOMY.md) · [Local models](docs/agent/LOCAL_MODELS.md) · [Sponsor technology](docs/SPONSORS.md) · [Evidence: real missions and a council session](docs/evidence/) · [Demo script](docs/DEMO_SCRIPT.md) · [Submission](docs/SUBMISSION.md) · [The benchmark](docs/BENCH.md) · [How smart are the agents](docs/AGENT_REPORT.md) · [Improvement plan](docs/IMPROVEMENT_PLAN.md) · [Changelog](CHANGELOG.md)
+**Read next:** [The crew](docs/CREW.md) · [The council](docs/COUNCIL.md) · [On its own](docs/agent/AUTONOMY.md) · [Local models](docs/agent/LOCAL_MODELS.md) · [Sponsor technology](docs/SPONSORS.md) · [Evidence: real missions and a council session](docs/evidence/) · [Demo script](docs/DEMO_SCRIPT.md) · [Submission](docs/SUBMISSION.md) · [The benchmark](docs/BENCH.md) · [How smart are the agents](docs/AGENT_REPORT.md) · [The crew works on itself](docs/AUTONOMY_LOOP.md) · [Improvement plan](docs/IMPROVEMENT_PLAN.md) · [Changelog](CHANGELOG.md)
 
 **Why it matters.** A small engineering or operations team with one workstation, data it cannot send to a cloud and no budget for API credits still needs to know what its data says, whether its own code has holes, and what it has already ruled out. INVERSE gives that team a crew that works unattended on that workstation: it checks the data when it changes, reviews the repository every day, keeps a memory with a trust order, answers with citations or says plainly what it could not check, and improves its own configuration through a council that people can read and undo. Every decision is a file a person can replay. `docs/evidence/` holds real missions and a real council session.
 
@@ -61,6 +61,8 @@ Any agent can propose a change to the crew at no cost, inside the JSON it alread
 ## On its own
 
 `scripts/watch.py` is Warden. Each cycle (every `WATCH_INTERVAL` seconds, 30 minutes by default) it runs queued goals first (`queue/goals.jsonl`, the crew page's box, or `--queue "..."`), then the standing missions in `missions.yaml` whose interval has passed (a data check every 12 hours, a code review and a memory digest every 24 hours), then one mission per machine whose sensor data changed. Every run has a manifest; a run interrupted by a crash is marked and its goal re-queued once; the memory sidecars are restarted if they stop answering. Nothing acts on equipment or writes to the data platform. On the workstation: `~/.local/bin/inverse-watch start|stop|status|log`.
+
+**Tinker** (`scripts/tinker.py`, `docs/AUTONOMY_LOOP.md`) works on the crew's own code and knowledge around the clock, in a sandbox copy of the repository: it picks the next item of the crew's improvement list, researches it on the web, makes the smallest change, runs the tests and the probe of the agent concerned, and, only when nothing got worse, pushes a branch and asks a person to approve the merge by phone (free channels: ntfy push, Telegram, carrier SMS). The **Live** mode of the page is one chat of everything the agents say, refreshed every three seconds.
 
 ## Memory with a trust order
 
