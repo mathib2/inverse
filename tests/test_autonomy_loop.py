@@ -29,7 +29,7 @@ def test_the_chat_log_keeps_what_everyone_says_and_the_bus_writes_to_it(tmp_path
 
 
 def test_notify_sends_nothing_without_a_channel(monkeypatch):
-    for k in ("NTFY_TOPIC", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SMTP_HOST", "SMTP_USER", "SMTP_PASS", "NOTIFY_SMS_TO"):
+    for k in ("NTFY_TOPIC", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SMTP_HOST", "SMTP_USER", "SMTP_PASS", "NOTIFY_SMS_TO", "TEXTBELT_TO"):
         monkeypatch.delenv(k, raising=False)
     assert notify.channels() == [] and notify.notify("x") == []
     monkeypatch.setenv("NTFY_TOPIC", "inverse-test")
