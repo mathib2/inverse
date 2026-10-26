@@ -188,8 +188,16 @@ def revert():
 
 
 def changed_files():
+    """The paths git reports as changed or new, outside KEEP. Porcelain lines are 'XY path' (a rename: 'R  old -> new'); the first
+    line may have lost its leading space to a strip, so the status is taken as the first token, never as a fixed width."""
     rc, out = sh(["git", "status", "--porcelain"])
-    files = [ln[3:].strip() for ln in out.splitlines() if ln.strip()]
+    files = []
+    for ln in out.splitlines():
+        parts = ln.strip().split(None, 1)
+        if len(parts) != 2:
+            continue
+        path = parts[1].split(" -> ")[-1].strip().strip('"')
+        files.append(path)
     return [f for f in files if not any(f.startswith(k) for k in KEEP)]
 
 

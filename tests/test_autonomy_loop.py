@@ -121,3 +121,8 @@ def test_tinker_has_an_engineer_lane_that_env_can_point_at_a_coder_model(monkeyp
     lanes = tinker.lanes_for_tinker()
     assert lanes.model("engineer") == "qwen2.5-coder:7b" and lanes.model("deep") == "nemotron-mini:latest"       # the crew's lanes are untouched
 
+def test_changed_files_reads_porcelain_even_when_the_first_line_lost_its_leading_space(monkeypatch):
+    import tinker
+    monkeypatch.setattr(tinker, "sh", lambda cmd, **kw: (0, "M core/inverse_core/team/lead.py\n?? docs/x.md\nR  a.py -> b.py\n?? runs/20261025/trace.jsonl"))
+    assert tinker.changed_files() == ["core/inverse_core/team/lead.py", "docs/x.md", "b.py"]
+

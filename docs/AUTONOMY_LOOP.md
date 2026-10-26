@@ -60,7 +60,10 @@ words, and `edit_file` forgives line numbers copied from the excerpt. With that 
 | qwen2.5-coder:7b | **4 of 4** | 55 | 3.0 |
 
 `qwen2.5-coder:7b` is the engineer now (`TINKER_ENGINEER_MODEL` in the workstation's `.env`); a minute per edit fits the
-cycle's 25-minute bound with room for the tests and the probe. BACKLOG_RESULT
+cycle's 25-minute bound with room for the tests and the probe. On the six real backlog items (`eng3-backlog-coder7b.json`) the
+7B applied an edit four times in 150 s per item: one (Euler's self-check) left the whole suite green and would have gone on to the
+probe, three broke tests and were reverted, two could not be applied. That is the loop working as designed: candidates in, the
+gates deciding; and it is why the gates, not the model, are what make the loop safe.
 
 ## The Live tab
 
