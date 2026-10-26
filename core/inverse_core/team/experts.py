@@ -204,6 +204,9 @@ class ResearchExpert(BaseExpert):
             answer = (answer.rstrip(" .") + ". " if answer.strip() else "") + facts
             self.ctx.trace.event("answer_facts", expert=self.name, task=task.id, facts=facts[:200])
         bad = unverified_numbers(answer, payload)
+        if bad and self._facts(ran, ""):                                              # the model stated numbers the rows do not contain: the rows speak instead, by code, and Vera has nothing to refuse
+            self.ctx.trace.event("scout_numbers_dropped", expert=self.name, task=task.id, numbers=bad[:6], said=answer[:200])
+            answer, bad = self._facts(ran, ""), []
         not_checked = [f"numbers in the answer not found in the rows: {bad}"] if bad else []
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
         res = require_evidence(ExpertResult(answer, evidence, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))

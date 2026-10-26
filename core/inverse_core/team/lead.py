@@ -179,6 +179,10 @@ class Lead:
             deps = [t.id for t in plan.tasks]
             plan.tasks.append(Task(f"T{len(plan.tasks) + 1}", f"Using the accepted results from the earlier tasks, answer this in plain words: {plan.goal}", "reasoning", deps))
             changes.append(f"{plan.tasks[-1].id}: reasoning added (the goal asks for a computation)")
+        for t in plan.tasks:                                                      # a computation in Scout's own task tempts the model to compute, and the numbers it makes up are refused three times
+            if t.expert == "research" and CALC_WORDS.search(t.goal) and any(o.expert in ("reasoning", "solver") for o in plan.tasks if o is not t):
+                t.goal = f"Look up the values this needs and report them exactly as the queries return them; the computation is another task's: {goal}"
+                changes.append(f"{t.id}: Scout looks up only (the computation is another task's)")
         if LACK_WORDS.search(plan.goal) and self.creators() and not any(t.expert in self.creators() for t in plan.tasks) and len(plan.tasks) < 5:
             arch = self.creators()[0]                                          # the goal says the crew lacks something: Forge builds it first, the work waits for it
             need = re.sub(r"\W+", "_", re.sub(r"\?.*$", "", plan.goal.lower()))[:24].strip("_") or "new"
