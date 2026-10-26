@@ -57,6 +57,8 @@ def test_sandbox_tools_refuse_outside_the_sandbox_and_fetch_refuses_this_machine
     out = t.call("edit_file", {"path": "notes_tinker_test.md", "old": "two", "new": "three"}, _budget(), who="tinker")
     assert out["edited"] == "notes_tinker_test.md" and open(os.path.join(t.root, "notes_tinker_test.md")).read() == "one three\n"
     assert "exactly once" in t.call("edit_file", {"path": "notes_tinker_test.md", "old": "zzz", "new": "y"}, _budget(), who="tinker")["error"]
+    out = t.call("edit_file", {"path": "notes_tinker_test.md", "old": "1: one three", "new": "1: one four"}, _budget(), who="tinker")   # line numbers copied from the excerpt
+    assert out["edited"] == "notes_tinker_test.md" and open(os.path.join(t.root, "notes_tinker_test.md")).read() == "one four\n"
     assert "text files" in t.call("write_file", {"path": "x.bin", "content": "y"}, _budget(), who="tinker")["error"]
     os.remove(os.path.join(t.root, "notes_tinker_test.md"))
 
@@ -108,4 +110,19 @@ def test_tinker_knows_where_each_item_lives():
     assert path.endswith("experts.py") and "def pin_sensor" in excerpt.splitlines()[0]
     report = "## List\n\n1. **Vera must x.** Where: `critic.py`,\n   the rule. Measured by her probe.\n2. **Atlas must y**: in `lead.py`.\n\nDone since: all.\n"
     assert tinker.details(report) == {"Vera must x.": "Where: `critic.py`, the rule. Measured by her probe.", "Atlas must y": "in `lead.py`."}
+
+def test_tinker_has_an_engineer_lane_that_env_can_point_at_a_coder_model(monkeypatch):
+    import tinker
+    monkeypatch.setenv("NEMOTRON_MODEL", "nemotron-mini:latest")
+    monkeypatch.delenv("TINKER_ENGINEER_MODEL", raising=False)
+    monkeypatch.delenv("LANE_DEEP", raising=False)
+    assert tinker.lanes_for_tinker().model("engineer") == tinker.lanes_for_tinker().model("deep") == "nemotron-mini:latest"
+    monkeypatch.setenv("TINKER_ENGINEER_MODEL", "qwen2.5-coder:7b")
+    lanes = tinker.lanes_for_tinker()
+    assert lanes.model("engineer") == "qwen2.5-coder:7b" and lanes.model("deep") == "nemotron-mini:latest"       # the crew's lanes are untouched
+
+def test_changed_files_reads_porcelain_even_when_the_first_line_lost_its_leading_space(monkeypatch):
+    import tinker
+    monkeypatch.setattr(tinker, "sh", lambda cmd, **kw: (0, "M core/inverse_core/team/lead.py\n?? docs/x.md\nR  a.py -> b.py\n?? runs/20261025/trace.jsonl"))
+    assert tinker.changed_files() == ["core/inverse_core/team/lead.py", "docs/x.md", "b.py"]
 

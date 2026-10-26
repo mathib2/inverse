@@ -38,6 +38,33 @@ merge. Tinker cannot change the live checkout, the model server, the data platfo
 cannot push to the base branch except through the council's merge described below, and it cannot skip the tests or the probe.
 Those limits are what make "no limits" on its research and its attempts safe.
 
+## The engineer's model, measured
+
+A 4B general model will not write code even when shown the lines and told what to change: two cycles on the refreshed backlog
+ended in "no safe change" and an empty answer. So the engineer step got its own lane, `engineer`, which `TINKER_ENGINEER_MODEL`
+points at a coder model; the crew's lanes are untouched, so nothing about missions or the demo changes.
+
+`scripts/engineer_eval.py` measures a model as the engineer with the same expert, prompt, tools, budget and task shape as the loop:
+four small edits with a known right answer (a missing dictionary case, an off-by-one slice, a regex that must accept a trailing
+number, a sentence to add to a prompt string), each decided by a test the model is shown failing; and with `--tasks backlog` the
+six real items of the list, decided by the test suite. It runs from the sandbox with Tinker stopped and writes
+`docs/evidence/engineer/<label>.json`. The first measurement found two faults in the prompt, not in the models: the 3B coder copied
+the "no safe change" template word for word without a single tool call, and nemotron-mini's one edit failed on text that did not
+match the file. The prompt now shows the shape of the edit call and asks for it as the first reply, the decline is described in
+words, and `edit_file` forgives line numbers copied from the excerpt. With that prompt, on the i5-6500 (4 cores, no GPU):
+
+| engineer model | the four edits | seconds per task | model calls per task |
+|---|---|---|---|
+| nemotron-mini (4B, the crew's model) | 2 of 4 | 24 | 2.0 |
+| qwen2.5-coder:3b | 3 of 4 | 21 | 2.0 |
+| qwen2.5-coder:7b | **4 of 4** | 55 | 3.0 |
+
+`qwen2.5-coder:7b` is the engineer now (`TINKER_ENGINEER_MODEL` in the workstation's `.env`); a minute per edit fits the
+cycle's 25-minute bound with room for the tests and the probe. On the six real backlog items (`eng3-backlog-coder7b.json`) the
+7B applied an edit four times in 150 s per item: one (Euler's self-check) left the whole suite green and would have gone on to the
+probe, three broke tests and were reverted, two could not be applied. That is the loop working as designed: candidates in, the
+gates deciding; and it is why the gates, not the model, are what make the loop safe.
+
 ## The Live tab
 
 The **Live** mode of the page shows one chat for everything: the agents' messages inside missions (results, reviews, questions and

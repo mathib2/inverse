@@ -1,0 +1,70 @@
+{
+ "label": "eng3-nemotron-mini-latest",
+ "model": "nemotron-mini:latest",
+ "started": "2026-10-25T23:26:03",
+ "tasks": [
+  {
+   "name": "missing_case",
+   "model": "nemotron-mini:latest",
+   "seconds": 31.5,
+   "llm_calls": 2,
+   "tool_calls": 1,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": false,
+   "answer": "pass",
+   "error": "",
+   "test_summary": "1 failed in 0.06s",
+   "run": "20261025-232426"
+  },
+  {
+   "name": "off_by_one",
+   "model": "nemotron-mini:latest",
+   "seconds": 24.7,
+   "llm_calls": 2,
+   "tool_calls": 1,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "last_rows() in core/inverse_core/eval_target.py is changed from 'return rows[-n + 1:]' to 'return rows[-n:].'",
+   "error": "",
+   "test_summary": "1 passed in 0.02s",
+   "run": "20261025-232458"
+  },
+  {
+   "name": "regex",
+   "model": "nemotron-mini:latest",
+   "seconds": 22.4,
+   "llm_calls": 2,
+   "tool_calls": 1,
+   "edit_attempts": 1,
+   "edit_applied": 0,
+   "passed": false,
+   "answer": "no safe change:",
+   "error": "",
+   "test_summary": "1 failed in 0.03s",
+   "run": "20261025-232523"
+  },
+  {
+   "name": "prompt_sentence",
+   "model": "nemotron-mini:latest",
+   "seconds": 17.0,
+   "llm_calls": 2,
+   "tool_calls": 1,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "core/inverse_core/eval_target.py",
+   "error": "",
+   "test_summary": "1 passed in 0.01s",
+   "run": "20261025-232546"
+  }
+ ],
+ "totals": {
+  "tasks": 4,
+  "passed": 2,
+  "edits_applied": 3,
+  "mean_seconds": 23.9,
+  "mean_llm_calls": 2.0
+ }
+}

@@ -1,0 +1,70 @@
+{
+ "label": "eng3-qwen2-5-coder-7b",
+ "model": "qwen2.5-coder:7b",
+ "started": "2026-10-25T23:31:13",
+ "tasks": [
+  {
+   "name": "missing_case",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 49.7,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "Added mg to the FACTORS dictionary in core/inverse_core/eval_target.py to include milligrams.",
+   "error": "",
+   "test_summary": "1 passed in 0.01s",
+   "run": "20261025-232731"
+  },
+  {
+   "name": "off_by_one",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 55.1,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "The code change has been made and the tests have passed. The function `last_rows` now correctly returns the last n rows instead of n-1 rows.",
+   "error": "",
+   "test_summary": "1 passed in 0.03s",
+   "run": "20261025-232821"
+  },
+  {
+   "name": "regex",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 55.9,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "The regex pattern has been updated to allow for an optional trailing number after the sensor id. The tests have passed, indicating that the change does not brea",
+   "error": "",
+   "test_summary": "1 passed in 0.03s",
+   "run": "20261025-232916"
+  },
+  {
+   "name": "prompt_sentence",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 60.4,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "Added the rule 'never invent' to the PROMPT in core/inverse_core/eval_target.py to ensure Euler follows this instruction.",
+   "error": "",
+   "test_summary": "1 passed in 0.03s",
+   "run": "20261025-233013"
+  }
+ ],
+ "totals": {
+  "tasks": 4,
+  "passed": 4,
+  "edits_applied": 4,
+  "mean_seconds": 55.3,
+  "mean_llm_calls": 3.0
+ }
+}
