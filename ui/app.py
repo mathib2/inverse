@@ -79,8 +79,7 @@ parts.css()
 import team  # noqa: E402
 
 with st.sidebar:
-    st.markdown("## INVERSE")
-    st.caption("A crew of local AI agents")
+    st.markdown("<div class='inv-brand'>INVERSE</div><div class='inv-tagline'>a crew of local AI agents</div>", unsafe_allow_html=True)
     if st.button("New chat", icon=":material/add:", width="stretch"):
         for k in ("turns", "panel_turn", "crew_out", "crew_plan", "crew_dir", "crew_events", "crew_last", "crew_error"):
             ss.pop(k, None)

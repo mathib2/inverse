@@ -19,7 +19,8 @@ def _root(tmp_path):
     return str(tmp_path)
 
 
-def test_known_limitations_come_from_the_probe_and_the_report(tmp_path):
+def test_known_limitations_come_from_the_probe_and_the_report(tmp_path, monkeypatch):
+    monkeypatch.setenv("LIMITS_NOTE", "on")                                                        # the prompt note is opt-in: measured, it hurt Euler (probe ten1)
     root = _root(tmp_path)
     k = limits.all_known(root)
     assert k["solver"] == ["fails this probe: total across datasets", "Ada must add the two counts she holds"]
@@ -29,7 +30,8 @@ def test_known_limitations_come_from_the_probe_and_the_report(tmp_path):
     assert limits.note(root, "reasoning", k) == "" and limits.all_known(str(tmp_path / "nowhere")) == {}
 
 
-def test_the_note_reaches_the_experts_vera_and_atlas(tmp_path):
+def test_the_note_reaches_the_experts_vera_and_atlas(tmp_path, monkeypatch):
+    monkeypatch.setenv("LIMITS_NOTE", "on")
     ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
     ada = ctx.registry.experts["solver"]                                                            # the crew's own report names Ada
     assert "KNOWN LIMITATIONS" in ada.prompt and ada.system().startswith(ada.prompt.split("\n")[0][:40])

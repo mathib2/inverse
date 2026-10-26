@@ -9,11 +9,15 @@ Nothing here is required; with no channel configured notify() returns an empty l
 council's task cards. Never raises."""
 from __future__ import annotations
 
+import json
 import os
 import smtplib
+import time
 from email.message import EmailMessage
 
 import requests
+
+from . import chat
 
 
 def channels():
@@ -70,4 +74,16 @@ def notify(text, title="INVERSE crew", urgent=False, url=None):
                 sent.append("textbelt")
         except Exception:
             pass
+    _log(title, body, sent, urgent, url)
     return sent
+
+
+def _log(title, body, sent, urgent, url):
+    """state/alerts.jsonl: when, what, and which channels took it, so the page can show that an alert left even when a phone never got it."""
+    try:
+        p = os.path.join(chat.root(), "state", "alerts.jsonl")
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "title": title, "text": body[:300], "sent": sent, "urgent": bool(urgent), "url": url}) + "\n")
+    except OSError:
+        pass

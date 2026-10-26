@@ -63,6 +63,23 @@ _COUNT_ONLY = re.compile(r"^\s*SELECT\s+COUNT\(\*\)(?:\s+AS\s+\w+)?\s+FROM\s+obs
 SENSOR_ID = re.compile(r"\b[A-Z]\d{3}-[A-Z]{3,4}-\d\b")
 
 
+QUANTITY_WORDS = re.compile(r"\b(displacement|velocity|disp|vel|quantity)\b|'[xv]'", re.I)
+_QFILTER = re.compile(r"\s+AND\s+quantity\s*=\s*'[^']*'|\s+WHERE\s+quantity\s*=\s*'[^']*'\s+AND\s+|\s+WHERE\s+quantity\s*=\s*'[^']*'", re.I)
+
+
+def unfilter_quantity(sql, goal):
+    """A quantity filter the task never asked for is dropped: `quantity = 'v'` guessed for "the sensors on P-104" finds the wrong sensor
+    or none. Kept when the task names a quantity or a sensor id. Returns (sql, dropped)."""
+    if "obs.sensors_table" not in (sql or "").lower() or QUANTITY_WORDS.search(goal or "") or SENSOR_ID.search(goal or ""):
+        return sql, False
+    m = _QFILTER.search(sql)
+    if not m:
+        return sql, False
+    hit = m.group(0).strip().upper()
+    new = sql[:m.start()] + (" WHERE " if hit.startswith("WHERE") and hit.endswith("AND") else "") + sql[m.end():]
+    return re.sub(r"\s{2,}", " ", new).strip(), True
+
+
 def pin_sensor(sql, goal):
     """A query on the sensors table for a task that names a sensor ('T200-DISP-1') selects it by sensor_id; a filter the model guessed
     (equipment and quantity) is replaced, because a guessed quantity finds nothing. Returns (sql, pinned id or None)."""
@@ -167,6 +184,9 @@ class ResearchExpert(BaseExpert):
             sql, pinned = pin_sensor(sql, task.goal)
             if pinned:
                 self.ctx.trace.event("sql_pinned", expert=self.name, task=task.id, sensor=pinned, sql=sql[:160])
+            sql, dropped = unfilter_quantity(sql, task.goal)
+            if dropped:
+                self.ctx.trace.event("sql_unfiltered", expert=self.name, task=task.id, sql=sql[:160])
             budget.charge_tool()
             cache = getattr(self.ctx, "sql_cache", None)
             try:
@@ -292,8 +312,13 @@ class ReasoningExpert(BaseExpert):
         ev, bad = [], []
         for i, s in enumerate(steps, 1):
             calc = s.get("calc")
-            if not calc and not s.get('calc_type', '').lower() in ('root', 'power', 'cube_root'):
-                ev.append({"type": "step", "source": f"step {i}", "detail": str(s.get("claim") or "")})
+            if not calc:
+                claim = str(s.get("claim") or "")
+                loose = unverified_numbers(claim, [str(context or "")])
+                if loose:                                                     # a number stated in prose and computed nowhere: the repair turn asks for the calc
+                    bad.append(f"step {i}: '{claim[:70]}' states {', '.join(loose[:3])} without a calc; put the arithmetic in calc")
+                    continue
+                ev.append({"type": "step", "source": f"step {i}", "detail": claim})
                 continue
             calc = self.resolve(calc, context)
             try:

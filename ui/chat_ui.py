@@ -200,21 +200,25 @@ def _alerts():
     if st.button("Send a test alert now", icon=":material/send:", disabled=not chans):
         sent = notify.notify("Test from the INVERSE crew: alerts reach this phone.", urgent=True)
         st.toast("Sent on: " + ", ".join(sent) if sent else "Nothing was sent: no channel answered")
-    p = os.path.join(ROOT, "state", "notifications.jsonl")
     rows = []
-    try:
-        with open(p, encoding="utf-8") as f:
-            for ln in f.readlines()[-30:]:
-                try:
-                    rows.append(json.loads(ln))
-                except ValueError:
-                    continue
-    except OSError:
-        pass
+    for name in ("alerts.jsonl", "notifications.jsonl"):
+        try:
+            with open(os.path.join(ROOT, "state", name), encoding="utf-8") as f:
+                for ln in f.readlines()[-30:]:
+                    try:
+                        rows.append(json.loads(ln))
+                    except ValueError:
+                        continue
+        except OSError:
+            pass
+    rows.sort(key=lambda r: str(r.get("ts", "")))
     if not rows:
         st.caption("Nothing sent yet.")
-    for r in reversed(rows):
-        st.markdown(f"<span class='inv-muted'>{parts.esc(str(r.get('ts', ''))[:16].replace('T', ' '))}</span> {parts.esc(str(r.get('text', ''))[:300])}", unsafe_allow_html=True)
+    for r in reversed(rows[-40:]):
+        took = r.get("sent")
+        where = ("sent on " + ", ".join(took)) if took else ("no channel took it" if took == [] else "")
+        st.markdown(f"<span class='inv-muted'>{parts.esc(str(r.get('ts', ''))[:16].replace('T', ' '))}</span> **{parts.esc(str(r.get('title', ''))[:40])}** "
+                    f"{parts.esc(str(r.get('text', ''))[:300])} <span class='inv-muted'>{parts.esc(where)}</span>", unsafe_allow_html=True)
 
 
 def _artifacts(ledger, sidecar, configs):
@@ -266,12 +270,12 @@ def render(ledger, ai_online, sidecar, health=None):
     enabled = ai_online and data_online and not running
     left, right = st.columns([7, 5], gap="large")
     with left:
-        c1, c2 = st.columns([2, 3], vertical_alignment="center")
-        c1.markdown("## INVERSE")
+        c1, c2 = st.columns([3, 2], vertical_alignment="center")
+        c1.markdown("<div class='inv-brand'>INVERSE</div><div class='inv-tagline'>eight agents · local models · evidence first</div>", unsafe_allow_html=True)
         if health:
             with c2:
                 parts.status_row(health)
-        with st.container(height=600, border=False):
+        with st.container(height=600 if (_turns() or live_run) else 300, border=False):   # a fresh page is not a tall empty box
             if not _turns() and not live_run:
                 _welcome(ledger, sidecar, enabled)
             for t in _turns():

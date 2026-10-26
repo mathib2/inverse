@@ -1,23 +1,26 @@
 # INVERSE theme. Read by `streamlit run` from the repo root (scripts/run_demo.sh starts it there).
 [theme]
 base = "dark"
-primaryColor = "#6C8CFF"
-backgroundColor = "#0B0F17"
-secondaryBackgroundColor = "#141B28"
-textColor = "#E6EAF2"
-linkColor = "#8FA8FF"
-borderColor = "#263247"
+primaryColor = "#8B7CFF"
+backgroundColor = "#070B14"
+secondaryBackgroundColor = "#121A2C"
+textColor = "#E8ECF5"
+linkColor = "#38E1FF"
+borderColor = "#22304A"
 showWidgetBorder = true
-baseRadius = "0.75rem"
-buttonRadius = "0.6rem"
-greenColor = "#3FB97A"
-redColor = "#F06565"
-orangeColor = "#F2A33A"
-dataframeHeaderBackgroundColor = "#141B28"
+baseRadius = "0.9rem"
+buttonRadius = "0.7rem"
+greenColor = "#3FD58A"
+redColor = "#FF6B6B"
+orangeColor = "#FFB547"
+dataframeHeaderBackgroundColor = "#121A2C"
+font = "Manrope, sans-serif"
+headingFont = "Space Grotesk, sans-serif"
+codeFont = "JetBrains Mono, monospace"
 
 [theme.sidebar]
-backgroundColor = "#0F1520"
-secondaryBackgroundColor = "#172030"
+backgroundColor = "#0A1020"
+secondaryBackgroundColor = "#141D30"
 
 [server]
 address = "127.0.0.1"            # local only; reach it from elsewhere through an SSH tunnel or `tailscale serve`

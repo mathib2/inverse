@@ -1,0 +1,140 @@
+{
+ "label": "ten1-euler-nonote",
+ "started": "2026-10-26T07:54:10",
+ "agents": {
+  "euler": {
+   "probes": [
+    {
+     "goal": "12.5 kg times 9.81 m/s^2, in newtons",
+     "answer": "122.55 newtons",
+     "confidence": 1.0,
+     "checks": {
+      "122.6": true
+     },
+     "pass": true,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 2,
+     "wall": 22.2,
+     "error": null,
+     "calls": 2,
+     "seconds": 22.2,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "Convert 3.6 km/h to m/s",
+     "answer": "1",
+     "confidence": 1.0,
+     "checks": {
+      "1.0": true
+     },
+     "pass": true,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 2,
+     "wall": 19.7,
+     "error": null,
+     "calls": 1,
+     "seconds": 19.7,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "A damping of 0.05 rises by 40 percent. What is the new damping?",
+     "answer": "The new damping is 0.07",
+     "confidence": 0.9,
+     "checks": {
+      "0.07": true
+     },
+     "pass": true,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 2,
+     "wall": 14.1,
+     "error": null,
+     "calls": 2,
+     "seconds": 14.1,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "An oscillation at 2 Hz: what is its period in seconds?",
+     "answer": "0.5",
+     "confidence": 1.0,
+     "checks": {
+      "0.5": true
+     },
+     "pass": true,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 2,
+     "wall": 41.1,
+     "error": null,
+     "calls": 2,
+     "seconds": 41.1,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "A sensor samples 100 times per second for 4 seconds. How many samples is that?",
+     "answer": "400",
+     "confidence": 1.0,
+     "checks": {
+      "400": true
+     },
+     "pass": true,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 2,
+     "wall": 34.4,
+     "error": null,
+     "calls": 2,
+     "seconds": 34.4,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "What is the cube root of 27?",
+     "answer": "3",
+     "confidence": 0.0,
+     "checks": {
+      "3": true
+     },
+     "pass": true,
+     "unverified_numbers": [
+      "3"
+     ],
+     "hedged": false,
+     "evidence": 1,
+     "wall": 33.4,
+     "error": null,
+     "calls": 2,
+     "seconds": 33.4,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    }
+   ],
+   "rating": {
+    "accuracy": 10.0,
+    "honesty": 8.3,
+    "efficiency": 8.1,
+    "robustness": 10.0,
+    "score": 9.4,
+    "mean_seconds": 27.5
+   }
+  }
+ }
+}

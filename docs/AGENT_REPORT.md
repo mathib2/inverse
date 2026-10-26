@@ -81,46 +81,51 @@ mission it starts is only as good as the planner, and it runs standing missions 
 
 ## What they must improve, in order
 
-Refreshed on the night of 25 October after benchmark rounds 11 to 14 (`docs/BENCH.md`). Each item below was checked against the
-code by reading it and is still open; each names the agent, points at one region, and is measured by one probe. This list is
-Tinker's backlog: `scripts/tinker.py` reads the bold text of each item, and `REGIONS` maps a phrase of it to the file and the lines.
+Refreshed on 26 October after the fourth batch (probes `probe5` before, `ten2` after, in `docs/evidence/probe/`). Each item is still
+open, names the agent, points at one region, and is measured by one probe. This list is Tinker's backlog: `scripts/tinker.py` reads
+the bold text of each item, `REGIONS` maps a phrase of it to the file and the lines, and a file in `backlog_tests/` named after the
+item defines done.
 
-1. **Atlas must route right in the raw plan**: a summary of what the crew knows to Ada with the memory tool, plain arithmetic with
-   the numbers given to Euler, a registry or dataset lookup to Scout, before the guard repairs anything. Where: `PLAN_SYSTEM` in
-   `core/inverse_core/team/lead.py`, one line of rule per goal type in the stable prefix; no worked example plans, because the
-   planner copies examples (round 11 got a task that read "Write the instruction for the task 'T1'"). Measured by the Atlas probe
-   with the guard bypassed: 4 of 6 today.
-2. **Ada must add the two counts she holds**: when the task says across, together, total or in all and her prefetched evidence
-   holds two `SELECT COUNT(*) AS n` results, the sum goes through `calc` before the model speaks and lands in the evidence.
-   Where: the per-dataset count prefetch in `CustomExpert.run`, `core/inverse_core/team/custom.py`. Measured by her probe: the
-   P-104 baseline-plus-current question must answer 800; today she answers 9.81.
-3. **Forge's template expert must use the goal's own constants**: a Moon question that states g = 1.62 gets 1.62 in the calc,
-   not 9.81. Where: `_forge_by_rule` in `core/inverse_core/team/lead.py`, which builds the expert's prompt from a generic
-   sentence and the goal; the constants the goal states should be pulled out and written in as the values to use. Measured by
-   the Forge probe: 20.25 N; today 122.625 N.
-4. **Euler must compute roots and powers with the calculator**, never in a text step: in `ReasoningExpert._check`
-   (`core/inverse_core/team/experts.py`) a step whose claim carries a number but has no calc is a self-check failure that fires
-   the repair turn, not step evidence. Measured by his probe: the cube root of 27 with zero unverified numbers.
-5. **Scout must not add a filter the task did not ask for**: a `quantity = '...'` predicate on the sensors table when the task
-   names neither a sensor id nor a quantity word is dropped by code and traced. Where: `pin_sensor` in
-   `core/inverse_core/team/experts.py`. Measured by her probe and the sensor benchmark case: both sensors' rows, not a guess.
-6. **Sentinel must read the lines around each scan hit before naming a finding**: the single-file path hands the raw scan to the
-   model; it should carry the surrounding lines the chunked path already reads, and a review should end inside ninety seconds
-   of model time. Where: `VulnerabilityExpert.run` in `core/inverse_core/team/custom.py`. Measured by its probe and the code
-   benchmark case.
+1. **Atlas must route right in the raw plan**: the probe sends plain arithmetic, a summary and a lookup-then-compute to Scout alone
+   (3 of 6 right before the guard repairs them). The routing rules are in `PLAN_SYSTEM` in `core/inverse_core/team/lead.py`; the
+   model does not follow them. What is left is the model's judgement: a measured trial of structured outputs or a different
+   planner model, by a person. Measured by the Atlas probe with the guard bypassed.
+2. **Forge's template expert must get the Moon question**: the plan sends "What does a 12.5 kg mass weigh on the Moon ... we have
+   no converter" to Scout, who reports the registry mass, and the forged expert with its given values never runs. Where:
+   `_guard` in `core/inverse_core/team/lead.py` (the `LACK_WORDS` branch must make the forged expert's task the one that answers).
+   Measured by the Forge probe: 20.25 N; today the answer is Scout's rows.
+3. **Ada must compute a weight from the registry mass she fetched**: the mass 1.0 kg is in her evidence and she answered 981.0 N
+   once in `ten2` (9.81 N in `probe5`). Where: the calculator nudge in `_loop`, `core/inverse_core/team/custom.py`, which could
+   name the fetched value in its example. Measured by her probe: 9.81.
 
-Done since the first list, all by code and all recorded in `docs/BENCH.md`: Vera's three rules (a number from nowhere, an asked
-value left out, a phrase from nowhere) and her checkable verdict; the routing guard and, from round 11, a one-task plan that
-carries the goal verbatim, placeholder tasks refused, arithmetic to Euler, a lookup that feeds a computation rewritten as a
-lookup; Scout's whole goal, columns, ids, sensor pin, errors as evidence, row values that ride along and replace numbers the rows
-lack; Euler's empty answer re-asked and names resolved before the calc; Ada's facts, consultations and memory fetched by code, a
-bare word refused, a computation ended with the calculator, a repeated tool call ended, a doubted digest read out of the memory;
-Forge planned in when the goal says the crew lacks something and built by rule when the architect loops; Sentinel's clean scan
-answered by code.
+Done since the first list, all by code and all recorded in `docs/BENCH.md`: Vera's three rules and her checkable verdict; the routing
+guard and, from round 11, a one-task plan that carries the goal verbatim, placeholder tasks refused, arithmetic to Euler, a lookup
+that feeds a computation rewritten as a lookup; Scout's whole goal, columns, ids, sensor pin, errors as evidence, row values that
+ride along and replace numbers the rows lack, and (26 Oct) the unasked quantity filter dropped; Euler's empty answer re-asked, names
+resolved before the calc, and (26 Oct) a number in prose sent to the repair turn; Ada's facts, consultations and memory fetched by
+code, a bare word refused, a computation ended with the calculator, a repeated tool call ended, a doubted digest read out of the
+memory, and (26 Oct) a total across datasets summed by code; Forge planned in when the goal says the crew lacks something, built by
+rule when the architect loops, and (26 Oct) given the goal's constants; Sentinel's clean scan answered by code and (26 Oct) the lines
+around each hit read by code.
 
-For people, not for Tinker: Ollama structured outputs (`json_schema`) for every JSON-returning call, a measured trial of
-`nemotron-3-nano:4b` against the same probe set, and a second local model on Vera's lane. Each touches the model server or the
-lane layout, which the loop must not change.
+For people, not for Tinker: Ollama structured outputs (`json_schema`) for every JSON-returning call, a measured trial of a different
+planner model against the Atlas probe, and a second local model on Vera's lane. Each touches the model server or the lane layout,
+which the loop must not change.
+
+## After the fourth batch (26 October)
+
+| agent | probe5, before | ten2, after | what moved it | what still fails |
+|---|---|---|---|---|
+| Euler | 5.9 (2 of 6) | 9.4 (6 of 6) | the KNOWN LIMITATIONS note was taken out of his prompt (with it 6.9, without it 9.4, same code); a number in prose goes to the repair turn | one unverified number on the cube root |
+| Ada | 7.8 (2 of 4) | 8.4 (3 of 4) | the total across datasets summed by code (800); the calculator hint no longer multiplies 104 from P-104 | the registry weight once (981.0) |
+| Atlas | 7.7 (3 of 6) | 7.8 (3 of 6) | routing rules in the prompt; the model ignores them | arithmetic, a summary and a lookup-then-compute sent to Scout; the guard repairs all three in missions |
+| Scout | 10.0 | 9.9 | the unasked quantity filter dropped | nothing; a slower probe |
+| Vera | 10.0 | 10.0 | unchanged | nothing |
+| Sentinel | 10.0 | 10.0 | reads around each hit by code | nothing |
+| Forge | 5.2 (0 of 1) | 5.5 (0 of 1) | given values in the template expert | the Moon question goes to Scout, never to the forged expert |
+
+The lesson of this batch: telling a 4B model its own flaws in its system prompt made it worse, measured twice on the same code; the
+awareness lives on the Crew panel and in Tinker's backlog instead, where it does work.
 
 ## After three batches of fixes (the same evening)
 
