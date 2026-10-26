@@ -37,3 +37,15 @@ def test_the_note_reaches_the_experts_vera_and_atlas(tmp_path, monkeypatch):
     from inverse_core.team.critic import Critic
     ctx.root = _root(tmp_path)
     assert "Vera must doubt numbers" in Critic(ctx).note
+
+
+def test_each_agent_is_read_from_the_newest_probe_that_measured_it(tmp_path):
+    folder = tmp_path / "docs" / "evidence" / "probe"
+    folder.mkdir(parents=True)
+    for name, started, agents in (("ten3.json", "2026-10-26T12:26:15", {"ada": {"mark": 9}}),            # a partial rerun, newest
+                                  ("ten2.json", "2026-10-26T08:01:04", {"ada": {"mark": 7}, "euler": {"mark": 9.4}}),
+                                  ("probe9.json", "2026-10-25T20:00:00", {"ada": {"mark": 1}, "euler": {"mark": 1}, "forge": {"mark": 5}}),
+                                  ("tinker-ada.json", "2026-10-27T00:00:00", {"ada": {"mark": 0}})):       # Tinker's own file: skipped
+        (folder / name).write_text(json.dumps({"label": name[:-5], "started": started, "agents": agents}))
+    assert limits.latest_agents(str(tmp_path)) == {"ada": {"mark": 9}, "euler": {"mark": 9.4}, "forge": {"mark": 5}}
+    assert limits.latest_probe(str(tmp_path))["agents"]["euler"] == {"mark": 9.4} and limits.latest_probe(str(tmp_path / "x")) == {}

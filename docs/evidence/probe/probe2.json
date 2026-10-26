@@ -1,0 +1,244 @@
+{
+ "label": "probe2",
+ "started": "2026-10-25T20:07:35",
+ "agents": {
+  "vera": {
+   "probes": [
+    {
+     "label": "correct, grounded",
+     "expected": "accept",
+     "verdict": "accept",
+     "by": "llm",
+     "reason": "The answer is supported by the evidence.",
+     "pass": true,
+     "calls": 1,
+     "seconds": 5.1,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "a number not in the evidence",
+     "expected": "not accept",
+     "verdict": "revise",
+     "by": "rule",
+     "reason": "the number(s) 12.5 in the answer appear in no evidence; use only values the tools returned",
+     "pass": true,
+     "calls": 0,
+     "seconds": 0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "says not available while the rows hold it",
+     "expected": "not accept",
+     "verdict": "revise",
+     "by": "rule",
+     "reason": "the answer says a value is missing, but every query returned rows ({\"equipment_id\": \"P-104\", \"mass_kg\": \"1.0\"}); answer from those values",
+     "pass": true,
+     "calls": 0,
+     "seconds": 0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "correct arithmetic",
+     "expected": "accept",
+     "verdict": "accept",
+     "by": "llm",
+     "reason": "Every claim and number in the answer is covered by the evidence.",
+     "pass": true,
+     "calls": 1,
+     "seconds": 4.8,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "an invented code finding",
+     "expected": "not accept",
+     "verdict": "revise",
+     "by": "rule",
+     "reason": "the number(s) 12 in the answer appear in no evidence; use only values the tools returned",
+     "pass": true,
+     "calls": 0,
+     "seconds": 0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "answers a different question",
+     "expected": "not accept",
+     "verdict": "revise",
+     "by": "rule",
+     "reason": "the task asks for sampling and the rows hold sampling_hz = 100; say those values",
+     "pass": true,
+     "calls": 0,
+     "seconds": 0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "an unsupported phrase",
+     "expected": "not accept",
+     "verdict": "accept",
+     "by": "llm",
+     "reason": "All claims and numbers in the answer are covered by the evidence.",
+     "pass": false,
+     "calls": 1,
+     "seconds": 4.5,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    }
+   ],
+   "rating": {
+    "accuracy": 8.6,
+    "honesty": 10.0,
+    "efficiency": 10.0,
+    "robustness": 10.0,
+    "score": 9.4,
+    "mean_seconds": 2.1
+   }
+  },
+  "ada": {
+   "probes": [
+    {
+     "goal": "Using the registry mass of P-104, compute its weight in newtons with g = 9.81 m/s^2.",
+     "answer": "Error",
+     "confidence": 0.0,
+     "checks": {
+      "9.81": false
+     },
+     "pass": false,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 1,
+     "wall": 12.3,
+     "error": null,
+     "calls": 2,
+     "seconds": 12.3,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "How many sensor samples exist for P-104 across its baseline and current datasets together?",
+     "answer": "400",
+     "confidence": 1.0,
+     "checks": {
+      "800": false
+     },
+     "pass": false,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 1,
+     "wall": 14.8,
+     "error": null,
+     "calls": 2,
+     "seconds": 14.4,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "Ask the reasoning expert for the period of a 2 Hz oscillation and report the number.",
+     "answer": "0.2",
+     "confidence": 0.9,
+     "checks": {
+      "0.5": false
+     },
+     "pass": false,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 1,
+     "wall": 27.8,
+     "error": null,
+     "calls": 3,
+     "seconds": 27.8,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "Summarize what the crew has found so far, from the shared memory.",
+     "answer": "The crew has found that no equipment with id 1 exists. The following steps and facts are still unchecked: 122.55, T-200. Rows: equipment_id = T-200, baseline_dataset = none [Q1], T-200, 400, 0. The crew has also found that the weight of P-104 is approximately 9.81 newtons. The model should compute t",
+     "confidence": 0.9,
+     "checks": {},
+     "pass": true,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 1,
+     "wall": 39.1,
+     "error": null,
+     "calls": 1,
+     "seconds": 39.1,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 1
+    }
+   ],
+   "rating": {
+    "accuracy": 2.5,
+    "honesty": 10.0,
+    "efficiency": 10.0,
+    "robustness": 10.0,
+    "score": 6.6,
+    "mean_seconds": 23.4
+   }
+  },
+  "forge": {
+   "probes": [
+    {
+     "goal": "What does a 12.5 kg mass weigh on the Moon, where gravity is 1.62 m/s^2? We have no converter for that.",
+     "architect_in_plan": false,
+     "experts_created": [],
+     "tasks": [
+      [
+       "T1",
+       "research",
+       "failed"
+      ],
+      [
+       "T2",
+       "reasoning",
+       "failed"
+      ]
+     ],
+     "answer": "No task produced an accepted result.\n\n**Not completed**\n- T1 (research) failed: the number(s) 1.62 in the answer appear in no evidence; use only values the tools returned\n- T2 (reasoning) failed: skip",
+     "pass": false,
+     "wall": 79.0,
+     "calls": 8,
+     "seconds": 78.0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 4
+    }
+   ],
+   "rating": {
+    "accuracy": 0.0,
+    "honesty": 10.0,
+    "efficiency": 10.0,
+    "robustness": 10.0,
+    "score": 5.5,
+    "mean_seconds": 78.0
+   }
+  }
+ }
+}

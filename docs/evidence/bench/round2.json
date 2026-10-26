@@ -1,0 +1,461 @@
+{
+ "label": "round2",
+ "started": "2026-10-25T15:01:11",
+ "provider": "ollama",
+ "lanes": {
+  "fast": "nemotron-mini:latest",
+  "deep": "nemotron-mini:latest",
+  "critic": "nemotron-mini:latest"
+ },
+ "collaborate": "auto",
+ "parallel": 2,
+ "cases": [
+  {
+   "name": "arithmetic",
+   "goal": "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-150111",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The weight of 12.5 kg times 9.81 m/s^2 is 122.625 newtons. The calculation is as follows: 12.5 kg * 9.81 m/s^2 = 122.625 newtons.",
+   "duration": 63.1,
+   "calls": 6,
+   "prompt_tokens": 2927,
+   "completion_tokens": 412,
+   "latency": {
+    "lead": [
+     9.11,
+     6.84,
+     10.47
+    ],
+    "reasoning": [
+     16.47,
+     16.09
+    ],
+    "critic": [
+     4.11
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "122.6": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "registry",
+   "goal": "Which machines are in the equipment registry, and which of them has no baseline dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-150214",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 2,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The equipment IDs in the registry are P-104. The machine with no baseline dataset is T-200.",
+   "duration": 73.5,
+   "calls": 8,
+   "prompt_tokens": 3642,
+   "completion_tokens": 334,
+   "latency": {
+    "lead": [
+     7.39,
+     6.89
+    ],
+    "research": [
+     31.96,
+     5.93,
+     44.11,
+     8.7
+    ],
+    "critic": [
+     11.87,
+     5.41
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ],
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "P-104": true,
+    "T-200": true,
+    "baseline": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "samples",
+   "goal": "How many sensor samples are stored for P-104's baseline dataset and for its current dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-150328",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     2
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The baseline dataset of P-104 contains 400 sensor samples.",
+   "duration": 74.6,
+   "calls": 9,
+   "prompt_tokens": 4371,
+   "completion_tokens": 345,
+   "latency": {
+    "lead": [
+     5.06,
+     9.51,
+     4.46
+    ],
+    "research": [
+     14.01,
+     6.88,
+     7.35,
+     2.86
+    ],
+    "critic": [
+     17.63,
+     5.84
+    ]
+   },
+   "verdicts": [
+    [
+     "revise",
+     "llm"
+    ],
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "400": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "sensor",
+   "goal": "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-150443",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The sampling rate of the displacement sensor on P-104 is 0.01 Hz, and the noise level (sigma) is not available in the Zetaris data.",
+   "duration": 38.6,
+   "calls": 5,
+   "prompt_tokens": 2321,
+   "completion_tokens": 214,
+   "latency": {
+    "lead": [
+     6.71,
+     6.68
+    ],
+    "research": [
+     13.02,
+     5.48
+    ],
+    "critic": [
+     6.32
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "100": false,
+    "0.01": true
+   },
+   "expert_used": true,
+   "pass": false,
+   "clean": false
+  },
+  {
+   "name": "maintenance",
+   "goal": "List the maintenance records for P-104 with their dates and what was done.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-150523",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "[[\"T1.E1\", \"reasoning\"], [\"T1.E1\", \"reasoning\"]]",
+   "duration": 59.2,
+   "calls": 5,
+   "prompt_tokens": 2399,
+   "completion_tokens": 418,
+   "latency": {
+    "lead": [
+     5.05,
+     5.93,
+     6.48
+    ],
+    "reasoning": [
+     35.17
+    ],
+    "critic": [
+     6.6
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "2026-09-02": false,
+    "2026-10-05": false
+   },
+   "expert_used": false,
+   "pass": false,
+   "clean": false
+  },
+  {
+   "name": "weight",
+   "goal": "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-150622",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The mass of P-104 from the equipment registry is not provided in the results. Therefore, the weight of P-104 in newtons cannot be computed.",
+   "duration": 56.6,
+   "calls": 5,
+   "prompt_tokens": 2564,
+   "completion_tokens": 327,
+   "latency": {
+    "lead": [
+     10.1,
+     8.15
+    ],
+    "research": [
+     16.79,
+     6.51
+    ],
+    "critic": [
+     14.32
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "9.81": false
+   },
+   "expert_used": true,
+   "pass": false,
+   "clean": false
+  },
+  {
+   "name": "code",
+   "goal": "Review core/inverse_core/team/tools.py for security weaknesses. Name the file you reviewed and the most important finding with its line number, or say that none was found in it.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-150719",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "vulnerability",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 2,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The file reviewed is core/inverse_core/team/tools.py. No verified weakness was found in the reviewed code.",
+   "duration": 250.8,
+   "calls": 12,
+   "prompt_tokens": 12102,
+   "completion_tokens": 749,
+   "latency": {
+    "lead": [
+     11.11,
+     16.11
+    ],
+    "reasoning": [
+     22.96,
+     19.87
+    ],
+    "critic": [
+     8.73,
+     8.7
+    ],
+    "vulnerability": [
+     31.24,
+     42.15,
+     18.33,
+     32.99,
+     22.96,
+     15.28
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ],
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 6,
+   "checks": {
+    "tools.py": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "summary",
+   "goal": "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-151130",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "failed",
+     3
+    ]
+   ],
+   "fallback": true,
+   "accepted": 0,
+   "unfinished": 1,
+   "plan_by": "model",
+   "answer": "No task produced an accepted result.\n\n**Not completed**\n- T1 (reasoning) failed: escalated: the expert kept repeating the same answer",
+   "duration": 71.0,
+   "calls": 4,
+   "prompt_tokens": 1815,
+   "completion_tokens": 594,
+   "latency": {
+    "lead": [
+     5.68
+    ],
+    "reasoning": [
+     23.37,
+     20.83,
+     21.11
+    ]
+   },
+   "verdicts": [
+    [
+     "revise",
+     "rule"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {},
+   "expert_used": false,
+   "pass": false,
+   "clean": false
+  }
+ ],
+ "totals": {
+  "cases": 8,
+  "pass": 4,
+  "clean": 4,
+  "expert_used": 6,
+  "mean_duration": 85.9,
+  "total_duration": 687.4,
+  "mean_calls": 6.75,
+  "prompt_tokens": 32141,
+  "completion_tokens": 3393,
+  "fallbacks": 1,
+  "reasks": 0,
+  "parse_errors": 6,
+  "call_latency_median": 9.3
+ }
+}

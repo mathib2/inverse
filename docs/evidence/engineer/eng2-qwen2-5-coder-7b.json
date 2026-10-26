@@ -1,0 +1,70 @@
+{
+ "label": "eng2-qwen2-5-coder-7b",
+ "model": "qwen2.5-coder:7b",
+ "started": "2026-10-25T23:23:39",
+ "tasks": [
+  {
+   "name": "missing_case",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 82.1,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "Added mg to the FACTORS dictionary in core/inverse_core/eval_target.py to include milligrams and updated tests/test_eval_target.py to pass.",
+   "error": "",
+   "test_summary": "1 passed in 0.01s",
+   "run": "20261025-231843"
+  },
+  {
+   "name": "off_by_one",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 58.0,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "The change has been made to last_rows() in core/inverse_core/eval_target.py to return exactly the last n rows. The tests have been run and passed, indicating th",
+   "error": "",
+   "test_summary": "1 passed in 0.03s",
+   "run": "20261025-232005"
+  },
+  {
+   "name": "regex",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 61.9,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "The regex pattern has been updated to allow for an optional trailing number after the sensor id. The tests have passed, indicating that the change does not brea",
+   "error": "",
+   "test_summary": "1 passed in 0.03s",
+   "run": "20261025-232104"
+  },
+  {
+   "name": "prompt_sentence",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 92.6,
+   "llm_calls": 5,
+   "tool_calls": 3,
+   "edit_attempts": 2,
+   "edit_applied": 2,
+   "passed": false,
+   "answer": "The PROMPT in core/inverse_core/eval_target.py has been updated to include the rule 'never invent a number' and ensure the word 'calculator' appears twice. This",
+   "error": "",
+   "test_summary": "1 failed in 0.04s",
+   "run": "20261025-232206"
+  }
+ ],
+ "totals": {
+  "tasks": 4,
+  "passed": 3,
+  "edits_applied": 5,
+  "mean_seconds": 73.6,
+  "mean_llm_calls": 3.5
+ }
+}

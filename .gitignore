@@ -12,3 +12,6 @@ state/
 queue/
 council/
 missions.local.yaml
+# a symlinked .venv (inverse-lab shares inverse-dev's) is ignored too; Tinker's own per-cycle probe files are working files
+.venv
+docs/evidence/probe/tinker-*.json

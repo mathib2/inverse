@@ -1,0 +1,70 @@
+{
+ "label": "eng-qwen2-5-coder-7b",
+ "model": "qwen2.5-coder:7b",
+ "started": "2026-10-25T23:14:26",
+ "tasks": [
+  {
+   "name": "missing_case",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 78.6,
+   "llm_calls": 1,
+   "tool_calls": 0,
+   "edit_attempts": 0,
+   "edit_applied": 0,
+   "passed": false,
+   "answer": "",
+   "error": "",
+   "test_summary": "1 failed in 0.03s",
+   "run": "20261025-231038"
+  },
+  {
+   "name": "off_by_one",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 51.6,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "The change was successful. All tests passed except for a few skipped tests.",
+   "error": "",
+   "test_summary": "1 passed in 0.01s",
+   "run": "20261025-231157"
+  },
+  {
+   "name": "regex",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 55.4,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "The change was successful. All tests passed except for a few skipped tests.",
+   "error": "",
+   "test_summary": "1 passed in 0.03s",
+   "run": "20261025-231249"
+  },
+  {
+   "name": "prompt_sentence",
+   "model": "qwen2.5-coder:7b",
+   "seconds": 41.3,
+   "llm_calls": 2,
+   "tool_calls": 1,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": false,
+   "answer": "The PROMPT has been updated to include the rule 'never invent a number'.",
+   "error": "",
+   "test_summary": "1 failed in 0.03s",
+   "run": "20261025-231345"
+  }
+ ],
+ "totals": {
+  "tasks": 4,
+  "passed": 2,
+  "edits_applied": 3,
+  "mean_seconds": 56.7,
+  "mean_llm_calls": 2.25
+ }
+}

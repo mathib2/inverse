@@ -1,0 +1,70 @@
+{
+ "label": "eng-qwen2-5-coder-3b",
+ "model": "qwen2.5-coder:3b",
+ "started": "2026-10-25T23:10:38",
+ "tasks": [
+  {
+   "name": "missing_case",
+   "model": "qwen2.5-coder:3b",
+   "seconds": 28.0,
+   "llm_calls": 1,
+   "tool_calls": 0,
+   "edit_attempts": 0,
+   "edit_applied": 0,
+   "passed": false,
+   "answer": "no safe change: <why>",
+   "error": "",
+   "test_summary": "1 failed in 0.06s",
+   "run": "20261025-230947"
+  },
+  {
+   "name": "off_by_one",
+   "model": "qwen2.5-coder:3b",
+   "seconds": 7.8,
+   "llm_calls": 1,
+   "tool_calls": 0,
+   "edit_attempts": 0,
+   "edit_applied": 0,
+   "passed": false,
+   "answer": "no safe change: <last_rows() in core/inverse_core/eval_target.py drops one row; it must return exactly the last n rows so tests/test_eval_target.py passes.>",
+   "error": "",
+   "test_summary": "1 failed in 0.03s",
+   "run": "20261025-231016"
+  },
+  {
+   "name": "regex",
+   "model": "qwen2.5-coder:3b",
+   "seconds": 8.5,
+   "llm_calls": 1,
+   "tool_calls": 0,
+   "edit_attempts": 0,
+   "edit_applied": 0,
+   "passed": false,
+   "answer": "no safe change: The current pattern does not allow for trailing numbers, so it cannot be changed to match T200-DISP-1.",
+   "error": "",
+   "test_summary": "1 failed in 0.03s",
+   "run": "20261025-231024"
+  },
+  {
+   "name": "prompt_sentence",
+   "model": "qwen2.5-coder:3b",
+   "seconds": 4.6,
+   "llm_calls": 1,
+   "tool_calls": 0,
+   "edit_attempts": 0,
+   "edit_applied": 0,
+   "passed": false,
+   "answer": "no safe change: <why>",
+   "error": "",
+   "test_summary": "1 failed in 0.03s",
+   "run": "20261025-231033"
+  }
+ ],
+ "totals": {
+  "tasks": 4,
+  "passed": 0,
+  "edits_applied": 0,
+  "mean_seconds": 12.2,
+  "mean_llm_calls": 1.0
+ }
+}
