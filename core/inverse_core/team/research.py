@@ -63,6 +63,32 @@ def unlimit_list(sql, goal):
         return sql, False
     return sql[:m.start()].rstrip(), True
 
+WHICH_OF_THEM = re.compile(r"\b(?:and|,)\s*which\s+(?:of\s+them|ones?)\b", re.I)
+
+
+def whole_list(sql, goal):
+    """'Which machines are in the registry, and which of them has no baseline?' asks for the whole list and a subset of it. A WHERE
+    the model wrote for the subset answers only the second half (seen on Nightshift: only T-200 came back). The filter is dropped and
+    its columns are kept in the selection, so the rows show which ones match. A filter on one machine is the task's subject and
+    stays. Returns (sql, dropped)."""
+    m = _SELECT.match(sql or "")
+    if not WHICH_OF_THEM.search(goal or "") or not m or "(" in m.group("cols") or re.search(r"\bjoin\b", sql, re.I):
+        return sql, False
+    parts = re.split(r"\sWHERE\s", sql, maxsplit=1, flags=re.I)
+    if len(parts) != 2:
+        return sql, False
+    tail = re.search(r"\s(ORDER\s+BY\s.*|LIMIT\s.*)$", parts[1], re.I | re.S)
+    cond = parts[1][:tail.start()] if tail else parts[1]
+    if re.search(r"\bequipment_id\s*=", cond, re.I):
+        return sql, False
+    cols = [c.strip() for c in m.group("cols").split(",")]
+    have = {re.split(r"\s+", c)[0].lower() for c in cols}
+    used = re.findall(r"\b([a-z_][a-z0-9_]*)\s*(?:=|<>|!=|<|>|\s+is\b|\s+like\b|\s+in\b)", cond, re.I)
+    add = [c for c in dict.fromkeys(used) if c.lower() not in have and c.lower() not in ("and", "or", "not")]
+    head = f"SELECT {', '.join(cols + add)} FROM obs.{m.group('table')}" if add and "*" not in have else parts[0].rstrip()
+    return (head + (" " + tail.group(1).strip() if tail else "")).strip(), True
+
+
 def pin_sensor(sql, goal):
     """A query on the sensors table for a task that names a sensor ('T200-DISP-1') selects it by sensor_id; a filter the model guessed
     (equipment and quantity) is replaced, because a guessed quantity finds nothing. Returns (sql, pinned id or None)."""
@@ -137,6 +163,9 @@ class ResearchExpert(BaseExpert):
             sql, unlimited = unlimit_list(sql, task.goal)
             if unlimited:
                 self.ctx.trace.event("sql_unlimited", expert=self.name, task=task.id, sql=sql[:160])
+            sql, widened = whole_list(sql, task.goal)
+            if widened:                                                               # the whole list was asked for, not only the subset
+                self.ctx.trace.event("sql_whole_list", expert=self.name, task=task.id, sql=sql[:160])
             budget.charge_tool()
             cache = getattr(self.ctx, "sql_cache", None)
             try:

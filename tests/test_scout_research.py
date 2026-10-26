@@ -19,6 +19,19 @@ def test_a_task_that_asks_for_the_records_gets_every_row():
     assert unlimit_list(sql.replace("LIMIT 1", "LIMIT 50"), goal)[1] is False and unlimit_list("SELECT 1", goal)[1] is False
 
 
+def test_the_whole_list_and_which_of_them_gets_every_row_with_the_column_that_tells_them_apart():
+    from inverse_core.team.research import whole_list
+    goal = "Which machines are in the equipment registry, and which of them has no baseline dataset?"
+    sql = "SELECT equipment_id, baseline_dataset FROM obs.equipment_table WHERE baseline_dataset = 'none'"
+    assert whole_list(sql, goal) == ("SELECT equipment_id, baseline_dataset FROM obs.equipment_table", True)
+    assert whole_list("SELECT equipment_id FROM obs.equipment_table WHERE baseline_dataset IS NULL ORDER BY equipment_id", goal) == \
+        ("SELECT equipment_id, baseline_dataset FROM obs.equipment_table ORDER BY equipment_id", True)
+    assert whole_list(sql, "Which machines have no baseline dataset?")[1] is False                         # only the subset was asked
+    on_one = "SELECT sensor_id, quantity FROM obs.sensors_table WHERE equipment_id = 'P-104' AND quantity = 'displacement'"
+    assert whole_list(on_one, "Which sensors are on P-104, and which of them measure displacement?")[1] is False   # P-104 is the subject
+    assert whole_list("SELECT COUNT(*) FROM obs.equipment_table WHERE baseline_dataset = 'none'", goal)[1] is False
+
+
 def test_a_rejected_query_is_evidence_and_the_reviewer_names_it(tmp_path):
     def script(model, messages):
         system = messages[0]["content"]
