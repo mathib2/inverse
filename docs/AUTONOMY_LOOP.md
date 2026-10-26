@@ -2,7 +2,8 @@
 
 From 25 October the crew has a ninth member, **Tinker**, whose standing job is the crew's own code and knowledge, around the clock,
 with nobody asking. It runs in a sandbox copy of the repository (`~/inverse-lab` on the workstation), never in the live checkout,
-and the only thing it cannot do alone is merge: that needs a person, who is told on the phone.
+and a change reaches the live system only through five gates: the test suite, the agent's probe, Sentinel's review, Vera's vote
+and a veto window announced on your phone (the last section).
 
 ## What a cycle does
 
@@ -15,13 +16,15 @@ and the only thing it cannot do alone is merge: that needs a person, who is told
 4. **Research.** Tinker searches the web (`web_search`, DuckDuckGo, no account) and reads at most two pages (`fetch_url`), through
    the same injection guard that protects the crew from maintenance notes, and writes a note with two ideas and their sources. The
    note goes to the chat and to shared memory as a finding with the lowest trust (source `web`).
-5. **Engineer.** With `grep`, `read_file`, `edit_file` (exact replacement), `write_file` and `run_tests`, all confined to the
-   sandbox, it makes the smallest change it can for the item, in one or two files.
+5. **Engineer.** The item names the file and the region (`PLACES` in `scripts/tinker.py`: Vera's rules in `critic.py`, Atlas's
+   guard in `lead.py`, Scout's column rules in `experts.py`, and so on); the task shows those sixty lines, and Tinker makes one
+   `edit_file` change there (an exact replacement), then `run_tests`. It cannot create files or write notes: the first three
+   cycles, given `write_file` and a whole repository to search, produced `research.txt`, `code.txt` and `production-guide.md`
+   instead of code. "No safe change: why" is an accepted answer and becomes a lesson.
 6. **Verify by code, not by the model.** The whole test suite must pass; then the probe of the agent the item concerns runs, and the
    change is kept only if the agent's mark did not drop. Anything else is reverted and recorded as a lesson.
-7. **Ask.** A surviving change is committed on a branch `auto/<date>-<item>`, pushed, filed with the council as a code proposal (a
-   task card), written to the chat as an alert, and sent to your phone with the compare link. You approve by merging; `deploy-live`
-   takes it live.
+7. **Ask the council, then wait for your veto.** A surviving change is committed on a branch `auto/<date>-<item>`, pushed, and
+   put to the council as described under "Approving" below; the chat and your phone get the compare link.
 
 Everything is in the chat (`state/chat.jsonl`, the **Live** tab) and in `state/tinker.json` (`inverse-tinker status`). Start,
 stop and read it with `~/.local/bin/inverse-tinker start|stop|status|log|once`. The interval is `TINKER_INTERVAL` (default 30
@@ -32,7 +35,8 @@ minutes); a cycle is bounded to 30 model calls and 25 minutes.
 A 4B model is a weak engineer. Expect most cycles to end in "tests failed; reverted" or "no change made", a few in a real small
 fix, and the research notes to be the most useful output early on. That is why the gate is code: the tests, the probe, and your
 merge. Tinker cannot change the live checkout, the model server, the data platform, `.env`, or anything outside the sandbox; it
-cannot push to the base branch; it cannot merge. Those limits are what make "no limits" on its research and its attempts safe.
+cannot push to the base branch except through the council's merge described below, and it cannot skip the tests or the probe.
+Those limits are what make "no limits" on its research and its attempts safe.
 
 ## The Live tab
 
@@ -49,7 +53,7 @@ message appears in the chat as yours.
 |---|---|---|
 | **ntfy** (recommended) | the ntfy app (Android, iPhone), subscribed to the topic in `NTFY_TOPIC`; no account | a push notification; an approval request uses priority 5, which rings and stays on screen like a call |
 | **Telegram** | a bot token from @BotFather and your chat id in `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | a message from the bot |
-| **SMS, one a day** | `TEXTBELT_TO` = your number with the country code; no account (Textbelt's public key allows one free text a day per number) | a real text message for what needs a person: an approval, a merge |
+| **SMS, one a day** | `TEXTBELT_TO` = your number with the country code; no account (Textbelt's public key allows one free text a day per number). **Not for US numbers**: Textbelt answers "free SMS are disabled for this country"; the channel stays for other countries | a real text message for what needs a person: an approval, a merge |
 | **SMS, unlimited** | your carrier's email gateway in `NOTIFY_SMS_TO` (Verizon `number@vtext.com`, AT&T `number@txt.att.net`, T-Mobile `number@tmomail.net`) and an SMTP account in `SMTP_HOST/PORT/USER/PASS` | a real text message, up to 160 characters |
 
 Phone **calls** are not free to place by software: every voice API (Twilio and the like) bills per call after a trial. The ntfy

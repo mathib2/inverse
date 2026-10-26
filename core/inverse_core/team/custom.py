@@ -52,6 +52,17 @@ PREFETCH = [                                                                  # 
     (re.compile(r"\b(samples?|datasets?|readings?)\b", re.I), ["SELECT baseline_dataset, current_dataset FROM obs.equipment_table WHERE equipment_id = '{m}'"]),
 ]
 MEMORY_WORDS = re.compile(r"\b(memory|summari[sz]e|digest|found so far|ruled out|still unchecked|what (do|does) (we|the crew|the team) know)\b", re.I)
+DIGEST_WORDS = re.compile(r"\b(summari[sz]e|digest|found so far|ruled out|still unchecked|what (do|does) (we|the crew|the team) know)\b", re.I)
+
+
+def digest(mem):
+    """A plain-words digest of the memory tool's output, made by code: what stands, what was ruled out. Every word of it is in
+    the tool result, so the reviewer has nothing to refuse; used when the model doubts its own summary or writes none."""
+    refuted = [str(f)[:160] for f in (mem or {}).get("refuted") or []]
+    kept = [str(f)[:160] for f in (mem or {}).get("findings") or [] if str(f)[:160] not in refuted]
+    return ("Found and still standing: " + ("; ".join(kept) + "." if kept else "nothing yet.")
+            + " Ruled out: " + ("; ".join(refuted) + "." if refuted else "nothing yet.")
+            + " Still unchecked: nothing else is recorded in the shared memory.")
 
 
 class CustomExpert(BaseExpert):
@@ -185,6 +196,10 @@ class CustomExpert(BaseExpert):
             seen["memory({})"] = 1
         j, models = self._loop(msgs, budget, evidence, seen, task.goal)
         answer = str(j.get("answer") or "")                                   # null stays empty, and the Lead asks again
+        mem = next((e.get("result") for e in evidence if e.get("source") == "memory({})"), None)
+        if mem is not None and DIGEST_WORDS.search(task.goal) and (not answer.strip() or _num(j.get("confidence"), 0.5) < 0.5):
+            answer, j = digest(mem), dict(j, confidence=0.8)                  # the model's doubt about a digest of the memory is not a reason to answer nothing: code reads the memory out
+            self.ctx.trace.event("summary_by_code", expert=self.name, task=task.id, findings=len(mem.get("findings") or []), refuted=len(mem.get("refuted") or []), said=str(j.get("answer") or "")[:160])
         bad = unverified_numbers(answer, {"results": [e.get("result") for e in evidence]})
         not_checked = [str(n) for n in (j.get("not_checked") or [])] + ([f"numbers in the answer not found in any tool result: {bad}"] if bad else [])
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
