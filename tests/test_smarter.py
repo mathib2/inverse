@@ -2,7 +2,10 @@
 not an answer; Forge is planned in when the goal says the crew lacks something; a phrase that rests on nothing is sent back."""
 import json
 
+import pytest
+
 from inverse_core.team import critic as C
+from inverse_core.team.plan import PlanError
 from inverse_core.team.expert import ExpertBudget, Task
 from test_council import crew, events
 
@@ -46,6 +49,19 @@ def test_the_guard_plans_forge_in_when_the_goal_says_the_crew_lacks_something(tm
     assert any("builds" in c for c in events(ctx, "plan_guard")[0]["changes"]) and p.pending_experts(lead.registry.names()) == [p.tasks[1].expert]
     q = lead._parse_plan("What is 2 times 3?", {"tasks": [{"id": "T1", "goal": "Multiply 2 by 3", "expert": "reasoning", "depends_on": []}]})
     assert [t.expert for t in q.tasks] == ["reasoning"]
+
+
+def test_a_one_task_plan_carries_the_goal_itself_and_a_placeholder_task_is_refused(tmp_path):
+    ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
+    goal = "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps."
+    p = lead._parse_plan(goal, {"tasks": [{"id": "T1", "goal": "Calculate the weight in newtons of 12.5 kg times 9.81 m/s^2", "expert": "solver", "depends_on": []}]})
+    changes = events(ctx, "plan_guard")[-1]["changes"]
+    assert p.tasks[0].expert == "reasoning" and p.tasks[0].goal == goal and any("verbatim" in c for c in changes) and any("solver -> reasoning" in c for c in changes)
+    with pytest.raises(PlanError):                                                                                   # the example text is not a task
+        lead._parse_plan(goal, {"tasks": [{"id": "T1", "goal": "Write the instruction for the task 'T1'", "expert": "reasoning", "depends_on": []}]})
+    q = lead._parse_plan("Using the registry mass of P-104, compute its weight in newtons.",
+                         {"tasks": [{"id": "T1", "goal": "Look up the mass and compute the weight", "expert": "solver", "depends_on": []}]})
+    assert q.tasks[0].expert == "solver"                                                                              # a fact to look up: Ada keeps it
 
 
 def test_a_phrase_that_rests_on_nothing_is_sent_back():

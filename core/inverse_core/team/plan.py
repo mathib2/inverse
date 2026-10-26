@@ -17,7 +17,8 @@ class PlanError(ValueError):
 
 # A small model sometimes copies the example text of the schema instead of writing the task: such a plan is refused and the
 # planner is told why (its retry then gets a second chance).
-PLACEHOLDER = re.compile(r"(?i)^\s*(<[^>]*>|instruction|goal|task|name|todo|tbd|\.\.\.)?\s*$|self-contained instruction|written by you|<[^>]*>")
+PLACEHOLDER = re.compile(r"(?i)^\s*(<[^>]*>|instruction|goal|task|name|todo|tbd|\.\.\.)?\s*$|self-contained instruction|written by you|<[^>]*>"
+                         r"|write the instruction|instruction for (the )?task|task '?T\d+'?\s*$")
 
 
 class Plan:
