@@ -50,7 +50,7 @@ def test_five_wrong_tries_lock_one_visitor_out_for_the_window_and_not_the_others
     auth.record_failure("203.0.113.7", now=1011)
     wait = auth.locked_for("203.0.113.7", now=1012)
     assert 880 < wait <= auth.WINDOW and auth.locked_for("198.51.100.2", now=1012) == 0       # another visitor is not locked out
-    assert auth.locked_for("203.0.113.7", now=1000 + auth.WINDOW + 20) == 0                 # the window passes
     assert auth.crowd_failures(now=1012) == 5 and auth.crowd_failures(now=1000 + auth.WINDOW + 20) == 0
+    assert auth.locked_for("203.0.113.7", now=1000 + auth.WINDOW + 20) == 0                 # the window passes (and prunes the old tries)
     auth._BY_CLIENT.clear()
 
