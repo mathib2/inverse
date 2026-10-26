@@ -6,7 +6,7 @@
   every: 12
   goal: "For {machines}: using queries, report how much sensor data each machine has, the time span it covers, and what the maintenance history says was done to it and when. Flag anything that changed since the last check in shared memory."
 - name: code_review
-  every: 24
+  every: 6
   goal: "Review this repository's own code for security weaknesses and propose the smallest fix for each verified finding."
 - name: memory_digest
   every: 24

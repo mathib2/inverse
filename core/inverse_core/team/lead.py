@@ -14,7 +14,8 @@ from ..budget import BudgetExceeded
 from .bus import Bus
 from .critic import Critic
 from .custom import scope_check
-from .expert import ExpertBudget, Task
+from .crew import roster
+from .expert import ExpertBudget, ExpertResult, Task
 from .llmcall import BadReply, ask
 from . import limits
 from .plan import PLACEHOLDER, Plan, PlanError
@@ -99,6 +100,23 @@ def rule_plan(goal, names, equipment):
     return Plan(goal, tasks)
 
 
+ABOUT_US = re.compile(r"\bwhat (?:can|could) (?:you|the crew|this crew|inverse) do\b|\bwhat are you(?:r)? (?:capable of|able to do|good at|capabilities|skills|abilities)\b"
+                      r"|\bwho are you\b|\bintroduce yourself\b|\bhow can you help\b|\bwhat can i ask\b|^\s*help\s*[?.!]*\s*$", re.I)
+
+
+def about_us(goal, configs):
+    """The answer to a question about the crew itself, written from its own records: who is on it, what each one does, what to ask.
+    No model call: a 4B planner read "what are you capable of" as a task to build a new expert (27 calls, 431 s, no answer)."""
+    rows = roster(configs)
+    lines = "; ".join(f"{r['name']} {r['does'].rstrip('.')}" for r in rows)
+    text = (f"I am INVERSE, a crew of {len(rows)} AI agents running on a local model. {lines}. "
+            "Ask what the registry, the sensors, the maintenance history or the sample tables say about a machine (for example P-104), "
+            "give a calculation with its numbers, ask to review a file of this repository for security weaknesses, or ask what the crew has found so far. "
+            "Every answer cites the evidence it comes from, and Vera checks it before you see it.")
+    ev = [{"type": "roster", "source": "the crew's own records (experts/*.yaml and the crew list)", "detail": f"{len(rows)} agents: " + ", ".join(r["name"] for r in rows)}]
+    return ExpertResult(text, ev, 1.0, [], []).to_dict()
+
+
 def simple_goal(goal, equipment=()):
     """A goal whose plan a rule writes as well as the model would, and in no time: a plain lookup, an arithmetic with its numbers in
     the goal and no machine to look up, a summary, a review of a named path. Not a goal that says the crew lacks something (the
@@ -136,6 +154,12 @@ class Lead:
     def plan(self, goal, collaborate=False, votes=1):
         """votes > 1 samples that many plans at temperature 0.7 and keeps the most common task/expert structure
         (self-consistency, Wang et al. 2022): a majority over samples is more reliable than one greedy decode."""
+        if ABOUT_US.search(goal or "") and len(str(goal)) < 160:             # a question about the crew: answered from its records, no model call
+            t = Task("T1", goal, "lead", [])
+            t.status, t.result = "done", about_us(goal, self.registry.configs)
+            plan = Plan(goal, [t])
+            self.ctx.trace.event("plan", goal=goal, tasks=[t.__dict__ | {"result": None}], model=None, by="code", reason="a question about the crew, answered from its records")
+            return plan
         kind = simple_goal(goal, self.ctx.equipment) if self.rule_first else None
         if kind:                                                              # no model call: the rule plan, then the same guard every plan gets
             plan = self._guard(rule_plan(goal, self.registry.names(), self.ctx.equipment).validate(self.registry.names(), self.creators()))
@@ -355,15 +379,18 @@ class Lead:
     def run(self, plan, run_dir=None, parallel=2):
         """Executes the plan level by level; independent tasks in a level run concurrently (at most `parallel` at once), which
         is where most of the wall-clock time of a multi-expert run goes."""
-        plan.validate(self.registry.names(), self.creators())
+        names = self.registry.names() + (["lead"] if any(t.expert == "lead" and t.status == "done" for t in plan.tasks) else [])
+        plan.validate(names, self.creators())
         self.ctx.budget.t0 = time.time()                                      # the wall-clock budget starts when the plan is approved, not drafted
-        self.ctx.trace.event("plan_approved", tasks=[t.id for t in plan.tasks], pending_experts=plan.pending_experts(self.registry.names()), parallel=parallel)
+        self.ctx.trace.event("plan_approved", tasks=[t.id for t in plan.tasks], pending_experts=plan.pending_experts(names), parallel=parallel)
         if run_dir:
             plan.save(run_dir)
         done = {}
         for level in self.levels(plan):
             ready = []
             for task in level:
+                if task.status == "done" and task.result:                     # answered by code when it was planned: nothing to run
+                    continue
                 blocked = [d for d in task.depends_on if done[d].status != "done"]
                 if blocked and task.expert not in self.registry.experts and all(done[d].expert in self.creators() for d in blocked) \
                         and self._forge_by_rule(task, plan.goal):              # the architect failed to build it: a rule did, so the work goes on
@@ -422,7 +449,7 @@ class Lead:
         task.lessons = self._mem("lessons", task.expert) or []               # what reviewers told this expert before (Reflexion)
         if task.lessons:
             self.ctx.trace.event("lessons", task=task.id, expert=task.expert, count=len(task.lessons))
-        last, repeats, rejected_once = None, 0, ""
+        last, repeats, rejected_once, last_rule = None, 0, "", ""
         for attempt in range(1, self.max_attempts + 1):
             if attempt > 1 and self.stopped():
                 task.status, task.feedback = "failed", "stopped by a person before another attempt; the last note was: " + task.feedback
@@ -513,6 +540,11 @@ class Lead:
                 self.ctx.trace.event("task_rejected", task=task.id, reason=reason)
                 return
             task.feedback = reason
+            if review.get("by") == "rule" and reason and reason == last_rule:    # the same rule objection twice: a third try repeats it (a code review lost 15 min this way)
+                task.status, task.feedback = "failed", "the same objection twice: " + reason
+                self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
+                return
+            last_rule = reason if review.get("by") == "rule" else ""
             if not getattr(expert, "retryable", True):                       # a deterministic expert would return the same answer
                 task.status = "failed"
                 self.ctx.trace.event("task_failed", task=task.id, reason="critic sent it back but the expert is deterministic: " + task.feedback)

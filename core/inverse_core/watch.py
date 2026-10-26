@@ -14,6 +14,7 @@ import threading
 import time
 
 from . import chat, digest
+import subprocess
 import traceback
 
 import requests
@@ -235,6 +236,14 @@ class Watcher:
         self.state["missions"][name] = time.time() if ok else time.time() - every + 3600
         self._save()
 
+    def review_goals(self, per_run=4):
+        """Goals for the code-review mission: up to `per_run` files, those changed since the last review first, then the rest of the
+        code in turn. One file is a review a 4B model finishes in a minute or two; the whole repository at once ran out of time."""
+        st = self.state.setdefault("review", {"sha": None, "pending": []})
+        goals, pending = review_files(self.root, st, per_run)
+        self._save()
+        return [f"Review {f} for security weaknesses and propose the smallest fix for each verified finding." for f in goals], pending
+
     def due_missions(self, now=None):
         """Standing missions whose interval has passed, or that never ran. `every` is in hours."""
         now = time.time() if now is None else now
@@ -274,6 +283,14 @@ class Watcher:
             except Exception:
                 machines_txt = "the machines in the registry"
             goal = str(m["goal"]).replace("{machines}", machines_txt)
+            if m["name"] == "code_review":                                     # a few files per run, changed ones first
+                goals, left = self.review_goals()
+                if goals:
+                    oks = [self.run_team(g, f"mission:{m['name']}", by="warden") is not None for g in goals]
+                    self.log(f"code review: {sum(oks)} of {len(goals)} file(s) reviewed, {left} waiting for the next run")
+                    self._mark_mission(m["name"], any(oks))
+                    done.append({"kind": "team", "trigger": f"mission:{m['name']}", "goal": f"{len(goals)} file review(s)", "ok": any(oks)})
+                    continue
             out = self.run_team(goal, f"mission:{m['name']}", by="warden")
             self._mark_mission(m["name"], out is not None)
             done.append({"kind": "team", "trigger": f"mission:{m['name']}", "goal": goal, "ok": out is not None})
@@ -344,3 +361,27 @@ class Watcher:
     def status(self):
         return {"heartbeat": self._load(self.heartbeat_path), "cycles": self.state["cycles"], "last_cycle": self.state.get("last_cycle"),
                 "seen": self.state["seen"], "missions": self.state.get("missions", {}), "queued": len(self.pending()), "runs": self.state["runs"][-10:]}
+
+def review_files(root, st, per_run=4):
+    """(files to review now, how many wait): files changed since st['sha'] go first, then every other Python file of the code in
+    turn; st is updated in place. Without git (or on any git error) it returns ([], 0) and the mission reviews the repository as before."""
+    def git(*args):
+        return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, timeout=30)
+    try:
+        head = git("rev-parse", "HEAD").stdout.strip()
+        tracked = [f for f in git("ls-files", "*.py").stdout.split() if not f.startswith(("tests/", "backlog_tests/", "vendor/", "services/"))]
+        changed = git("diff", "--name-only", st["sha"], head, "--", "*.py").stdout.split() if st.get("sha") else []
+    except (OSError, subprocess.SubprocessError):
+        return [], 0
+    if not head or not tracked:
+        return [], 0
+    order = [f for f in changed if f in tracked] + [f for f in st.get("pending") or [] if f in tracked]
+    if not st.get("sha") and not st.get("pending"):
+        order += tracked
+    pending = list(dict.fromkeys(order))
+    if not pending:                                                          # a full sweep is done: start the next one
+        pending = list(tracked)
+    take, rest = pending[:per_run], pending[per_run:]
+    st["sha"], st["pending"] = head, rest
+    return take, len(rest)
+
