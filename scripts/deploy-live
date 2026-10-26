@@ -23,7 +23,7 @@ tmux respawn-pane -k -t 3:1 "cd ~/inverse-live && PYTHONPATH=core .venv/bin/stre
 # so they run the code just deployed. Only a process serving from this checkout's sidecar folder is stopped, never another folder's.
 tmux kill-session -t inverse-markovian 2>/dev/null || true          # the old fixed-port (8101) Markovian session, retired
 SIDE="$HOME/inverse-live/services/meterless-sidecar"
-port_of() { echo "$1" | sed -n 's|.*:\([0-9][0-9]*\).*||p'; }
+port_of() { echo "$1" | sed -n 's|.*:\([0-9][0-9]*\).*|\1|p'; }
 for k in SIDECAR_URL MARKOVIAN_URL; do
   p=$(port_of "$(grep -m1 "^$k=" .env | cut -d= -f2-)"); [ -n "$p" ] || continue
   pid=$(ss -ltnp 2>/dev/null | grep ":$p " | grep -o "pid=[0-9]*" | head -1 | cut -d= -f2)
