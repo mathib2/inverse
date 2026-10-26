@@ -3,6 +3,12 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## A chat front page, a live feed that narrates, agents that know their limits (2026-10-26)
+- The front page is a conversation (`ui/chat_ui.py`): ask at the bottom, the crew answers in the thread, and the right-hand panel holds the artifacts of the answer (evidence, who did what, steps), the live feed, the crew with what each agent is working to fix, Warden, the council and the alerts sent to the phone with the ntfy setup and a test button. The sidebar is a slim rail: new chat, Chat/Advanced, recent missions, connections, memory, sign out.
+- The trace narrates a mission into the chat log as it happens (`chat.narrate`): the plan, hand-outs, tool calls, results, Vera's verdicts, retries, the answer. The Live panel reads like a stream instead of two lines per mission.
+- `core/inverse_core/team/limits.py`: the probes an agent fails and the improvement items that name it become a short standing note in its prompt, with the aim to remove them and to propose the rule that would; Atlas and Vera included. The latest full probe (`docs/evidence/probe/probe4.json`) is committed so every checkout has it.
+- Measured, not adopted: `nemotron-3-nano:4b` on this CPU took 130 s for the arithmetic case against 31 s for nemotron-mini, so the bench was stopped; bigger is slower here.
+
 ## A coder model for Tinker's engineer, measured (2026-10-25, night)
 - Tinker's engineer step runs on its own lane, `engineer`, which `TINKER_ENGINEER_MODEL` points at a coder model (unset: the deep lane); the crew's lanes are untouched. `scripts/engineer_eval.py` measures a model as the engineer on four small edits decided by tests and on the real backlog items decided by the test suite (`docs/evidence/engineer/`). On the workstation: nemotron-mini 2 of 4, qwen2.5-coder:3b 3 of 4, qwen2.5-coder:7b 4 of 4 at 55 s per task; the 7B is the engineer now.
 - Tinker's backlog is six items verified open against the code, each mapped to a file region (`REGIONS`) and carrying its own "what to change" paragraph; the engineer's first reply is the edit, and `edit_file` forgives line numbers copied from the excerpt.
