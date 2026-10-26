@@ -211,7 +211,7 @@ def test_a_tool_call_repeated_with_the_same_arguments_ends_the_loop_by_code(tmp_
 
     ctx, lead = crew(tmp_path, script)
     res = ctx.registry.experts["solver"].run(Task("T1", "Summarize what the crew knows. Use the shared memory tool first.", "solver"), lead.memory, ExpertBudget())
-    assert res.answer.startswith("Tool results so far: memory({})") and res.confidence <= 0.3
+    assert res.answer.startswith("Found and still standing") and res.confidence == 0.8 and events(ctx, "summary_by_code")   # the loop ended by code; the digest is read out of the memory
     assert [e.get("times") for e in events(ctx, "tool_repeat")] == [2, 3] and len(events(ctx, "llm")) == 2                   # the prefetch counts: one warning, then code
     assert any(c.startswith("You already called memory({})") for c in calls)
 

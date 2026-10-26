@@ -45,6 +45,9 @@ in under a second. Everything below follows from those three numbers: fewer call
 | 8 | 7/8 | 7 | 383 | 4.5 | a repeated tool call ends the loop by code (the same seven passes twice in a row: the gain holds; the registry case is the known remaining failure) |
 | 9 | 7/8 | 7 | 513 | 4.6 | the second batch from the agent report: Ada's facts and consultations by code, a bare word is not an answer, Forge planned in when the goal says the crew lacks something, a phrase from nowhere sent back (the summary case took 242 s: Ada writes long from a full memory) |
 | 10 | 8/8 | 8 | 405 | 4.6 | the third batch: a computation ends with the calculator, a named sensor selected by its id, the ids listed when the task says which, the expert the architect did not build is built by rule; the first fully passing round |
+| 11 | 6/8 | 6 | 794 | 6.1 | the same mission code as round 10 plus the autonomy work, run at 21:49 with Tinker and Warden stopped: the arithmetic case lost to a plan whose only task was the schema's example text ("Write the instruction for the task 'T1'"), the weight case to Scout computing (10.0 N from 1.0 kg) and being refused three times; the summary case took 256 s |
+| 12 | 7/8 | 7 | 507 | 4.8 | a one-task plan carries the goal verbatim, placeholder tasks are refused, plain arithmetic goes to Euler, a lookup that feeds a computation is rewritten as a lookup, and numbers Scout states that the rows do not contain are replaced by the row values (the arithmetic case: 37 s and 3 calls; the summary case failed: Ada reported zero confidence three times on a memory of ten refuted findings) |
+| 13 | ROUND13_PASS | ROUND13_CLEAN | ROUND13_SECONDS | ROUND13_CALLS | a summary the model doubts, or leaves empty, is read out of the memory by code (`summary_by_code`) |
 
 The failures that remained longest, and what decided them:
 
@@ -59,6 +62,12 @@ The failures that remained longest, and what decided them:
   path is answered by code; the path named in the goal is carried into the task.
 - **Euler wrote `calc(mass_kg * 9.81)`** with `mass_kg = 1.0` in its context and failed three times: `resolve` substitutes the
   value before the calculator runs.
+- **Atlas copied the example text as the task** and **Scout computed when its task said "compute"** (round 11): a one-task plan now
+  carries the goal verbatim (a paraphrase by a 4B planner can only drop a detail or be the example), the placeholder patterns are
+  refused so the planner is re-asked, plain arithmetic with nothing to look up goes to Euler, a lookup that feeds a computation is
+  rewritten as "look up the values; the computation is another task's", and when Scout's answer states numbers the rows do not
+  contain, the code-made row values become the answer (`scout_numbers_dropped`): Scout and Vera agree by construction instead of
+  after three refusals.
 
 ## What the research said, and what was kept
 

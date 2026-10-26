@@ -79,6 +79,16 @@ def test_scout_looks_up_only_and_the_rows_speak_when_its_numbers_are_not_in_them
     assert C.deterministic(res.to_dict()) is None                                                                     # Scout and Vera now agree by construction
 
 
+def test_a_summary_the_model_doubts_is_read_out_of_the_memory_by_code(tmp_path):
+    from inverse_core.team.custom import digest
+    text = digest({"findings": ["P-104 has a mass of 12.5 kg", "No equipment with id 1 found"], "refuted": ["No equipment with id 1 found"]})
+    assert text.startswith("Found and still standing: P-104 has a mass of 12.5 kg.") and "Ruled out: No equipment with id 1 found." in text
+    ctx, lead = crew(tmp_path, lambda m, msgs: json.dumps({"answer": "I cannot tell what was found.", "confidence": 0.0, "assumptions": [], "not_checked": []}))
+    res = ctx.registry.experts["solver"].run(Task("T1", "Summarize in plain words what the crew has found and ruled out so far. Use the shared memory tool first.", "solver"),
+                                             lead.memory, ExpertBudget())
+    assert events(ctx, "summary_by_code") and res.confidence == 0.8 and res.answer.startswith("Found and still standing") and C.deterministic(res.to_dict()) is None
+
+
 def test_a_phrase_that_rests_on_nothing_is_sent_back():
     ev = [{"type": "calc", "source": "step 1: 2*3", "detail": "= 6 (expected 6) OK"}]
     res = {"answer": "six is 6, as the manual says.", "confidence": 0.9, "assumptions": [], "not_checked": [], "task_goal": "what is 2 times 3", "evidence": ev}
