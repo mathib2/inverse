@@ -64,6 +64,21 @@ def test_a_one_task_plan_carries_the_goal_itself_and_a_placeholder_task_is_refus
     assert q.tasks[0].expert == "solver"                                                                              # a fact to look up: Ada keeps it
 
 
+def test_scout_looks_up_only_and_the_rows_speak_when_its_numbers_are_not_in_them(tmp_path):
+    def script(model, messages):
+        if messages[-1]["content"].startswith("These are the rows your queries returned"):
+            return json.dumps({"answer": "P-104 has a mass of 12.5 kg, so it weighs 10.0 N [Q1].", "confidence": 0.8, "assumptions": []})
+        return json.dumps({"queries": ["SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'"]})
+
+    ctx, lead = crew(tmp_path, script)
+    goal = "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81."
+    p = lead._parse_plan(goal, {"tasks": [{"id": "T1", "goal": "compute the weight of P-104 in newtons", "expert": "research", "depends_on": []}]})
+    assert [t.expert for t in p.tasks] == ["research", "reasoning"] and p.tasks[0].goal.startswith("Look up the values") and goal in p.tasks[0].goal
+    res = ctx.registry.experts["research"].run(p.tasks[0], lead.memory, ExpertBudget())
+    assert "10.0" not in res.answer and "mass_kg = 12.5" in res.answer and events(ctx, "scout_numbers_dropped")[0]["numbers"] == ["10.0"]
+    assert C.deterministic(res.to_dict()) is None                                                                     # Scout and Vera now agree by construction
+
+
 def test_a_phrase_that_rests_on_nothing_is_sent_back():
     ev = [{"type": "calc", "source": "step 1: 2*3", "detail": "= 6 (expected 6) OK"}]
     res = {"answer": "six is 6, as the manual says.", "confidence": 0.9, "assumptions": [], "not_checked": [], "task_goal": "what is 2 times 3", "evidence": ev}
