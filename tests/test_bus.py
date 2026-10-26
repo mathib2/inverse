@@ -1,4 +1,4 @@
-"""The experts talk: the message bus, delivery by the Lead, and the ask_expert / post_message / read_messages tools."""
+"""The agents talk: the message bus, delivery by Atlas, and the ask_expert / post_message / read_messages tools. No model and no network unless a test says so."""
 import json
 import os
 
@@ -15,7 +15,21 @@ from inverse_core.team.registry import Registry
 from inverse_core.team.tools import Tools
 from inverse_core.trace import Trace
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from fakes import crew
+
+
+def events(ctx, kind):
+    return [e for e in ctx.trace.events if e["kind"] == kind]
+
+
+def make_ctx(tmp_path, script):
+    lanes = Lanes(factory=lambda model: FakeLLM(model, script), mapping=dict(NEMOTRON_LANES))
+    ctx = Ctx(lanes, Trace(str(tmp_path)), Budget(max_llm_calls=40), zetaris=FakeZetaris(), guard=lambda n: (n, []), equipment=["P-104"])
+    ctx.registry = Registry(ctx, os.path.join(ROOT, "experts"), ROOT)
+    return ctx
+
+
+REASONING = json.dumps({"steps": [{"claim": "product", "calc": "2*3", "expect": 6}], "answer": "6", "confidence": 0.9, "assumptions": []})
 
 
 class FakeLLM:
@@ -34,18 +48,7 @@ class FakeZetaris:
         return [{"equipment_id": "P-104", "mass_kg": 12.5}]
 
 
-def make_ctx(tmp_path, script):
-    lanes = Lanes(factory=lambda model: FakeLLM(model, script), mapping=dict(NEMOTRON_LANES))
-    ctx = Ctx(lanes, Trace(str(tmp_path)), Budget(max_llm_calls=40), zetaris=FakeZetaris(), guard=lambda n: (n, []), equipment=["P-104"])
-    ctx.registry = Registry(ctx, os.path.join(ROOT, "experts"), ROOT)
-    return ctx
-
-
-def events(ctx, kind):
-    return [e for e in ctx.trace.events if e["kind"] == kind]
-
-
-REASONING = json.dumps({"steps": [{"claim": "product", "calc": "2*3", "expect": 6}], "answer": "6", "confidence": 0.9, "assumptions": []})
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_bus_persists_messages_mirrors_them_in_the_trace_and_filters_inboxes(tmp_path):
@@ -164,3 +167,16 @@ def test_solver_consults_reasoning_inside_its_tool_loop(tmp_path):
     assert not any("numbers in the answer" in n for n in res.not_checked)                  # 6 is in the consulted expert's answer
     assert [e["tool"] for e in events(ctx, "tool")] == ["ask_expert"] and events(ctx, "consult")[0]["ok"] is True
     assert [(m["from"], m["to"]) for m in ctx.bus.all()] == [("solver", "reasoning"), ("reasoning", "solver")]
+
+
+def test_a_task_that_says_ask_the_reasoning_expert_asks_it_by_code(tmp_path):
+    def script(model, messages):
+        system = messages[0]["content"]
+        if system.startswith("You are the Reasoning expert"):
+            return json.dumps({"steps": [{"claim": "T = 1/f", "calc": "1/2", "expect": 0.5}], "answer": "The period is 0.5 s.", "confidence": 0.9, "assumptions": []})
+        return json.dumps({"answer": "The reasoning expert says the period is 0.5 s.", "confidence": 0.9, "assumptions": [], "not_checked": []})
+
+    ctx, lead = crew(tmp_path, script)
+    res = ctx.registry.experts["solver"].run(Task("T1", "Ask the reasoning expert for the period of a 2 Hz oscillation and report the number.", "solver"), lead.memory, ExpertBudget())
+    assert events(ctx, "consult_prefetched")[0]["to"] == "reasoning" and res.evidence[0]["source"].startswith("ask_expert(reasoning")
+    assert "0.5" in res.answer and events(ctx, "consult")

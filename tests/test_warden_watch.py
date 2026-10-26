@@ -1,9 +1,26 @@
-"""Warden without a model or the data platform: new-data detection, the goal queue, standing missions, manifests, recovery, the heartbeat."""
+"""Warden: new data, standing missions on their schedule, queued and re-queued goals, the rolling code review. No model and no network unless a test says so."""
 import json
 import os
+import subprocess
+import time
 
 from inverse_core.clients.zetaris import SAMPLE_VIEWS
-from inverse_core.team.watch import Watcher, data_goal
+from inverse_core.team.watch import data_goal, review_files, Watcher
+
+
+class FakeTeam:
+    def __init__(self, root, fail=False):
+        self.root, self.fail, self.goals, self.n = root, fail, [], 0
+
+    def __call__(self, goal, on_start):
+        self.goals.append(goal)
+        self.n += 1
+        d = os.path.join(self.root, "runs", f"team{self.n}")
+        os.makedirs(d)
+        on_start(d)
+        if self.fail:
+            raise RuntimeError("planner exploded")
+        return {"answer": "The maintenance history shows a bearing change [T1.E1].", "unfinished": [], "models_used": ["m"]}, d
 
 
 class FakeZ:
@@ -25,24 +42,68 @@ class FakeZ:
         return self.ds[eq]
 
 
-class FakeTeam:
-    def __init__(self, root, fail=False):
-        self.root, self.fail, self.goals, self.n = root, fail, [], 0
-
-    def __call__(self, goal, on_start):
-        self.goals.append(goal)
-        self.n += 1
-        d = os.path.join(self.root, "runs", f"team{self.n}")
-        os.makedirs(d)
-        on_start(d)
-        if self.fail:
-            raise RuntimeError("planner exploded")
-        return {"answer": "The maintenance history shows a bearing change [T1.E1].", "unfinished": [], "models_used": ["m"]}, d
-
-
 def manifest(d):
     with open(os.path.join(d, "manifest.json")) as f:
         return json.load(f)
+
+
+def test_standing_missions_run_when_due_and_not_again_until_their_interval_passes(tmp_path):
+    z, team = FakeZ(), FakeTeam(str(tmp_path))
+    missions = [{"name": "data_check", "every": 12, "goal": "Check {machines}."}, {"name": "digest", "every": 24, "goal": "Summarize what we know."}]
+    w = Watcher(z, team, root=str(tmp_path), interval=60, missions=missions)
+    assert [m["name"] for m in w.due_missions()] == ["data_check", "digest"]                 # never ran: both due
+    done = w.cycle()
+    assert team.goals[:2] == ["Check P-104, T-200.", "Summarize what we know."]               # {machines} filled from the registry
+    assert [d["trigger"] for d in done][:2] == ["mission:data_check", "mission:digest"]
+    m = json.load(open(os.path.join(tmp_path, "runs", "team1", "manifest.json")))
+    assert m["trigger"] == "mission:data_check" and m["by"] == "warden" and m["status"] == "done"
+    assert w.due_missions() == [] and w.cycle() == []                                           # not due again, and no new data either
+    state = json.load(open(os.path.join(tmp_path, "state", "watch.json")))
+    assert set(state["missions"]) == {"data_check", "digest"}
+    w.state["missions"]["data_check"] = time.time() - 13 * 3600                               # 13 hours later: only the 12-hour one is due
+    assert [m["name"] for m in w.due_missions()] == ["data_check"]
+    assert w.status()["missions"]["digest"] > 0
+
+
+def test_a_failed_mission_is_retried_in_an_hour_not_after_its_whole_interval(tmp_path):
+    z, team = FakeZ(), FakeTeam(str(tmp_path), fail=True)
+    w = Watcher(z, team, root=str(tmp_path), interval=60, missions=[{"name": "digest", "every": 24, "goal": "Summarize."}])
+    assert [d["ok"] for d in w.cycle() if d["trigger"] == "mission:digest"] == [False]
+    assert w.due_missions() == [] and w.due_missions(now=time.time() + 3601) and not w.due_missions(now=time.time() + 1800)
+
+
+def test_a_requeued_mission_counts_as_that_mission_when_it_completes(tmp_path):
+    z, team = FakeZ(), FakeTeam(str(tmp_path))
+    w = Watcher(z, team, root=str(tmp_path), interval=60, missions=[{"name": "digest", "every": 24, "goal": "Summarize."}])
+    w._dump(w.current_path, {"kind": "team", "goal": "Summarize.", "started": "x", "trigger": "mission:digest"})      # the process died mid-mission
+    w.recover()
+    assert w.pending()[0]["mission"] == "digest" and [m["name"] for m in w.due_missions()] == ["digest"]
+    done = w.cycle()
+    assert team.goals[0] == "Summarize." and team.goals.count("Summarize.") == 1 and done[0]["trigger"] == "queue"   # ran once, from the queue
+    assert w.due_missions() == [] and w.status()["missions"]["digest"] > 0                                           # and counted as the mission
+
+
+def test_warden_reviews_changed_files_first_then_the_rest_a_few_at_a_time(tmp_path):
+    root = str(tmp_path)
+    git = lambda *a: subprocess.run(["git", "-C", root, *a], capture_output=True, text=True, check=True)
+    git("init", "-q")
+    git("config", "user.email", "t@t")
+    git("config", "user.name", "t")
+    for f in ("a.py", "b.py", "c.py", "tests/test_x.py"):
+        os.makedirs(os.path.dirname(os.path.join(root, f)) or root, exist_ok=True)
+        open(os.path.join(root, f), "w").write("x = 1\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "one")
+    st = {"sha": None, "pending": []}
+    take, left = review_files(root, st, per_run=2)
+    assert take == ["a.py", "b.py"] and left == 1 and st["pending"] == ["c.py"]          # tests are not reviewed
+    open(os.path.join(root, "b.py"), "w").write("x = 2\n")
+    git("commit", "-q", "-am", "two")
+    take, left = review_files(root, st, per_run=2)
+    assert take == ["b.py", "c.py"] and left == 0                                         # what changed goes first
+    take, left = review_files(root, st, per_run=2)
+    assert take == ["a.py", "b.py"] and left == 1                                         # a sweep done: the next one starts
+    assert review_files(str(tmp_path / "nogit"), {"sha": None, "pending": []}) == ([], 0)
 
 
 def test_data_goal_is_fixed_text_that_names_the_machine_and_the_data():

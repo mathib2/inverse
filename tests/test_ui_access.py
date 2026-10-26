@@ -1,12 +1,16 @@
-"""The sign-in page's pieces: a salted hash that verifies, a signed cookie that expires and can be revoked, the .env writer."""
-import os
-import sys
+"""Who can reach the page: the sign-in page, the password script, and the public link. No model and no network unless a test says so."""
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui"))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "admin"))
-import auth  # noqa: E402
-import set_password  # noqa: E402
+import auth
+import set_password
+
+
+def test_the_public_link_is_read_from_cloudflareds_log_and_kept_in_state(tmp_path):
+    import public_link
+    assert public_link.url_in("2026-10-26T12:00:00Z INF |  https://quiet-river-1234.trycloudflare.com                |") == "https://quiet-river-1234.trycloudflare.com"
+    assert public_link.url_in("INF Requesting new quick Tunnel on trycloudflare.com...") is None
+    public_link.write_url("https://a-b.trycloudflare.com", root=str(tmp_path), now=0)
+    assert public_link.read_url(str(tmp_path))["url"] == "https://a-b.trycloudflare.com" and public_link.read_url(str(tmp_path / "x")) == {}
 
 
 def test_password_hash_verifies_and_rejects():
@@ -41,6 +45,7 @@ def test_env_writer_replaces_and_appends(tmp_path):
     set_password.write_env(str(p), {"UI_USER": "root", "UI_PASSWORD_HASH": "pbkdf2_sha256$1$s$h"})
     assert p.read_text() == "ZETARIS_API_KEY=keep\nUI_USER=root\nUI_PASSWORD_HASH=pbkdf2_sha256$1$s$h\n"
 
+
 def test_five_wrong_tries_lock_one_visitor_out_for_the_window_and_not_the_others():
     import auth
     auth._BY_CLIENT.clear()
@@ -53,4 +58,3 @@ def test_five_wrong_tries_lock_one_visitor_out_for_the_window_and_not_the_others
     assert auth.crowd_failures(now=1012) == 5 and auth.crowd_failures(now=1000 + auth.WINDOW + 20) == 0
     assert auth.locked_for("203.0.113.7", now=1000 + auth.WINDOW + 20) == 0                 # the window passes (and prunes the old tries)
     auth._BY_CLIENT.clear()
-

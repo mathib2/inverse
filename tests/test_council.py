@@ -1,41 +1,15 @@
-"""The council: the CW/1 wire protocol, zero-cost filing, bounded sessions decided by rule, reversible effects, and the rules
-that file proposals from what a run showed. No model and no network: the model is scripted, the data platform is faked."""
+"""The council: the CW/1 wire protocol, zero-cost filing, bounded sessions decided by rule, reversible effects. No model and no network unless a test says so."""
 import json
 import os
-import shutil
 import time
 
-from inverse_core.budget import Budget
-from inverse_core.ledger import InMemoryLedger
+from inverse_core.missions import load_missions
 from inverse_core.team import council as CO, council_wire as wire
 from inverse_core.team.expert import ExpertBudget, Task
-from inverse_core.team.lanes import DEFAULTS as NEMOTRON_LANES, Lanes
-from inverse_core.team.lead import Lead
-from inverse_core.team.llmcall import Ctx
-from inverse_core.team.memory import TeamMemory
 from inverse_core.team.plan import Plan
-from inverse_core.team.registry import Registry
 from inverse_core.team.tools import Tools
-from inverse_core.trace import Trace
-from inverse_core.missions import load_missions
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-class FakeLLM:
-    def __init__(self, model, script):
-        self.model, self.script = model, script
-
-    def chat(self, messages, **kw):
-        return {"text": self.script(self.model, messages), "model": self.model, "usage": {"total_tokens": 100}, "finish_reason": "stop", "latency_s": 0.0}
-
-    def health(self):
-        return {"status": "online", "models": [self.model]}
-
-
-class FakeZetaris:
-    def sql(self, statement, limit=2000):
-        return [{"equipment_id": "P-104", "mass_kg": 12.5}]
+from fakes import crew, events
 
 
 class FakeWorld:
@@ -47,23 +21,6 @@ class FakeWorld:
         return {"hypothesis_id": "h", "entities": 1}
 
 
-def crew(tmp_path, script):
-    """A crew bound to a temporary experts folder, so experts.local and council files land in tmp_path."""
-    experts = tmp_path / "experts"
-    shutil.copytree(os.path.join(ROOT, "experts"), experts)
-    lanes = Lanes(factory=lambda model: FakeLLM(model, script), mapping=dict(NEMOTRON_LANES))
-    trace = Trace(str(tmp_path / "runs"))
-    ctx = Ctx(lanes, trace, Budget(max_llm_calls=40), zetaris=FakeZetaris(), guard=lambda n: (n, []), equipment=["P-104"], root=ROOT)
-    ctx.registry = Registry(ctx, str(experts), ROOT)
-    ctx.council = CO.Council(str(tmp_path), trace, ctx.bus)
-    return ctx, Lead(ctx, ctx.registry, TeamMemory(InMemoryLedger()))
-
-
-def events(ctx, kind):
-    return [e for e in ctx.trace.events if e["kind"] == kind]
-
-
-# --- the wire -----------------------------------------------------------------------------------------------------------
 def test_wire_parses_caps_and_refuses_what_it_cannot_apply():
     p, err = wire.parse_proposal({"k": "cfg", "t": "research", "w": "raise the tool-call budget to 8", "y": "ran out twice", "p": {"budget.tool_calls": 8}, "e": ["T1.E2", "nope"]}, "solver", "runs/x")
     assert err is None and p["id"].startswith("P-") and len(p["id"]) == 8 and p["e"] == ["T1.E2"] and p["by"] == "solver" and p["p"] == {"budget.tool_calls": 8}
@@ -85,7 +42,6 @@ def test_wire_parses_caps_and_refuses_what_it_cannot_apply():
     assert wire.parse_votes("garbage", ["P-000001"])[0]["P-000001"] == ("?", "")
 
 
-# --- filing is free and persistent ---------------------------------------------------------------------------------------
 def test_filing_dedups_into_backers_persists_in_the_book_and_rides_on_an_accepted_result(tmp_path):
     def script(model, messages):
         system = messages[0]["content"]
@@ -120,7 +76,6 @@ def test_the_propose_and_support_tools_file_for_the_owner(tmp_path):
     assert "no open proposal" in tools.call("support", {"id": "P-ffffff"}, ExpertBudget(), who="solver")["error"]
 
 
-# --- sessions: bounded, batched, decided by rule, effects by code ---------------------------------------------------------
 def test_a_session_votes_in_batches_decides_by_rule_and_applies_reversible_effects(tmp_path):
     calls = []
 

@@ -1,16 +1,10 @@
-"""The model provider is configuration: Nightshift (the sponsor path) or a local OpenAI-compatible server such as Ollama.
-Wording, lane defaults and the health check follow MODEL_PROVIDER."""
-import os
-import sys
-
+"""The model call: the provider client, lanes, JSON replies, and a lenient ask. No model and no network unless a test says so."""
 import pytest
 
 from inverse_core.clients import meterless as M
 from inverse_core.team.lanes import DEFAULTS, Lanes
-from inverse_core.trace import Trace
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui"))
-import plain  # noqa: E402
+from fakes import crew, events
 
 
 def test_provider_defaults_to_ollama_and_follows_env(monkeypatch):
@@ -56,11 +50,17 @@ def test_health_and_offline_error_name_the_provider(monkeypatch):
         c.chat([{"role": "user", "content": "x"}])
 
 
-def test_ui_words_follow_the_provider(monkeypatch):
-    monkeypatch.setenv("MODEL_PROVIDER", "ollama")
-    words = plain.provider_words()
-    assert "Nightshift" not in words["name"] and all("tunnel" not in s for s in words["offline_fix"])
-    assert "Nightshift" not in plain.error(type("NightshiftOffline", (Exception,), {})("x"))[1]
-    assert any(t[0] == "Ollama (local)" for t in plain.glossary_terms())
-    monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
-    assert any(t[0] == "Nightshift" for t in plain.glossary_terms())
+def test_a_lenient_ask_returns_none_instead_of_raising_on_an_unreadable_reply(tmp_path):
+    from inverse_core.team.llmcall import ask
+    ctx, _ = crew(tmp_path, lambda m, msgs: "no json here")
+    out = ask(ctx, "fast", [{"role": "user", "content": "x"}], "t", json_reply=True, lenient=True)
+    assert out["json"] is None and out["text"] == "no json here" and events(ctx, "llm_parse_error")
+
+
+def test_extract_json_tolerates_prose_fences_and_a_second_object():
+    from inverse_core.clients.meterless import extract_json
+    assert extract_json('Here you go:\n```json\n{"a": 1}\n```\nHope that helps') == {"a": 1}
+    assert extract_json('{"answer": "x", "confidence": 0.8}\n\n{"answer": "x restated"}') == {"answer": "x", "confidence": 0.8}
+    assert extract_json('text with {braces} first {"ok": true}') == {"ok": True}
+    with pytest.raises(ValueError):
+        extract_json("no json here")
