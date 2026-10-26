@@ -64,6 +64,14 @@ PLACES = {                                                                    # 
     "ada": ("core/inverse_core/team/custom.py", "def _loop"), "sentinel": ("core/inverse_core/team/custom.py", "class VulnerabilityExpert"),
     "forge": ("core/inverse_core/team/lead.py", "def _forge_by_rule"), "prompt": ("prompts/research.md", ""),
 }
+REGIONS = [                                                                   # a phrase of the item -> the file and the region, looked up before the agent map
+    ("raw plan", "core/inverse_core/team/lead.py", "PLAN_SYSTEM = "),
+    ("two counts", "core/inverse_core/team/custom.py", "every dataset the registry names"),
+    ("template expert", "core/inverse_core/team/lead.py", "def _forge_by_rule"),
+    ("roots and powers", "core/inverse_core/team/experts.py", "def _check"),
+    ("a filter", "core/inverse_core/team/experts.py", "def pin_sensor"),
+    ("around each scan hit", "core/inverse_core/team/custom.py", "class VulnerabilityExpert"),
+]
 
 
 def sh(cmd, timeout=600, env=None):
@@ -123,8 +131,8 @@ def agent_of(item):
 
 def place_of(item):
     """The file and the lines an item is about, so the engineer starts at the right place instead of searching."""
-    agent = agent_of(item) or "prompt"
-    path, word = PLACES.get(agent, PLACES["prompt"])
+    low = str(item or "").lower()
+    path, word = next(((f, w) for phrase, f, w in REGIONS if phrase in low), PLACES.get(agent_of(item) or "prompt", PLACES["prompt"]))
     try:
         with open(os.path.join(ROOT, path), encoding="utf-8") as f:
             lines = f.read().splitlines()

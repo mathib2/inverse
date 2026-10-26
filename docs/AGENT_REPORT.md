@@ -81,27 +81,46 @@ mission it starts is only as good as the planner, and it runs standing missions 
 
 ## What they must improve, in order
 
-1. **Vera must doubt numbers and scope by rule, not by taste.** Two rules landed from this measurement (a number from nowhere; an
-   asked value left out). Still missing: an unsupported phrase in an otherwise grounded answer ("as the manual says" was accepted twice); the next step is a structured-output schema for her verdict (Ollama `json_schema`) and a second local model on her lane
-   (`LANE_CRITIC=qwen2.5:3b-instruct`), measured by her probe accuracy, not by mission time.
-2. **Atlas must stop misrouting**: the guard fixes four cases; the raw planner should get them right. Give the planner three worked
-   plans of the crew's own goal types in its stable prefix (the plan is a schema, not prose, so copying is harmless here, unlike
-   the experts) and measure raw routing with the Atlas probe before and after.
-3. **Scout must answer the whole question**: every column the task names in one query, no filter the task did not ask for, and the
-   ids when the task says "which". `complete_columns` and `_facts` do it by code for known concepts; the remaining misses are
-   filters (`quantity = 'v'`) and a COUNT where a list was asked. A deterministic "list columns when the task says which/what ids"
-   rule is the next fix.
-4. **Euler must always return a sentence.** Enforce by schema (`answer` a non-empty string) and resolve names from the context before
-   computing (done). Then the five-step cap should become a two-call budget: one plan of steps, one check.
-5. **Ada must finish what she starts.** Three rules would fix three of her four misses: a final answer that is a bare word such as "Error" or a number alone is not an answer (ask again, by code); when the task names two things to count or add, a plan of two tool calls and one `calc` is written by code before the model speaks (the solver's version of Scout's `complete_columns`); and `ask_expert` becomes a required step, traced, when the task says "ask the reasoning expert". Lessons from her own failed queries must not be fed back to her as facts (the `id = 1` echo).
-6. **Forge must be reachable.** A deterministic trigger: when the goal says the crew lacks something ("we have no", "no converter", "nobody can") or names a unit or domain no expert's role mentions, the plan guard adds an architect task first. Then the design-build-test loop gets its own probe with a budget, measured by whether the created expert's task is accepted.
-7. **Sentinel must read before it claims**: with hits, read the lines around each hit before naming a finding (the loop allows it,
-   the prompt should require it); with no hits, code already answers. Cap the whole review at ninety seconds of model time.
-8. **All of them: fewer, shorter calls.** The three numbers that govern this machine are 53 prompt tokens per second, 10 generated
-   tokens per second and a warm prefix in under a second. Every change that removed a call or a hundred generated tokens showed in
-   the benchmark; nothing that touched the server did. The next lever is Ollama structured outputs for every JSON-returning call
-   (no unreadable replies, no re-asks), then a measured trial of `nemotron-3-nano:4b` (pulled, never loaded) against this same
-   probe set, which is the only fair way to decide whether a newer Nemotron is smarter on this CPU.
+Refreshed on the night of 25 October after benchmark rounds 11 to 14 (`docs/BENCH.md`). Each item below was checked against the
+code by reading it and is still open; each names the agent, points at one region, and is measured by one probe. This list is
+Tinker's backlog: `scripts/tinker.py` reads the bold text of each item, and `REGIONS` maps a phrase of it to the file and the lines.
+
+1. **Atlas must route right in the raw plan**: a summary of what the crew knows to Ada with the memory tool, plain arithmetic with
+   the numbers given to Euler, a registry or dataset lookup to Scout, before the guard repairs anything. Where: `PLAN_SYSTEM` in
+   `core/inverse_core/team/lead.py`, one line of rule per goal type in the stable prefix; no worked example plans, because the
+   planner copies examples (round 11 got a task that read "Write the instruction for the task 'T1'"). Measured by the Atlas probe
+   with the guard bypassed: 4 of 6 today.
+2. **Ada must add the two counts she holds**: when the task says across, together, total or in all and her prefetched evidence
+   holds two `SELECT COUNT(*) AS n` results, the sum goes through `calc` before the model speaks and lands in the evidence.
+   Where: the per-dataset count prefetch in `CustomExpert.run`, `core/inverse_core/team/custom.py`. Measured by her probe: the
+   P-104 baseline-plus-current question must answer 800; today she answers 9.81.
+3. **Forge's template expert must use the goal's own constants**: a Moon question that states g = 1.62 gets 1.62 in the calc,
+   not 9.81. Where: `_forge_by_rule` in `core/inverse_core/team/lead.py`, which builds the expert's prompt from a generic
+   sentence and the goal; the constants the goal states should be pulled out and written in as the values to use. Measured by
+   the Forge probe: 20.25 N; today 122.625 N.
+4. **Euler must compute roots and powers with the calculator**, never in a text step: in `ReasoningExpert._check`
+   (`core/inverse_core/team/experts.py`) a step whose claim carries a number but has no calc is a self-check failure that fires
+   the repair turn, not step evidence. Measured by his probe: the cube root of 27 with zero unverified numbers.
+5. **Scout must not add a filter the task did not ask for**: a `quantity = '...'` predicate on the sensors table when the task
+   names neither a sensor id nor a quantity word is dropped by code and traced. Where: `pin_sensor` in
+   `core/inverse_core/team/experts.py`. Measured by her probe and the sensor benchmark case: both sensors' rows, not a guess.
+6. **Sentinel must read the lines around each scan hit before naming a finding**: the single-file path hands the raw scan to the
+   model; it should carry the surrounding lines the chunked path already reads, and a review should end inside ninety seconds
+   of model time. Where: `VulnerabilityExpert.run` in `core/inverse_core/team/custom.py`. Measured by its probe and the code
+   benchmark case.
+
+Done since the first list, all by code and all recorded in `docs/BENCH.md`: Vera's three rules (a number from nowhere, an asked
+value left out, a phrase from nowhere) and her checkable verdict; the routing guard and, from round 11, a one-task plan that
+carries the goal verbatim, placeholder tasks refused, arithmetic to Euler, a lookup that feeds a computation rewritten as a
+lookup; Scout's whole goal, columns, ids, sensor pin, errors as evidence, row values that ride along and replace numbers the rows
+lack; Euler's empty answer re-asked and names resolved before the calc; Ada's facts, consultations and memory fetched by code, a
+bare word refused, a computation ended with the calculator, a repeated tool call ended, a doubted digest read out of the memory;
+Forge planned in when the goal says the crew lacks something and built by rule when the architect loops; Sentinel's clean scan
+answered by code.
+
+For people, not for Tinker: Ollama structured outputs (`json_schema`) for every JSON-returning call, a measured trial of
+`nemotron-3-nano:4b` against the same probe set, and a second local model on Vera's lane. Each touches the model server or the
+lane layout, which the loop must not change.
 
 ## After three batches of fixes (the same evening)
 
