@@ -46,7 +46,7 @@ SYNTHETIC = [
     {"name": "prompt_sentence", "item": "Euler must be told never to invent a number",
      "hint": "PROMPT in core/inverse_core/eval_target.py lacks the rule: add one sentence that contains the words 'never invent' and keep the rest, so tests/test_eval_target.py passes.",
      "target": 'PROMPT = "You are the reasoning expert. Show every step. Use the calculator for arithmetic."\n',
-     "test": 'from inverse_core.eval_target import PROMPT\n\n\ndef test_eval_target():\n    assert "never invent" in PROMPT and "calculator" in PROMPT\n'},
+     "test": 'from inverse_core.eval_target import PROMPT\n\n\ndef test_eval_target():\n    assert "never invent" in PROMPT.lower() and "calculator" in PROMPT\n'},
 ]
 
 
