@@ -1,0 +1,76 @@
+{
+ "label": "nano-round1",
+ "started": "2026-10-25T23:57:39",
+ "provider": "ollama",
+ "lanes": {
+  "fast": "nemotron-3-nano:4b",
+  "deep": "nemotron-3-nano:4b",
+  "critic": "nemotron-3-nano:4b"
+ },
+ "collaborate": "auto",
+ "parallel": 2,
+ "cases": [
+  {
+   "name": "arithmetic",
+   "goal": "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-235739",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "122.625 N [T1.E1] [T1.E2]",
+   "duration": 129.8,
+   "calls": 3,
+   "prompt_tokens": 1502,
+   "completion_tokens": 492,
+   "latency": {
+    "lead": [
+     44.03
+    ],
+    "reasoning": [
+     52.76
+    ],
+    "critic": [
+     32.97
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "122.6": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  }
+ ],
+ "totals": {
+  "cases": 1,
+  "pass": 1,
+  "clean": 1,
+  "expert_used": 1,
+  "mean_duration": 129.8,
+  "total_duration": 129.8,
+  "mean_calls": 3.0,
+  "prompt_tokens": 1502,
+  "completion_tokens": 492,
+  "fallbacks": 0,
+  "reasks": 0,
+  "parse_errors": 0,
+  "call_latency_median": 44.0
+ }
+}
