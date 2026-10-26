@@ -34,7 +34,7 @@ class BaseExpert:
         raise NotImplementedError
 
 
-QUERY_MAX_TOKENS, ANSWER_MAX_TOKENS, STEPS_MAX_TOKENS = 300, 500, 700         # reply caps per call: three short SELECTs, one answer, at most five steps
+QUERY_MAX_TOKENS, ANSWER_MAX_TOKENS, STEPS_MAX_TOKENS = 300, 350, 450         # reply caps per call: three short SELECTs, one answer, at most five steps
 SCHEMA = """Tables (Zetaris, read-only; always the obs. prefix; text values in single quotes; no semicolon):
 obs.equipment_table(equipment_id text like 'P-104' or 'T-200', name text, mass_kg number, baseline_dataset text: a dataset id or the text 'none', current_dataset text)
 obs.sensors_table(sensor_id text like 'P104-DISP-1': a sensor named in the task is selected by sensor_id, equipment_id text, quantity text: 'x' is displacement and 'v' is velocity, unit text, sigma number = the noise level, sampling_hz number = the sampling rate)
