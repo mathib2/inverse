@@ -11,7 +11,7 @@ from inverse_core.team.crew import name as crew_name
 
 COLORS = {"lead": "#8FA8FF", "critic": "#F2A33A", "watch": "#3FB97A", "warden": "#3FB97A", "research": "#5CC8FF", "reasoning": "#C58CFF", "solver": "#FF8FB1",
           "vulnerability": "#F06565", "architect": "#FFD166", "council": "#9FB0CC", "tinker": "#7CE0C3", "you": "#E6EAF2"}
-KIND = {"question": "❓", "answer": "💬", "result": "📣", "review": "🧐", "note": "📝", "log": "·", "alert": "🚨", "proposal": "🗳️"}
+KIND = {"question": "❓", "answer": "💬", "result": "📣", "review": "🧐", "note": "📝", "log": "·", "alert": "🚨", "proposal": "🗳️", "veto": "🛑", "approve": "✅"}
 
 
 def _when(ts):
@@ -71,13 +71,30 @@ def render(root, configs):
 
     feed()
     c1, c2 = st.columns([5, 1])
-    text = c1.text_input("Say something to the crew", key="live_say", placeholder="A goal for the crew; Warden picks it up within a minute…", label_visibility="collapsed")
+    text = c1.text_input("Say something to the crew", key="live_say", placeholder="A goal for the crew (Warden starts it within a minute); 'veto auto/…' or 'approve auto/…' answers Tinker", label_visibility="collapsed")
     if c2.button("Send", width="stretch", disabled=not text.strip()):
-        os.makedirs(os.path.join(root, "queue"), exist_ok=True)
-        with open(os.path.join(root, "queue", "goals.jsonl"), "a") as f:
-            f.write(json.dumps({"goal": text.strip(), "by": "live", "ts": time.strftime("%Y-%m-%dT%H:%M:%S")}) + "\n")
-        chat.say("you", text.strip(), kind="question", root_dir=root)
-        st.toast("Queued for Warden")
+        kind = command_of(text)
+        if kind:                                                              # 'veto <branch>' or 'approve <branch>': Tinker reads it before merging
+            os.makedirs(os.path.join(root, "state"), exist_ok=True)
+            with open(os.path.join(root, "state", f"{kind}.jsonl"), "a") as f:
+                f.write(json.dumps({"text": text.strip(), "ts": time.time()}) + "\n")
+            chat.say("you", text.strip(), kind=kind, root_dir=root)
+            st.toast("Vetoed: Tinker will leave that branch alone" if kind == "veto" else "Approved: Tinker merges it at once")
+        else:
+            os.makedirs(os.path.join(root, "queue"), exist_ok=True)
+            with open(os.path.join(root, "queue", "goals.jsonl"), "a") as f:
+                f.write(json.dumps({"goal": text.strip(), "by": "live", "ts": time.strftime("%Y-%m-%dT%H:%M:%S")}) + "\n")
+            chat.say("you", text.strip(), kind="question", root_dir=root)
+            st.toast("Queued for Warden")
+
+
+def command_of(text):
+    """'veto auto/...' -> 'veto'; 'approve ...' -> 'approve'; anything else -> None (a goal for Warden)."""
+    low = str(text or "").strip().lower()
+    for word in ("veto", "approve"):
+        if low == word or low.startswith(word + " "):
+            return word
+    return None
 
 
 def _load(p):

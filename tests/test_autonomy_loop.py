@@ -78,3 +78,20 @@ def test_tinker_picks_the_item_tried_longest_ago_and_skips_what_awaits_approval(
 def _budget():
     from inverse_core.team.expert import ExpertBudget
     return ExpertBudget()
+
+def test_live_commands_and_tinker_signals(tmp_path, monkeypatch):
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui"))
+    import live
+    import tinker
+    assert live.command_of("veto auto/20261025-x") == "veto" and live.command_of("Approve auto/x") == "approve" and live.command_of("vetoing") is None
+    assert live.command_of("What is the mass of P-104?") is None
+    monkeypatch.setattr(tinker, "LIVE", str(tmp_path))
+    os.makedirs(tmp_path / "state")
+    with open(tmp_path / "state" / "veto.jsonl", "w") as f:
+        f.write(json.dumps({"text": "veto auto/20261025-fix", "ts": 100}) + "\n" + json.dumps({"text": "veto everything", "ts": 200}) + "\n")
+    assert tinker.signals("veto", 150) == ["veto everything"] and tinker.mentioned(tinker.signals("veto", 150), "auto/other") is True
+    assert tinker.mentioned(tinker.signals("veto", 150), "auto/20261025-fix") is True and tinker.mentioned(["veto auto/zzz"], "auto/20261025-fix") is False
+    assert tinker.mentioned(tinker.signals("approve", 0), "auto/x") is False
+    monkeypatch.setenv("TEXTBELT_TO", "15555550100")
+    assert "textbelt" in notify.channels()
+

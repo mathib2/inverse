@@ -49,7 +49,8 @@ message appears in the chat as yours.
 |---|---|---|
 | **ntfy** (recommended) | the ntfy app (Android, iPhone), subscribed to the topic in `NTFY_TOPIC`; no account | a push notification; an approval request uses priority 5, which rings and stays on screen like a call |
 | **Telegram** | a bot token from @BotFather and your chat id in `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | a message from the bot |
-| **SMS** | your carrier's email gateway in `NOTIFY_SMS_TO` (Verizon `number@vtext.com`, AT&T `number@txt.att.net`, T-Mobile `number@tmomail.net`) and an SMTP account in `SMTP_HOST/PORT/USER/PASS` | a real text message, up to 160 characters |
+| **SMS, one a day** | `TEXTBELT_TO` = your number with the country code; no account (Textbelt's public key allows one free text a day per number) | a real text message for what needs a person: an approval, a merge |
+| **SMS, unlimited** | your carrier's email gateway in `NOTIFY_SMS_TO` (Verizon `number@vtext.com`, AT&T `number@txt.att.net`, T-Mobile `number@tmomail.net`) and an SMTP account in `SMTP_HOST/PORT/USER/PASS` | a real text message, up to 160 characters |
 
 Phone **calls** are not free to place by software: every voice API (Twilio and the like) bills per call after a trial. The ntfy
 priority-5 alert is the free equivalent: it overrides silent mode on Android and repeats until acknowledged. If you want real calls,
@@ -57,8 +58,16 @@ a Twilio trial account with your number verified works for the trial credit; the
 
 Test any channel from the workstation: `PYTHONPATH=core .venv/bin/python scripts/notify.py "hello from the crew" --urgent`.
 
-## Approving
+## Approving: the council, then you
 
-An alert names the item, the files and the test and probe results, with a link to the branch comparison on GitHub. Merge it there
-(or `git merge auto/...` on the base branch), then run `deploy-live`; the next Tinker cycle starts from the merged code. A branch
-you do not want is simply left alone; Tinker moves on to the next item and comes back to that one last.
+With `TINKER_AUTOMERGE=council` (the default) a change that passed the tests and the probe goes to the council before it is merged:
+Sentinel reviews the changed files for weaknesses on the branch, and Vera votes on the diff with the test and probe results in front
+of her. A high-severity finding or a "no" leaves the change as a branch for you. A "yes" starts a veto window (`TINKER_VETO_MINUTES`,
+default 30): your phone gets the alert with the compare link, and in the Live tab you can write `veto auto/...` to stop it or
+`approve auto/...` to merge at once. When the window closes with no veto, Tinker waits for a quiet machine, merges the branch into
+the base branch with a merge commit, pushes, and runs `deploy-live`; the page and Warden restart on the new code and you get a second
+alert saying so. With `TINKER_AUTOMERGE=human` nothing is merged by the crew: every change waits for you.
+
+So yes, the crew upgrades its own code on its own, on the council's say-so, with four gates in front of the live system: the test
+suite, the agent's probe, Sentinel's review and Vera's vote, and one behind them: your veto. A branch you do not want is simply left
+alone; Tinker moves on to the next item and comes back to that one last.

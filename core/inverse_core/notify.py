@@ -3,6 +3,8 @@
 - Telegram (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID): a bot message.
 - SMS through a carrier's email gateway (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, NOTIFY_SMS_TO such as 10digits@vtext.com): a
   short text, free with the carrier; the SMTP account is the sender's own.
+- Textbelt (TEXTBELT_TO, a number with country code such as 1555xxxxxxx): one free text a day with the public key "textbelt", no
+  account; TEXTBELT_KEY holds a paid key if more are wanted. Used for the alerts that matter (an approval, a merge), not for chatter.
 Nothing here is required; with no channel configured notify() returns an empty list and the request stays in the chat and the
 council's task cards. Never raises."""
 from __future__ import annotations
@@ -23,6 +25,8 @@ def channels():
         out.append("telegram")
     if env("SMTP_HOST") and env("SMTP_USER") and env("SMTP_PASS") and env("NOTIFY_SMS_TO"):
         out.append("sms")
+    if env("TEXTBELT_TO"):
+        out.append("textbelt")
     return out
 
 
@@ -56,6 +60,14 @@ def notify(text, title="INVERSE crew", urgent=False, url=None):
                 s.login(env("SMTP_USER"), env("SMTP_PASS"))
                 s.send_message(msg)
             sent.append("sms")
+        except Exception:
+            pass
+    if env("TEXTBELT_TO") and urgent:                                         # one free text a day: spent on what needs a person, never on chatter
+        try:
+            r = requests.post("https://textbelt.com/text", data={"phone": env("TEXTBELT_TO"), "message": (f"{title}: {body[:110]}" + (f" {url}" if url else ""))[:300],
+                                                                   "key": env("TEXTBELT_KEY") or "textbelt"}, timeout=15)
+            if r.ok and r.json().get("success"):
+                sent.append("textbelt")
         except Exception:
             pass
     return sent
