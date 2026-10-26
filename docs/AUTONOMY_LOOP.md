@@ -38,6 +38,21 @@ merge. Tinker cannot change the live checkout, the model server, the data platfo
 cannot push to the base branch except through the council's merge described below, and it cannot skip the tests or the probe.
 Those limits are what make "no limits" on its research and its attempts safe.
 
+## Taking turns, repairing, and learning from evidence (26 October)
+
+- **Turns on the one CPU.** Every model call waits its turn (`core/inverse_core/team/gate.py`): a person's mission and a benchmark
+  first, Warden's missions second, Tinker last. Before this, Tinker only checked at the start of a cycle and then ran its 7B coder
+  beside whatever started next. A wait shows in the live feed ("paused 40 s so Warden's mission could use the CPU first").
+- **One repair turn.** When a change breaks the build or a test, the engineer gets the failure in front of it and one more edit;
+  only a second failure reverts. A compile check runs before the suite, so a syntax error fails in a second with its line.
+- **Evidence before the web.** For a failing probe, the research note is the probe itself, by code: the question, what was
+  expected, what the agent answered and which numbers it could not support. The web is searched on every third cycle
+  (`TINKER_WEB_EVERY`) and when there is no evidence.
+- **Memory.** The coder is unloaded after each use instead of staying resident for a day.
+- **Only measured improvements merge.** A change merges on its own only when the agent's probe rises over a real baseline
+  (Tinker's last mark, else the latest full probe) or the item's own test in `backlog_tests/` passes. Four harmless no-ops had
+  passed the older gates; the fourth, a check for "Moon" inside a lowercased string, was vetoed in its window.
+
 ## The engineer's model, measured
 
 A 4B general model will not write code even when shown the lines and told what to change: two cycles on the refreshed backlog

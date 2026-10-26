@@ -84,6 +84,25 @@ guard every plan gets; an answer whose every number is in its own rows or calcul
 is accepted by code; a digest is read out of the memory by code. The model still plans anything else, still judges prose and
 code findings, and the probes for Atlas and Vera switch both shortcuts off so they keep measuring the model.
 
+## What the hardware allows
+
+The workstation is a Dell OptiPlex 7040 mini tower: an i5-6500 with four cores and no graphics card, 31 GB of memory. On it the
+crew's 4B model writes 6 to 10 tokens a second and reads a prompt at 30 to 110 tokens a second. That is the memory bus, not the
+code: every generated token reads the whole 2.7 GB model, and two channels of DDR4 move about 34 GB a second, so the ceiling is
+about 12 tokens a second. After round 17 a goal costs 2.4 model calls, so what is left of a mission's time is the model writing.
+
+Three things were measured on 26 October and fixed in code: the loops took turns badly (a Tinker cycle ran beside a person's or
+Warden's mission and the crew's model fell to 6.7 tokens a second; now every model call waits its turn, `team/gate.py`), the 7B
+coder stayed in memory for a day (the machine was swapping with 27.5 of 31 GB used; Tinker now unloads it after each use), and the
+crew's own model process had grown to 12 GB over three days (freeing and reloading it took memory use from 26 GB to 7 GB).
+
+The next step is hardware. The mini tower has one full-length PCIe x16 slot; a graphics card that draws all its power from the slot
+(75 W or less, so no change of power supply), such as an RTX 3050 6 GB or an RTX A2000, moves 168 to 288 GB a second: about five to
+eight times faster writing and ten to twenty times faster reading, which takes a mission from tens of seconds to a few. Ollama uses
+the card on its own once the container is started with GPU access (the NVIDIA container toolkit and `--gpus all`, one time, with
+sudo). The other routes measured here: the sponsor's hosted Nemotron answers a short call in two seconds but is metered, which the
+owner ruled out on 24 October, and a newer local 4B was four times slower on this processor.
+
 ## Bigger is not faster here
 
 Two measurements on 26 October settle the "use something bigger" question for this machine. A newer 4B (`nemotron-3-nano`) is four
