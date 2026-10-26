@@ -47,7 +47,8 @@ in under a second. Everything below follows from those three numbers: fewer call
 | 10 | 8/8 | 8 | 405 | 4.6 | the third batch: a computation ends with the calculator, a named sensor selected by its id, the ids listed when the task says which, the expert the architect did not build is built by rule; the first fully passing round |
 | 11 | 6/8 | 6 | 794 | 6.1 | the same mission code as round 10 plus the autonomy work, run at 21:49 with Tinker and Warden stopped: the arithmetic case lost to a plan whose only task was the schema's example text ("Write the instruction for the task 'T1'"), the weight case to Scout computing (10.0 N from 1.0 kg) and being refused three times; the summary case took 256 s |
 | 12 | 7/8 | 7 | 507 | 4.8 | a one-task plan carries the goal verbatim, placeholder tasks are refused, plain arithmetic goes to Euler, a lookup that feeds a computation is rewritten as a lookup, and numbers Scout states that the rows do not contain are replaced by the row values (the arithmetic case: 37 s and 3 calls; the summary case failed: Ada reported zero confidence three times on a memory of ten refuted findings) |
-| 13 | ROUND13_PASS | ROUND13_CLEAN | ROUND13_SECONDS | ROUND13_CALLS | a summary the model doubts, or leaves empty, is read out of the memory by code (`summary_by_code`) |
+| 13 | 7/8 | 7 | 496 | 4.8 | a summary the model doubts, or leaves empty, is read out of the memory by code (`summary_by_code`); the digest fired, and the number rule refused it: a finding cut at "2026-09" read as minus nine on the evidence side |
+| 14 | 8/8 | 8 | 548 | 5.5 | a hyphen after a digit is a separator on the evidence side too, and evidence numbers carry no sign, as claim numbers never did; the second fully passing round, on the deployed code (b2250af), with Tinker and Warden stopped |
 
 The failures that remained longest, and what decided them:
 
