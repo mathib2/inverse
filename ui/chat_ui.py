@@ -271,7 +271,7 @@ def render(ledger, ai_online, sidecar, health=None):
     left, right = st.columns([7, 5], gap="large")
     with left:
         c1, c2 = st.columns([2, 3], vertical_alignment="center")
-        c1.markdown("## INVERSE")
+        c1.markdown("<div class='inv-brand'>INVERSE</div><div class='inv-tagline'>reasoning architecture · eight agents · local models</div>", unsafe_allow_html=True)
         if health:
             with c2:
                 parts.status_row(health)

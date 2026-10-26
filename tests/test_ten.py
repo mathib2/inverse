@@ -58,6 +58,14 @@ def test_forge_template_expert_carries_the_goals_given_values(tmp_path):
     assert L.given_values("the period is 2 s and mass of 3 kg") == "period = 2 s"                        # 'is' and '=' count, 'of' does not
 
 
+def test_the_calculator_hint_uses_the_goals_own_numbers_never_an_id(tmp_path):
+    from inverse_core.team.verify import claim_numbers
+    import re as _re
+    strip = lambda g: claim_numbers(_re.sub(r"\^\s*\d+", "", g))
+    assert strip("Using the registry mass of P-104, compute its weight in newtons with g = 9.81 m/s^2.") == ["9.81"]        # P-104 and ^2 are not numbers to multiply
+    assert strip("What does a 12.5 kg mass weigh on the Moon, where gravity is 1.62 m/s^2?")[:2] == ["12.5", "1.62"]
+
+
 def test_euler_may_not_state_a_new_number_in_prose(tmp_path):
     ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
     euler = ctx.registry.experts["reasoning"]

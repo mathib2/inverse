@@ -7,7 +7,7 @@ import json
 import os
 import re
 
-from .verify import unverified_numbers
+from .verify import claim_numbers, unverified_numbers
 from ..budget import BudgetExceeded
 from ..clients.markovian import content_of, ensure_marker
 from ..clients.meterless import extract_json
@@ -113,8 +113,8 @@ class CustomExpert(BaseExpert):
                         and re.search(r"\d", answer) and budget.tool_calls < budget.max_tool_calls:   # a computation with no calculator call: once more, with the tool
                     calc_nudged = True
                     self.ctx.trace.event("calc_nudge", agent=self.name, answer=answer[:80])
-                    nums = re.findall(r"-?\d+(?:\.\d+)?", goal or "")
-                    example = " * ".join(nums[:2]) if len(nums) >= 2 else "1.0 * 9.81"      # the goal's own numbers, so a Moon question is not nudged toward 9.81
+                    nums = claim_numbers(re.sub(r"\^\s*\d+", "", goal or ""))            # the goal's own numbers: never an id such as P-104, never a unit's exponent
+                    example = " * ".join(nums[:2]) if len(nums) >= 2 else "1.0 * 9.81"      # so a Moon question is nudged toward 12.5 * 1.62, and a registry question is not nudged toward 104
                     msgs += [{"role": "assistant", "content": r["text"]},
                              {"role": "user", "content": 'Every number in the answer must come from the calc tool. Call it now with the expression, for example {"tool":"calc","args":{"expr":"'
                                                          + example + '"},"why":"the computation"}, then answer from its result.'}]
