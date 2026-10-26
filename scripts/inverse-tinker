@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Keep Tinker, the crew's improvement loop, running on this workstation from the sandbox clone (~/inverse-lab), in tmux session
+# "inverse-tinker". It never touches ~/inverse-live. usage: inverse-tinker start|stop|restart|status|log [n]|once
+set -u
+LAB="${INVERSE_LAB:-$HOME/inverse-lab}"
+S=inverse-tinker
+mkdir -p "$HOME/logs"
+case "${1:-status}" in
+  start)
+    [ -f "$LAB/scripts/tinker.py" ] || { echo "no scripts/tinker.py in $LAB yet (git pull there first)"; exit 1; }
+    if tmux has-session -t "$S" 2>/dev/null; then echo "$S already running"; exit 0; fi
+    tmux new-session -d -s "$S" "cd $LAB && while true; do PYTHONPATH=core .venv/bin/python scripts/tinker.py --interval \${TINKER_INTERVAL:-1800} >> $HOME/logs/tinker.log 2>&1; echo \"\$(date -Is) tinker exited, restarting in 60s\" >> $HOME/logs/tinker.log; sleep 60; done"
+    echo "$S started (tmux session $S; log $HOME/logs/tinker.log)";;
+  stop) tmux kill-session -t "$S" 2>/dev/null && echo "$S stopped" || echo "$S was not running";;
+  restart) "$0" stop; sleep 1; "$0" start;;
+  status)
+    tmux has-session -t "$S" 2>/dev/null && echo "tmux: running" || echo "tmux: not running"
+    cd "$LAB" && PYTHONPATH=core .venv/bin/python scripts/tinker.py --status;;
+  log) tail -n "${2:-40}" "$HOME/logs/tinker.log" 2>/dev/null || echo "no log yet";;
+  once) cd "$LAB" && PYTHONPATH=core .venv/bin/python scripts/tinker.py --once;;
+  *) echo "usage: $0 start|stop|restart|status|log [n]|once"; exit 2;;
+esac

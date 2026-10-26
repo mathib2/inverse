@@ -78,8 +78,8 @@ ai_online = h["ai"]["status"] == "online"
 parts.css()
 
 with st.sidebar:
-    mode = st.radio("Mode", ["Crew", "Advanced"], key="mode", horizontal=True,
-                    help="Crew: give the agents a goal and watch them work. Advanced: edit plans and agents, replay with the full trace.")
+    mode = st.radio("Mode", ["Crew", "Live", "Advanced"], key="mode", horizontal=True,
+                    help="Crew: give the agents a goal and watch them work. Live: everything they say, as they say it. Advanced: edit plans and agents, replay with the full trace.")
     st.divider()
     parts.connections(h, recheck, ssh_target(), ss.get("last_latency"))
     st.divider()
@@ -92,6 +92,11 @@ with st.sidebar:
 if mode == "Advanced":
     import team
     team.render(ledger, ai_online, SIDECAR, h)
+    st.stop()
+if mode == "Live":
+    import crew
+    import live
+    live.render(ROOT, crew._configs())
     st.stop()
 
 import crew  # noqa: E402

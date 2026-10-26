@@ -2,6 +2,7 @@
 talk; see what Warden does on its own; replay any past mission. The running mission lives in this module, not in one browser
 session, and the page follows it from a fragment that redraws itself, so a click, a rerun or a page reload re-attaches to it
 instead of losing it. No plan editing and no settings here: those are under Advanced."""
+import json
 import os
 import time
 
@@ -49,6 +50,20 @@ def _say(e, configs):
     return rename(line, configs)                                              # roles first, then identifiers, so "The lead" never becomes "The Atlas"
 
 
+def _busy(on, goal=""):
+    """A flag Tinker reads: the crew page is running a mission, so the improvement loop waits instead of sharing the CPU."""
+    p = os.path.join(ROOT, "state", "ui_mission.json")
+    try:
+        if on:
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w") as f:
+                json.dump({"goal": goal[:200], "started": time.strftime("%Y-%m-%dT%H:%M:%S")}, f)
+        elif os.path.exists(p):
+            os.remove(p)
+    except OSError:
+        pass
+
+
 def _clock(t0, t1=None):
     secs = int((t1 or time.time()) - t0)
     return f"{secs // 60} min {secs % 60:02d} s" if secs >= 60 else f"{secs} s"
@@ -81,6 +96,7 @@ def _ended(live):
     live.setdefault("t1", time.time())
     if LIVE.get("run") is live:
         LIVE.pop("run", None)
+    _busy(False)
     box = live["box"]
     if "err" in box:
         ss.crew_error = (box["err"], live["ctx"].equipment)
@@ -213,6 +229,7 @@ def render(ledger, ai_online, sidecar, health=None):
 
         th, box = team._run_in_thread(mission)
         LIVE["run"] = {"thread": th, "box": box, "holder": holder, "events": events, "ctx": ctx, "goal": goal, "t0": time.time()}
+        _busy(True, goal)
         st.rerun()                                                            # draw the page with Go disabled and the live view attached
 
     if live:                                                                  # started here, from another tab, or before a reload: follow it to the end

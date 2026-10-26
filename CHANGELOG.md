@@ -3,6 +3,11 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## The crew works on itself, a Live chat, and your phone (2026-10-25)
+- **Tinker** (`scripts/tinker.py`, `scripts/inverse-tinker`): an improvement loop that runs round the clock in a sandbox clone: picks the next item of the crew's improvement list or a failing probe, researches it on the web (`web_search`, `fetch_url`, through the injection guard), makes the smallest change (`edit_file`, `write_file`, sandbox only), runs the tests and the agent's probe by code, and when nothing got worse pushes a branch `auto/...`, files a council task card and alerts a person. It never touches the live checkout and cannot merge.
+- One chat log for everything the crew says (`core/inverse_core/chat.py`, `state/chat.jsonl`): the message bus, Warden's log, the council and Tinker write to it; the **Live** mode of the page shows it as a chat, refreshed every three seconds, with a box that queues a goal.
+- `core/inverse_core/notify.py`: alerts on the phone over free channels named in `.env` (ntfy push with a call-like priority, Telegram, a carrier's email-to-SMS gateway); `scripts/notify.py` to test one. The crew page writes `state/ui_mission.json` while a mission runs so Tinker waits.
+
 ## A benchmark, faster missions, fewer failed tasks, and the agents measured (2026-10-25)
 - `scripts/bench.py` + `bench/cases.yaml`: eight checkable goals, pass/clean/seconds/calls/tokens per case, results under `docs/evidence/bench/`; `scripts/probe.py`: each agent alone on its own questions, marked 0-10; `scripts/warmup.py` warms the model server's prefix cache. Write-ups: `docs/BENCH.md`, `docs/AGENT_REPORT.md`.
 - Speed: reply caps per call, the composer skipped for one or two short results (cited by code), Scout answering in one conversation, smaller tool results and a lazy fold, plan review only for three or more tasks, `prompt_too_long` traced. Rounds 7 and 8: 7 of 8 goals in about 370 s against 4 of 8 in 588 s at the start.

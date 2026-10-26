@@ -8,6 +8,7 @@ import fnmatch
 import os
 import re
 import threading
+from urllib.parse import urlparse
 
 import requests
 
@@ -49,6 +50,52 @@ class ToolError(ValueError):
     pass
 
 
+UA = "INVERSE-crew/1.0 (+research by a local agent; read-only)"
+
+
+def _private(host):
+    """True for an address of this machine or a private network (the web tools never read those)."""
+    import ipaddress
+    import socket
+    try:
+        addrs = {host} if host.replace(".", "").isdigit() or ":" in host else {ai[4][0] for ai in socket.getaddrinfo(host, None)}
+        return any(ipaddress.ip_address(a).is_private or ipaddress.ip_address(a).is_loopback or ipaddress.ip_address(a).is_link_local for a in addrs)
+    except (socket.gaierror, ValueError):
+        return True
+
+
+def _untag(s):
+    import html
+    return html.unescape(re.sub(r"<[^>]+>", " ", s or ""))
+
+
+def parse_duckduckgo(page):
+    """Titles, urls and snippets from DuckDuckGo's HTML results page (its redirect links carry the real url in `uddg`)."""
+    from urllib.parse import parse_qs, unquote, urlparse as _up
+    links = re.findall(r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', page or "", re.S)
+    snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', page or "", re.S)
+    out = []
+    for i, (href, title) in enumerate(links):
+        href = html_unescape(href)
+        q = parse_qs(_up(href).query)
+        url = unquote(q["uddg"][0]) if "uddg" in q else href
+        out.append({"title": re.sub(r"\s+", " ", _untag(title)).strip()[:160], "url": url[:300],
+                    "snippet": re.sub(r"\s+", " ", _untag(snippets[i] if i < len(snippets) else "")).strip()[:300]})
+    return out
+
+
+def html_unescape(s):
+    import html
+    return html.unescape(s or "")
+
+
+def page_text(page):
+    """A web page as plain text: scripts and styles dropped, tags removed, whitespace collapsed, the first 4000 characters."""
+    page = re.sub(r"(?is)<(script|style|noscript|svg)[^>]*>.*?</\1>", " ", page or "")
+    text = re.sub(r"\s+", " ", _untag(page)).strip()
+    return text[:4000]
+
+
 class Tools:
     """Bound to one run through Ctx (Zetaris client, injection guard, repo root); TeamMemory is set per task by the expert."""
 
@@ -65,6 +112,11 @@ class Tools:
         "read_messages": ("Notes, questions and results other experts addressed to you or to all in this run. args: {}", ()),
         "propose": ("File a proposal for the council (decided later, costs nothing now). args: {k: cfg|mission|note|agent|code, t: <agent, mission, shared or repo>, w: <the change>, y: <why>, p: {<the exact change>}, e: [evidence refs]}", ("k", "t", "w")),
         "support": ("Back an open council proposal by its id. args: {id}", ("id",)),
+        "web_search": ("Search the web and get up to 5 results with title, url and snippet. args: {query}", ("query",)),
+        "fetch_url": ("Read a public web page as plain text (the first 4000 characters). args: {url}", ("url",)),
+        "edit_file": ("Replace one exact piece of text in a sandbox file with new text (old must occur once). Sandbox only. args: {path, old, new}", ("path", "old", "new")),
+        "write_file": ("Write the whole content of a small sandbox file (new or existing). Sandbox only. args: {path, content}", ("path", "content")),
+        "run_tests": ("Run the test suite in the sandbox and get its summary. Sandbox only. args: {}", ()),
     }
 
     def __init__(self, ctx, allowed=None, owner=""):
@@ -195,6 +247,80 @@ class Tools:
 
     def _calc(self, expr):
         return {"expr": str(expr), "value": safe_eval(str(expr))}
+
+    # --- the web: read-only, through the injection guard -----------------------------------------------------------------------
+    def _web_search(self, query):
+        r = requests.post("https://html.duckduckgo.com/html/", data={"q": str(query)[:200]}, headers={"User-Agent": UA}, timeout=20)
+        r.raise_for_status()
+        results = parse_duckduckgo(r.text)[:5]
+        from ..agents.guard import scrub
+        results, blocked = scrub(results)
+        if blocked:
+            self.ctx.trace.event("injection_guard", agent=self.owner, blocked=blocked[:5], source="web_search")
+        return {"query": str(query)[:200], "results": results}
+
+    def _fetch_url(self, url):
+        url = str(url).strip()
+        host = (urlparse(url).hostname or "").lower()
+        if urlparse(url).scheme not in ("http", "https") or not host:
+            raise ToolError("fetch_url takes a public http(s) URL")
+        if host in ("localhost",) or host.endswith(".local") or _private(host):
+            raise ToolError("fetch_url reads public pages only, never this machine or the local network")
+        r = requests.get(url, headers={"User-Agent": UA}, timeout=20, stream=True)
+        r.raise_for_status()
+        raw = b""
+        for chunk in r.iter_content(65536):
+            raw += chunk
+            if len(raw) > 400000:
+                break
+        text = page_text(raw.decode(r.encoding or "utf-8", "replace"))
+        from ..agents.guard import scrub
+        rows, blocked = scrub([{"text": text}])
+        if blocked:
+            self.ctx.trace.event("injection_guard", agent=self.owner, blocked=blocked[:5], source="fetch_url")
+        return {"url": url, "text": rows[0]["text"] if rows else "", "chars": len(text)}
+
+    # --- the sandbox: only when this toolbox's root IS the improvement sandbox --------------------------------------------------
+    def _sandbox(self):
+        box = os.environ.get("INVERSE_SANDBOX")
+        if not box or os.path.realpath(box) != self.root:
+            raise ToolError("this tool works only in the improvement sandbox (INVERSE_SANDBOX), never in the live checkout")
+
+    def _write_file(self, path, content):
+        self._sandbox()
+        p = self._inside(path)
+        if os.path.splitext(p)[1] not in TEXT_EXT:
+            raise ToolError(f"{path!r}: only text files may be written")
+        if len(str(content)) > 60000:
+            raise ToolError("write_file takes at most 60000 characters; use edit_file for a large file")
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(str(content))
+        return {"written": path, "chars": len(str(content))}
+
+    def _edit_file(self, path, old, new):
+        self._sandbox()
+        p = self._inside(path)
+        with open(p, encoding="utf-8") as f:
+            text = f.read()
+        n = text.count(str(old))
+        if n != 1:
+            raise ToolError(f"old text occurs {n} times in {path}; it must occur exactly once (copy it exactly, including indentation)")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(text.replace(str(old), str(new), 1))
+        return {"edited": path, "removed_chars": len(str(old)), "added_chars": len(str(new))}
+
+    def _run_tests(self):
+        self._sandbox()
+        import subprocess
+        import sys
+        try:
+            r = subprocess.run([sys.executable, "-m", "pytest", "-q", "tests", "-x", "-p", "no:cacheprovider"], cwd=self.root, capture_output=True, text=True, timeout=600,
+                               env={**os.environ, "PYTHONPATH": "core"})
+            lines = (r.stdout + r.stderr).strip().splitlines()
+            return {"returncode": r.returncode, "passed": r.returncode == 0, "summary": "\n".join(lines[-12:])[:1500]}
+        except subprocess.TimeoutExpired:
+            return {"returncode": 124, "passed": False, "summary": "the tests did not finish in 600 s"}
 
     # --- talking to other experts ---------------------------------------------------------------------------------------------
     def _team(self):

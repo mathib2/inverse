@@ -13,6 +13,7 @@ CREW = {
     "solver": {"name": "Ada", "does": "solves multi-step problems with tools and asks the others when a step needs them"},
     "vulnerability": {"name": "Sentinel", "does": "reviews our own code for weaknesses; every finding is checked against the file and line"},
     "architect": {"name": "Forge", "does": "designs, builds and test-drives a new agent when the crew lacks one"},
+    "tinker": {"name": "Tinker", "does": "works on the crew's own code and knowledge around the clock in a sandbox: researches, changes, tests, and asks you before anything is merged"},
 }
 EVERYONE = {"all": "everyone"}
 
