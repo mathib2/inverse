@@ -169,11 +169,39 @@ def _values(evidence):
     return _fold(" ".join(out))
 
 
+def _quoted(quote, hay):
+    """The quote is in the answer: verbatim, or as one unbroken run of at least four of its words covering three quarters of them
+    (a small model copies "low: a network call has no timeout" from "low tools.py:260 a network call has no timeout")."""
+    if quote in hay:
+        return True
+    q, h = re.findall(r"\w+", quote), " " + " ".join(re.findall(r"\w+", hay)) + " "
+    need = max(4, -(-3 * len(q) // 4))
+    if len(q) < need:
+        return False
+    return any(" " + " ".join(q[i:i + n]) + " " in h for n in range(len(q), need - 1, -1) for i in range(len(q) - n + 1))
+
+
+ABSENT_VALUES = {"none", "null", "nil", "false", "0", "", "[]", "{}"}
+
+
+def contradicted(quote, ev_text):
+    """For a quote that says something is absent ("no timeout", "without a limit"), the evidence that sets it: `timeout=20` or
+    `limit: 50`. None when the evidence does not show it. A value of None, null, false or 0 is still absence, not a contradiction."""
+    for w in re.findall(r"\b(?:no|without|missing|lacks?|lacking)\s+(?:a\s+|an\s+|any\s+)?([a-z_][a-z0-9_]{2,})", _fold(quote)):
+        if w in STOP:
+            continue
+        for m in re.finditer(r"\b" + re.escape(w) + r"\s*[=:]\s*([^\s,;)\]}]+)", ev_text):
+            if m.group(1).strip("'\"").lower() not in ABSENT_VALUES:
+                return m.group(0)
+    return None
+
+
 def check_problems(problems, answer, evidence):
     """Each objection tested by code. One is kept only when its quote is copied from the answer and the evidence does not
     cover it: a number in the quote is missing from the evidence, or, for a quote without numbers, fewer than half of its
     content words appear anywhere in the evidence. A quote whose numbers are all in the evidence is covered: the numbers are
-    what code can check, the words around them are phrasing. Returns (kept, dropped), each a list of {"quote", "why", "check"}."""
+    what code can check, the words around them are phrasing. A quote that says something is absent is kept when the evidence
+    sets it (the answer said "no timeout" while the evidence held timeout=20). Returns (kept, dropped), each a list of {"quote", "why", "check"}."""
     kept, dropped = [], []
     hay, ev_text = _fold(answer), _values(evidence)
     for p in (problems or [])[:8]:
@@ -186,8 +214,10 @@ def check_problems(problems, answer, evidence):
         item = {"quote": raw.strip()[:200], "why": why}
         if len(quote) < 3:
             dropped.append(item | {"check": "no quote"})
-        elif quote not in hay:
+        elif not _quoted(quote, hay):
             dropped.append(item | {"check": "the quote is not in the answer"})
+        elif contradicted(quote, ev_text):
+            kept.append(item | {"check": f"the evidence shows {contradicted(quote, ev_text)}"})
         elif unverified_numbers(raw, evidence):
             kept.append(item | {"check": "the number(s) " + ", ".join(unverified_numbers(raw, evidence)[:4]) + " are not in the evidence"})
         elif claim_numbers(raw):

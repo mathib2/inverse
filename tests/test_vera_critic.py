@@ -204,3 +204,16 @@ def test_critic_asks_once_more_on_a_garbage_reply_then_keeps_the_result_marked(t
     r = C.Critic(ctx).review(Task("T1", "g", "reasoning"), res)
     assert r["verdict"] == "accept" and r["by"] == "error" and len(calls) == 2            # one re-ask, then kept with a visible note, never sent back
     assert "could not be read twice" in res["not_checked"][0]
+
+
+def test_an_absence_the_evidence_contradicts_keeps_the_objection_even_with_a_prefixed_quote():
+    """Vera said there IS a 20 s timeout; her quote carried a "low:" prefix the answer did not have, so it was dropped and the
+    false finding was reported as verified."""
+    answer = "Verified findings: low core/inverse_core/team/tools.py:260 a network call has no timeout"
+    evidence = [{"type": "tool", "source": "scan", "result": {"hits": [{"file": "core/inverse_core/team/tools.py", "line": 261, "rule": "no_timeout",
+                 "text": "r = requests.post(URL, data={'q': str(query)[:200]}, headers={'User-Agent': UA}, timeout=20)", "meaning": "a network call has no timeout"}]}}]
+    kept, dropped = C.check_problems([{"quote": "low: a network call has no timeout", "why": "the evidence shows a timeout of 20 seconds"}], answer, evidence)
+    assert kept and not dropped and "timeout=20" in kept[0]["check"]
+    assert C.contradicted("the call has no timeout", "requests.get(u, timeout=none)") is None              # None is still no timeout
+    kept, dropped = C.check_problems([{"quote": "the moon is made of cheese", "why": "x"}], answer, evidence)
+    assert not kept and dropped[0]["check"] == "the quote is not in the answer"                          # a loose match is not any match

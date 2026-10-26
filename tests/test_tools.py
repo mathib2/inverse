@@ -122,3 +122,17 @@ def test_a_tool_ignores_a_why_the_model_put_inside_its_arguments(tmp_path):
     out = t.call("run_sql", {"sql": "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'", "why": "the registry mass"}, ExpertBudget(), who="solver")
     assert "error" not in out and events(ctx, "args_dropped")[0]["dropped"] == ["why"]
     assert t.call("calc", {"expr": "2 * 3", "why": "x"}, ExpertBudget(), who="solver")["value"] == 6
+
+
+def test_a_call_with_a_timeout_after_a_nested_call_is_not_reported(tmp_path):
+    """The rule once stopped at the ')' of str(query) and reported "no timeout" for a call that ends in timeout=20."""
+    root = repo(tmp_path)
+    (tmp_path / "pkg" / "b.py").write_text("import requests, yaml\n"
+                                           "r = requests.post(URL, data={'q': str(query)[:200]}, headers={'User-Agent': UA}, timeout=20)\n"
+                                           "r = requests.get(url,\n    headers=h(x),  # (note)\n    timeout=5)\n"
+                                           "r = requests.get(str(url), headers=h(x))\n"
+                                           "cfg = yaml.load(open(p), Loader=yaml.SafeLoader)\n"
+                                           "cfg = yaml.load(open(p))\n")
+    ctx = make_ctx(tmp_path / "runs", lambda m, msgs: "{}", root=root)
+    hits = [(h["line"], h["rule"]) for h in Tools(ctx).call("scan", {"path": "pkg/b.py"}, ExpertBudget())["hits"]]
+    assert sorted(hits) == [(6, "no_timeout"), (8, "unsafe_deserialize")]

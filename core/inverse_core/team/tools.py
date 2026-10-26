@@ -26,13 +26,17 @@ CODE_TOOLS = {"scan", "read_file", "grep", "list_files"}      # an expert holdin
 CONSULT_BUDGET = {"tool_calls": 3, "tokens": 20000, "seconds": 120}   # what a consulted expert may spend answering one question
 _consult = threading.local()                                   # nesting guard: a consulted expert does not consult another one
 
-# Deterministic weak-spot rules (name, severity, regex, what a hit means). The model triages hits; it cannot invent one.
+# Deterministic weak-spot rules (name, severity, regex, what a hit means[, clear]). The model triages hits; it cannot invent one.
+# A rule with a fifth element matches the opening of a call; the hit is cleared when the whole call, read bracket by bracket
+# across nested calls and lines, matches `clear`. A regex alone stops at the first ')' of an inner call such as str(query),
+# which once reported "no timeout" for a call that ends in timeout=20.
 SCAN_RULES = [
     ("exec_from_string", "high", r"\b(eval|exec)\s*\(", "code is executed from a string"),
     ("shell_true", "high", r"shell\s*=\s*True", "a shell command is built from program values"),
     ("os_system", "high", r"\bos\.system\s*\(", "a shell command string is executed"),
-    ("unsafe_deserialize", "high", r"\bpickle\.loads?\s*\(|\byaml\.(load|unsafe_load)\s*\((?![^)]*SafeLoader)|\bmarshal\.loads?\s*\(",
+    ("unsafe_deserialize", "high", r"\bpickle\.loads?\s*\(|\byaml\.unsafe_load\s*\(|\bmarshal\.loads?\s*\(",
      "untrusted data could become code when it is deserialized"),
+    ("unsafe_deserialize", "high", r"\byaml\.load\s*\(", "untrusted data could become code when it is deserialized", r"SafeLoader|BaseLoader"),
     ("hardcoded_secret", "high", r"(?i)\b(api[_-]?key|token|password|secret)\b\s*[:=]\s*['\"][A-Za-z0-9_\-/+.]{12,}['\"]", "a credential may be written in the code"),
     ("tls_off", "medium", r"verify\s*=\s*False", "TLS certificate checks are turned off"),
     ("sql_from_strings", "medium", r"(?i)(f['\"][^'\"]*\b(select|insert|update|delete)\b[^'\"]*\{|['\"]\s*(select|insert|update|delete)\b[^'\"]*['\"]\s*(\+|%|\.format\())",
@@ -40,12 +44,40 @@ SCAN_RULES = [
     ("bind_all", "medium", r"\b0\.0\.0\.0\b", "a service listens on every network interface"),
     ("mktemp", "medium", r"\btempfile\.mktemp\s*\(", "a predictable temp file name can be raced"),
     ("world_writable", "medium", r"\b0o?777\b|chmod\s+777", "a path is made writable by everyone"),
-    ("no_timeout", "low", r"\brequests\.(get|post|put|delete|head)\s*\((?![^)]*timeout)[^)]*\)", "a network call has no timeout"),
+    ("no_timeout", "low", r"\brequests\.(get|post|put|delete|head|patch|request)\s*\(", "a network call has no timeout", r"\btimeout\s*="),
     ("silenced_errors", "low", r"except\s*(\w+\s*)?:\s*\n\s*pass\b", "errors are silenced"),
     ("debug_on", "low", r"\bdebug\s*=\s*True", "debug mode is on"),
     ("plain_http", "low", r"['\"]http://(?!127\.0\.0\.1|localhost)", "an unencrypted URL is used"),
 ]
 _SEV = {"high": 0, "medium": 1, "low": 2}
+
+
+def call_args(text, open_at):
+    """The text inside the call whose '(' is at open_at, up to its matching ')': nested brackets, strings and comments are
+    stepped over, lines are crossed. None when the call never closes (the hit then stands)."""
+    depth, i, quote = 0, open_at, None
+    while i < len(text):
+        c = text[i]
+        if quote:
+            if c == "\\":
+                i += 2
+                continue
+            if c == quote:
+                quote = None
+        elif c in "'\"":
+            quote = c
+        elif c == "#":
+            j = text.find("\n", i)
+            i = len(text) if j < 0 else j
+            continue
+        elif c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+            if depth == 0:
+                return text[open_at + 1:i]
+        i += 1
+    return None
 
 
 class ToolError(ValueError):
@@ -224,13 +256,20 @@ class Tools:
                 continue
             scanned += 1
             with open(p, encoding="utf-8", errors="replace") as f:
-                lines = f.read().splitlines()
+                text = f.read()
+            lines, start = text.split("\n"), 0
             for i, line in enumerate(lines):
                 pair = line + "\n" + (lines[i + 1] if i + 1 < len(lines) else "")      # two lines, so a rule may look one line ahead
-                for rule, sev, rx, meaning in SCAN_RULES:
+                for rule, sev, rx, meaning, *clear in SCAN_RULES:
                     m = re.search(rx, pair)
-                    if m and m.start() <= len(line):
-                        hits.append({"file": rel, "line": i + 1, "text": line.strip()[:160], "rule": rule, "severity": sev, "meaning": meaning})
+                    if not m or m.start() > len(line):
+                        continue
+                    if clear:                                                          # the whole call decides, not the first ')'
+                        args = call_args(text, start + m.end() - 1)
+                        if args is not None and re.search(clear[0], args):
+                            continue
+                    hits.append({"file": rel, "line": i + 1, "text": line.strip()[:160], "rule": rule, "severity": sev, "meaning": meaning})
+                start += len(line) + 1
         hits.sort(key=lambda h: (_SEV[h["severity"]], h["file"], h["line"]))
         return {"hits": hits[:MAX_HITS], "total": len(hits), "files_scanned": scanned, "truncated": len(hits) > MAX_HITS}
 
