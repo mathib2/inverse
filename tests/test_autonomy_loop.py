@@ -106,4 +106,6 @@ def test_tinker_knows_where_each_item_lives():
     assert path.endswith("lead.py") and "PLAN_SYSTEM = " in excerpt.splitlines()[0]
     path, excerpt = tinker.place_of("Scout must not add a filter the task did not ask for")
     assert path.endswith("experts.py") and "def pin_sensor" in excerpt.splitlines()[0]
+    report = "## List\n\n1. **Vera must x.** Where: `critic.py`,\n   the rule. Measured by her probe.\n2. **Atlas must y**: in `lead.py`.\n\nDone since: all.\n"
+    assert tinker.details(report) == {"Vera must x.": "Where: `critic.py`, the rule. Measured by her probe.", "Atlas must y": "in `lead.py`."}
 
