@@ -17,6 +17,7 @@ from inverse_core.clients.world import WorldClient
 from inverse_core.clients.zetaris import ZetarisClient
 from inverse_core.team.build import build
 from inverse_core.team.crew import CREW, name as crew_name, rename, roster
+from inverse_core.team import limits
 from inverse_core.team.lanes import Lanes
 from inverse_core.team.registry import load_configs
 
@@ -131,7 +132,7 @@ def _live(live, configs):
 
 
 def crew_cards(configs):
-    rows = roster(configs)
+    rows, known = roster(configs), limits.all_known(ROOT)
     for i in range(0, len(rows), 3):
         cols = st.columns(3, gap="small")
         for col, r in zip(cols, rows[i:i + 3]):
@@ -140,6 +141,8 @@ def crew_cards(configs):
                 st.caption(r["does"])
                 if r["tools"]:
                     st.caption("Can use: " + ", ".join(TOOL_WORDS.get(t, t) for t in r["tools"]))
+                for ln in known.get(r["id"], []):
+                    st.caption(f"Working to fix: {ln}")
 
 
 def conversation(events, configs):

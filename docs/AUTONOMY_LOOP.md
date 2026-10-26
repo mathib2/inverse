@@ -67,10 +67,11 @@ gates deciding; and it is why the gates, not the model, are what make the loop s
 
 ## The Live tab
 
-The **Live** mode of the page shows one chat for everything: the agents' messages inside missions (results, reviews, questions and
-answers), Warden's log, the council's sessions and Tinker's research, changes and alerts, newest at the bottom, refreshed every
-three seconds, with a filter per source. The box under it sends a goal to Warden, which starts a mission within a minute, and your
-message appears in the chat as yours.
+The **Live** panel of the front page shows one chat for everything: a mission as it happens (the plan, the hand-outs, every tool
+call, each result, Vera's verdicts, retries, the answer, in the agents' names), Warden's log, the council's sessions and Tinker's
+research, changes and alerts, newest at the bottom, refreshed every three seconds, with a filter per source. A goal typed in the
+chat box starts a mission at once; a goal for Warden's queue, or `veto auto/...` and `approve auto/...` for Tinker, go through the
+Send box of the Live view under Advanced.
 
 ## Your phone, for free
 

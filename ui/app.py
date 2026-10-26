@@ -76,29 +76,39 @@ def confirm_reset():
 h = health()
 ai_online = h["ai"]["status"] == "online"
 parts.css()
+import team  # noqa: E402
 
 with st.sidebar:
-    mode = st.radio("Mode", ["Crew", "Live", "Advanced"], key="mode", horizontal=True,
-                    help="Crew: give the agents a goal and watch them work. Live: everything they say, as they say it. Advanced: edit plans and agents, replay with the full trace.")
+    st.markdown("## INVERSE")
+    st.caption("A crew of local AI agents")
+    if st.button("New chat", icon=":material/add:", width="stretch"):
+        for k in ("turns", "panel_turn", "crew_out", "crew_plan", "crew_dir", "crew_events", "crew_last", "crew_error"):
+            ss.pop(k, None)
+        ss.panel_pick = "Answer"
+        st.rerun()
+    mode = st.segmented_control("View", ["Chat", "Advanced"], key="mode", default="Chat", label_visibility="collapsed", width="stretch") or "Chat"
+    st.caption("Recent")
+    for r in team.saved_runs(limit=8):
+        if st.button(r["goal"][:46] + ("…" if len(r["goal"]) > 46 else ""), key="recent_" + os.path.basename(r["dir"]), type="tertiary", help=f"{r['when']} · {r['goal']}"):
+            if team._load_run(r["dir"]):
+                turns = ss.setdefault("turns", [])
+                if all(t.get("dir") != ss.team_dir for t in turns):
+                    turns.append({"goal": ss.team_plan.goal, "out": ss.team_out, "plan": ss.team_plan, "events": list(ss.team_events or []), "dir": ss.team_dir, "took": r["when"], "stopped": False})
+                ss.panel_turn, ss.panel_pick, ss.mode = ss.team_dir, "Answer", "Chat"
+                st.rerun()
     st.divider()
-    parts.connections(h, recheck, ssh_target(), ss.get("last_latency"))
-    st.divider()
-    st.markdown("### Memory")
-    if st.button("Forget what the crew remembers…", icon=":material/delete_sweep:", width="stretch"):
-        confirm_reset()
-    st.caption("Shared findings and refuted claims live in H-MEM across missions. Do this before a demo so every mission starts fresh.")
+    with st.expander("Connections", expanded=not ai_online or not h["data"]["ok"]):
+        parts.connections(h, recheck, ssh_target(), ss.get("last_latency"))
+    with st.expander("Memory"):
+        if st.button("Forget what the crew remembers…", icon=":material/delete_sweep:", width="stretch"):
+            confirm_reset()
+        st.caption("Shared findings and refuted claims live in H-MEM across missions. Do this before a demo so every mission starts fresh.")
     auth.sign_out_button()
 
 if mode == "Advanced":
-    import team
     team.render(ledger, ai_online, SIDECAR, h)
     st.stop()
-if mode == "Live":
-    import crew
-    import live
-    live.render(ROOT, crew._configs())
-    st.stop()
 
-import crew  # noqa: E402
+import chat_ui  # noqa: E402
 
-crew.render(ledger, ai_online, SIDECAR, h)
+chat_ui.render(ledger, ai_online, SIDECAR, h)

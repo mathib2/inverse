@@ -16,6 +16,7 @@ from .critic import Critic
 from .custom import scope_check
 from .expert import ExpertBudget, Task
 from .llmcall import BadReply, ask
+from . import limits
 from .plan import PLACEHOLDER, Plan, PlanError
 from .registry import ConfigError
 from .tools import CODE_TOOLS, Tools
@@ -95,7 +96,7 @@ class Lead:
     def plan_system(self):
         """The planner's system prompt as sent: byte-stable per process, so the model server's prefix cache holds it."""
         return PLAN_SYSTEM.format(experts="\n".join(f"- {n}: {r}" for n, r in self.registry.roles().items()),
-                                  equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(Tools.SPECS))
+                                  equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(Tools.SPECS)) + limits.note(getattr(self.ctx, "root", "."), "lead")
 
     def plan(self, goal, collaborate=False, votes=1):
         """votes > 1 samples that many plans at temperature 0.7 and keeps the most common task/expert structure

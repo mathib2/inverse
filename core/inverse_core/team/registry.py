@@ -10,7 +10,7 @@ import re
 
 import yaml
 
-from . import architect, custom
+from . import architect, custom, limits
 from .expert import ExpertBudget
 from .experts import KINDS as BUILTIN
 from .tools import Tools
@@ -97,6 +97,7 @@ def forget_config(directory, name):
 class Registry:
     def __init__(self, ctx, directory="experts", root="."):
         self.ctx, self.root, self.directory = ctx, root, directory
+        self.known = limits.all_known(root)                                   # read once per build: the prompts stay byte-stable
         self.reload()
 
     def reload(self):
@@ -114,6 +115,7 @@ class Registry:
                 raise ConfigError(f"{c['name']}: system_prompt_file {c['system_prompt_file']!r} is outside the repository")
             with open(p) as pf:
                 prompt = pf.read().strip()
+        prompt = prompt + limits.note(self.root, c["name"], self.known)       # what it is known to get wrong, and the aim to fix it
         return KINDS[c["kind"]](self.ctx, c["name"], c["role"], prompt, c["model_lane"], c["tools"])
 
     def drop(self, name):
