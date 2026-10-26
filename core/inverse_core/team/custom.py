@@ -294,7 +294,9 @@ class VulnerabilityExpert(CustomExpert):
             evidence.append(item)
             findings.append({"claim": f"{f['file']}:{f['line']} {f['weakness'][:120]}", "evidence": [item], "source": "fitter", "confidence": 0.7})   # the line was checked by code; the words are the model's
         summary = str(j.get("summary") or "").strip()
-        answer = (summary + " " if summary else "") + (f"{len(verified)} verified finding(s): " + "; ".join(f"{f['severity']} {f['file']}:{f['line']} {f['weakness']}" for f in verified)
+        if summary and unverified_numbers(summary, evidence):                  # a count or figure the model made up: Vera would send the whole review back for it
+            summary = ""
+        answer = (summary + " " if summary else "") + ("Verified findings: " + "; ".join(f"{f['severity']} {f['file']}:{f['line']} {f['weakness']}" for f in verified)
                                                         if verified else "No verified weakness was found in the reviewed code.")
         not_checked = [str(n) for n in (j.get("not_checked") or [])] + [f"dropped, not found at the cited line: {d}" for d in dropped] + \
                       ["tests/ are skipped by the scan", "only code inside this repository was reviewed"]

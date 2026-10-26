@@ -5,6 +5,7 @@ given comes back as an error the model can see."""
 from __future__ import annotations
 
 import fnmatch
+import inspect
 import os
 import re
 import threading
@@ -143,8 +144,14 @@ class Tools:
             if missing:
                 out = {"error": f"{name} needs {missing}"}
             else:
+                fn = getattr(self, "_" + name)
+                params = inspect.signature(fn).parameters
+                extra = [k for k in args if k not in params] if not any(p.kind == p.VAR_KEYWORD for p in params.values()) else []
+                if extra:                                                     # a note the model put inside args ("why") is not an argument
+                    args = {k: v for k, v in args.items() if k not in extra}
+                    self.ctx.trace.event("args_dropped", agent=who, tool=name, dropped=extra[:4])
                 try:
-                    out = getattr(self, "_" + name)(**args)
+                    out = fn(**args)
                 except (ToolError, ValueError, SyntaxError, ZeroDivisionError, OverflowError, TypeError, OSError, re.error,
                         requests.RequestException) as e:
                     out = {"error": f"{type(e).__name__}: {str(e)[:200]}"}

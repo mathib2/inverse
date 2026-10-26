@@ -211,6 +211,61 @@ def lanes_for_tinker():
     return lanes
 
 
+WEB_EVERY = int(os.environ.get("TINKER_WEB_EVERY", "3") or 0)              # web research on every Nth cycle; the others work from the crew's own evidence
+
+
+def evidence_note(item, probes=None):
+    """What the crew's own records say about an item, by code and without a model call: for a failing probe, the question, what was
+    expected and what the agent answered. Real evidence beats a generic web page about small models."""
+    m = re.match(r"^(\w+): the probe '(.+?)' fails", str(item or ""))
+    if not m:
+        return ""
+    agent, goal = m.group(1), m.group(2)
+    for p in ((probes if probes is not None else latest_probes()).get(agent) or {}).get("probes", []):
+        g = str(p.get("goal") or p.get("label") or "")
+        if g.startswith(goal[:60]):
+            return (f"The probe asked: {g[:160]}. Expected in the answer: {', '.join(str(k) for k in (p.get('checks') or {}))}. "
+                    f"{agent} answered: {str(p.get('answer'))[:200]!r}" + (f"; numbers it could not support: {p.get('unverified_numbers')}" if p.get("unverified_numbers") else "")
+                    + (f"; error: {str(p.get('error'))[:120]}" if p.get("error") else "") + ".")
+    return ""
+
+
+def web_turn(state):
+    """True on the cycles that also search the web (every WEB_EVERY-th; 0 means never)."""
+    return WEB_EVERY > 0 and int(state.get("cycles") or 0) % WEB_EVERY == 0
+
+
+def failure_tail(out, n=30):
+    """The end of a test run's output: the failing assertion and its file, which is what a repair needs."""
+    lines = [ln for ln in str(out or "").splitlines() if ln.strip()]
+    return "\n".join(lines[-n:])[:2500]
+
+
+def test_run(files):
+    """Compile the changed Python files first (a syntax error fails fast, with its line), then the suite, stopping at the first failure."""
+    py = [f for f in files if f.endswith(".py")]
+    if py:
+        rc, out = sh([sys.executable, "-m", "py_compile", *py], timeout=60)
+        if rc != 0:
+            return rc, out
+    return sh([sys.executable, "-m", "pytest", "-q", "-x", "tests", "-p", "no:cacheprovider"], timeout=900, env={"PYTHONPATH": "core"})
+
+
+def unload(model):
+    """Ask the local model server to free a model now, instead of keeping it in memory for a day: the 7B coder took 6 to 8 GB of a
+    31 GB machine that was already swapping, and the crew's own model slowed down beside it."""
+    if not model or (os.environ.get("MODEL_PROVIDER") or "ollama").lower() != "ollama":
+        return False
+    base = (os.environ.get("MODEL_BASE_URL") or "http://127.0.0.1:11434/v1").rstrip("/")
+    native = base[:-3] if base.endswith("/v1") else base
+    try:
+        import requests
+        requests.post(native + "/api/generate", json={"model": model, "keep_alive": 0}, timeout=30)
+        return True
+    except Exception:
+        return False
+
+
 def place_of(item):
     """The file and the lines an item is about, so the engineer starts at the right place instead of searching."""
     low = str(item or "").lower()
@@ -370,13 +425,16 @@ def cycle():
     memory = TeamMemory(SidecarLedger())
     outcome, branch, before, after = "no change", None, None, None
     try:
-        researcher = CustomExpert(ctx, "tinker", RESEARCH_ROLE, RESEARCH_PROMPT, "deep", ["web_search", "fetch_url", "memory"])
-        r = researcher.run(Task("R1", f"Research how to fix this in a crew of small local language-model agents that run on a CPU: {item}", "tinker"), memory,
-                           ExpertBudget(tool_calls=5, tokens=60000, seconds=420))
-        note = str(r.answer or "").strip()
+        note = evidence_note(item)
+        if web_turn(state) or not note:
+            researcher = CustomExpert(ctx, "tinker", RESEARCH_ROLE, RESEARCH_PROMPT, "deep", ["web_search", "fetch_url", "memory"])
+            r = researcher.run(Task("R1", f"Research how to fix this in a crew of small local language-model agents that run on a CPU: {item}", "tinker"), memory,
+                               ExpertBudget(tool_calls=5, tokens=60000, seconds=420))
+            web = str(r.answer or "").strip()
+            if web:
+                memory.add_finding(f"tinker: {item[:80]}: {web[:200]}", r.evidence[:2], source="web", confidence=0.4, expert="tinker")
+                note = (note + " Web: " + web).strip()[:900]
         say("Research: " + (note or "nothing useful found"), kind="note")
-        if note:
-            memory.add_finding(f"tinker: {item[:80]}: {note[:200]}", r.evidence[:2], source="web", confidence=0.4, expert="tinker")
         path, excerpt = place_of(item)
         hint = details(report).get(item, "")
         tpath, tpass, tout = item_test(item)
@@ -390,13 +448,28 @@ def cycle():
                          memory, ExpertBudget(tool_calls=8, tokens=150000, seconds=900))
         say("Engineering: " + str(e.answer or "")[:400], kind="result")
         files = changed_files()
+        coder = ctx.lanes.model("engineer") if ctx.lanes.model("engineer") != ctx.lanes.model("deep") else None
         if not files:
+            unload(coder)
             outcome = "no safe change found" if "no safe change" in str(e.answer or "").lower() else "no change made"
             memory.add_lesson("tinker", f"{item[:80]}: {outcome} in {path}")
         elif len(files) > 3 or any(os.path.splitext(f)[1] not in SAFE_EXT for f in files):
             outcome, _ = f"too broad ({len(files)} files: {', '.join(files[:4])}); reverted", revert()
         else:
-            rc, out = sh([sys.executable, "-m", "pytest", "-q", "tests"], timeout=900, env={"PYTHONPATH": "core"})
+            rc, out = test_run(files)
+            if rc != 0:                                                       # one repair turn, with the failure in front of the engineer
+                say("The change broke a test; the engineer gets one try to repair it.", kind="note")
+                try:
+                    engineer.run(Task("E2", f"Your edit to {', '.join(files)} for '{item[:80]}' broke the build or a test. Make one edit_file on the same file that "
+                                            f"fixes it and keeps the improvement; then run_tests.\nTHE FAILURE:\n{failure_tail(out)}\nThe file: {path}", "tinker"),
+                                 memory, ExpertBudget(tool_calls=4, tokens=80000, seconds=600))
+                except Exception as ex:
+                    say(f"The repair turn stopped: {type(ex).__name__}", kind="log")
+                files = changed_files() or files
+                rc, out = test_run(files)
+                if rc == 0:
+                    say("Repaired: the tests pass now.", kind="result")
+            unload(coder)
             summary = out.splitlines()[-1] if out else ""
             if rc != 0:
                 outcome, _ = f"tests failed ({summary[:80]}); reverted", revert()
