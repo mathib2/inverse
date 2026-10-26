@@ -15,17 +15,17 @@ Deadline: **Tue 27 Oct 2026, 23:45 UTC** (6:45 PM Central). Track: **03, Reasoni
 ## Links
 
 - Repository: https://github.com/mathib2/inverse (make public before submitting)
-- Demo video: _to record, `docs/DEMO_SCRIPT.md`_
-- Slide deck: _to build from `docs/SLIDES.md`_
-- Sponsor technology explanation: `docs/SPONSORS.md`
-- Pre-existing work: `docs/agent/PREEXISTING.md`
+- Demo video: _to record, `docs/hackathon/DEMO_SCRIPT.md`_
+- Slide deck: _to build from `docs/hackathon/SLIDES.md`_
+- Sponsor technology explanation: `docs/hackathon/SPONSORS.md`
+- Pre-existing work: `docs/hackathon/PREEXISTING.md`
 
 ## Checklist before pressing submit
 
 1. HackOS team registration confirmed (or late entry granted). **Blocking.**
-2. Cursor requirement: cite the waiver announcement in `docs/SPONSORS.md`, or leave the honest statement as is.
+2. Cursor requirement: cite the waiver announcement in `docs/hackathon/SPONSORS.md`, or leave the honest statement as is.
 3. Repository public, published from a squashed branch (or after `git filter-repo`): the tailnet address lives in an early commit and `git log -p --all | grep -c <tailnet-ip>` must be 0 on the public repository; rotate the deploy key afterwards.
 4. Warden running on the workstation for the demo (`~/.local/bin/inverse-watch status`), with one autonomous mission saved for the replay segment, its conversation visible.
 5. The recording runs fully local (`ollama`, the default); the video says so and shows the Nightshift path as one line of `.env`.
 6. Video recorded (1 to 4 minutes) and the deck exported to PDF.
-7. `README.md` matches the live app (names, pages, missions). `docs/IMPROVEMENT_PLAN.md` items 1 to 10 are done or consciously dropped.
+7. `README.md` matches the live app (names, pages, missions). The pre-submission review's items 1 to 10 are done or consciously dropped.

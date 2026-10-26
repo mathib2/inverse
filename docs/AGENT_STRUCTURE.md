@@ -8,7 +8,7 @@ written in code between the steps), and `tests/test_structure.py` checks it.
 ## The record
 
 Each expert is one YAML file with the same nine fields: `name` (the identifier the code uses), `callsign` (the name people
-see), `kind` (which Python class runs it: `research`, `reasoning`, `custom`, `architect`), `role` (one sentence the planner
+see), `kind` (which Python class runs it: `research`, `reasoning`, `custom`, `vulnerability`, `architect`), `role` (one sentence the planner
 reads), `system_prompt_file` (its instructions, under `prompts/`), `tools` (what it may call, by name, from the one toolbox),
 `model_lane` (`fast`, `deep` or `critic`), `budget` (tool calls, tokens and seconds per task) and `enabled`. The council can
 change a budget, a tool or a prompt addendum with an undo; nothing else is edited by an agent.
@@ -32,7 +32,7 @@ Every expert runs one task the same way:
 
 ## The measure
 
-Each agent has its own probe set in `scripts/probe.py` (small, checkable questions) and a mark out of ten (accuracy,
+Each agent has its own probe set in `scripts/measure/probe.py` (small, checkable questions) and a mark out of ten (accuracy,
 honesty, efficiency, robustness). The marks are in `docs/AGENT_REPORT.md`; what an agent still gets wrong is read from the
 latest probe and from the report's list, shown on the Crew panel, and worked on by Tinker. The probes measure the model's
 own path: the Atlas probe plans without the rule-first shortcut and the Vera probe reviews without the code-first

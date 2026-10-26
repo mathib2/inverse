@@ -16,7 +16,7 @@ is sent to the owner's phone and shown in the sidebar.
 
 The sign-in page is the only gate, so it is hardened for the open internet: five wrong tries from one address lock that address
 out for fifteen minutes, thirty wrong tries from anywhere slow every try, and a device stays signed in for seven days through a
-signed cookie that **Sign out** revokes. Change the password with `scripts/set_password.py` (it writes only a salted hash to `.env`)
+signed cookie that **Sign out** revokes. Change the password with `scripts/admin/set_password.py` (it writes only a salted hash to `.env`)
 and `deploy-live`; a new password signs every device out.
 
 ## A link that never changes (optional, once, by the owner)

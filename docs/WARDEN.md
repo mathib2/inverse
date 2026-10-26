@@ -3,7 +3,7 @@
 Two things make a crew autonomous: a loop that decides when to run and what to ask, and a way for the agents to talk during
 a mission instead of only receiving tasks from the lead. Both are here.
 
-## 1. Warden (`core/inverse_core/watch.py`, `scripts/watch.py`)
+## 1. Warden (`core/inverse_core/team/watch.py`, `scripts/watch.py`)
 
 ```
 every WATCH_INTERVAL seconds (default 1800)
@@ -43,7 +43,7 @@ retried every cycle (the log says why it failed).
 cd ~/inverse-live && PYTHONPATH=core .venv/bin/python scripts/watch.py --once --force --verbose
 ```
 
-With the local models (`docs/agent/LOCAL_MODELS.md`) a mission takes a few minutes, so the 30-minute interval is comfortable;
+With the local models (`docs/operations/LOCAL_MODELS.md`) a mission takes a few minutes, so the 30-minute interval is comfortable;
 a queued goal is picked up within about 30 seconds. Fixed-text missions (standing missions and new-data missions) are planned by rule with no
 model call; a person's goal gets the model planner. `missions.yaml` and `missions.local.yaml` are re-read every cycle, so the council's and
 people's changes take effect without a restart. A failed new-data mission is retried once on the next cycle, then waits for new data.

@@ -9,7 +9,7 @@ and agents never edit their own code.
 The agents speak a tiny protocol: one JSON object per message, short keys, hard caps, five verbs. Strict JSON because the
 runtime already enforces JSON mode; short keys and caps because a 4B model must be able to say it reliably in a few tokens.
 Text that is too long is truncated, never refused; a message with an unknown verb, kind or target is dropped with a traced
-reason (`proposal_dropped`). `core/inverse_core/team/wire.py` is the whole grammar.
+reason (`proposal_dropped`). `core/inverse_core/team/council_wire.py` is the whole grammar.
 
 | Verb | Who writes it | Shape |
 |---|---|---|
@@ -39,7 +39,7 @@ one proposal with two backers, and backing is what makes it urgent.
 - **The `propose` and `support` tools** (one tool turn), for tool-using agents such as Ada.
 - **Rules in the Lead**, after every mission: an agent whose tool-call budget ran out gets a proposal to raise it by two
   (`rule:budget`); an agent Forge built and used gets a proposal to keep it (`rule:keep`).
-- **People**, from the crew page or `scripts/council.py propose '{...}'`.
+- **People**, from the crew page or `scripts/admin/council.py propose '{...}'`.
 
 Filing writes one line to `council/book.jsonl` (append-only, replayed at start) and a `proposal_filed` trace event. It never
 convenes anything.

@@ -6,7 +6,7 @@ follow the setting.
 
 | `MODEL_PROVIDER` | What runs the AI | When to use it |
 |---|---|---|
-| `nightshift` | Meterless Nightshift on a Windows laptop, reached through an SSH reverse tunnel (`docs/agent/NIGHTSHIFT_TUNNEL.md`); NVIDIA Nemotron routes | The sponsor provider, one line of `.env` away; the recording runs local |
+| `nightshift` | Meterless Nightshift on a Windows laptop, reached through an SSH reverse tunnel (`docs/operations/NIGHTSHIFT_TUNNEL.md`); NVIDIA Nemotron routes | The sponsor provider, one line of `.env` away; the recording runs local |
 | `ollama` (default) | Ollama in Docker on the workstation itself, free local models on the CPU | Development, tests against a real model, unattended runs: nothing depends on a laptop or on credits |
 | `openai` | Any other OpenAI-compatible server named in `MODEL_BASE_URL` | Whatever you have |
 
@@ -58,4 +58,4 @@ Small models copy examples and skip steps. The crew's deterministic layer catche
 
 The hackathon asks for Meterless as the primary provider. With `ollama` the provider at runtime is not Meterless; the three
 Meterless engines (H-MEM, World Model, Markovian) still run on the workstation and are used on every run. For the demo
-recording and the live evaluation set `MODEL_PROVIDER=nightshift` (`docs/SUBMISSION.md`, checklist item 5).
+recording and the live evaluation set `MODEL_PROVIDER=nightshift` (`docs/hackathon/SUBMISSION.md`, checklist item 5).

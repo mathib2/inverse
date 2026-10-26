@@ -6,7 +6,7 @@ tunnel is restarted if it drops; a restart gives a new link. Run it through ~/.l
     PYTHONPATH=core python scripts/public_link.py --port 8501
 
 Quick tunnels are Cloudflare's free tier without an account: no uptime promise and a new address after every restart. For a
-link that never changes, Tailscale Funnel (docs/ACCESS.md) needs a switch in the Tailscale admin console and sudo once."""
+link that never changes, Tailscale Funnel (docs/operations/ACCESS.md) needs a switch in the Tailscale admin console and sudo once."""
 import argparse
 import json
 import os

@@ -3,9 +3,9 @@
 Measured on 25 October 2026 on the workstation (Intel i5-6500, 4 cores, no GPU; Ollama 0.40; every lane on
 `nemotron-mini`, Nemotron-Mini-4B-Instruct Q4_K_M). Two instruments:
 
-- **The benchmark** (`scripts/bench.py`, `docs/BENCH.md`): eight whole missions with checkable answers, run eight times while the
+- **The benchmark** (`scripts/measure/bench.py`, `docs/BENCH.md`): eight whole missions with checkable answers, run eight times while the
   crew was being fixed. 64 missions, 391 model calls, every trace kept under `runs/`.
-- **The probes** (`scripts/probe.py`, `docs/evidence/probe/`): each agent alone, on its own questions, scored by code. Accuracy is
+- **The probes** (`scripts/measure/probe.py`, `docs/evidence/probe/`): each agent alone, on its own questions, scored by code. Accuracy is
   the share of right answers; honesty is the share of answers with no number from nowhere; efficiency is seconds per probe against
   a target; robustness is the share without errors, loops or unreadable replies. The mark is 0.45 accuracy + 0.2 honesty + 0.15
   efficiency + 0.2 robustness, out of 10. A probe is one expert run, one review or one plan: the mark is the agent's, not the crew's,
@@ -159,9 +159,9 @@ better 4B model (the newer Nemotron, measured by this same probe set) or structu
 
 ```bash
 ~/.local/bin/inverse-watch stop
-PYTHONPATH=core .venv/bin/python scripts/warmup.py
-PYTHONPATH=core .venv/bin/python scripts/probe.py --label after      # every agent; --only euler,vera for two
-PYTHONPATH=core .venv/bin/python scripts/bench.py --label after
+PYTHONPATH=core .venv/bin/python scripts/measure/warmup.py
+PYTHONPATH=core .venv/bin/python scripts/measure/probe.py --label after      # every agent; --only euler,vera for two
+PYTHONPATH=core .venv/bin/python scripts/measure/bench.py --label after
 ~/.local/bin/inverse-watch start
 ```
 

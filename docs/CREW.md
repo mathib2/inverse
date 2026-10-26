@@ -31,11 +31,11 @@ Proposals ride on the replies agents already return (`propose`), or go through t
 Warden (`scripts/watch.py`) loops on the workstation (`~/.local/bin/inverse-watch start|stop|status|log`). Each cycle: queued
 goals first (`queue/goals.jsonl`, written from the crew page or `--queue "..."`), then the standing missions whose interval
 has passed (`missions.yaml`), then every machine whose sensor data changed. Every run leaves a manifest; interrupted runs are
-re-queued once; the memory sidecars are restarted if they stop answering. Details: `docs/agent/AUTONOMY.md`.
+re-queued once; the memory sidecars are restarted if they stop answering. Details: `docs/WARDEN.md`.
 
 ## Local by default
 
-`MODEL_PROVIDER` defaults to `ollama`: every agent runs on the local models the workstation serves (`docs/agent/LOCAL_MODELS.md`).
+`MODEL_PROVIDER` defaults to `ollama`: every agent runs on the local models the workstation serves (`docs/operations/LOCAL_MODELS.md`).
 `nightshift` switches the same crew to Meterless Nightshift for the sponsor recording; nothing else changes.
 
 ## Adding an agent

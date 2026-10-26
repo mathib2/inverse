@@ -17,7 +17,7 @@ and a veto window announced on your phone (the last section).
    the same injection guard that protects the crew from maintenance notes, and writes a note with two ideas and their sources. The
    note goes to the chat and to shared memory as a finding with the lowest trust (source `web`).
 5. **Engineer.** The item names the file and the region (`PLACES` in `scripts/tinker.py`: Vera's rules in `critic.py`, Atlas's
-   guard in `lead.py`, Scout's column rules in `experts.py`, and so on); the task shows those sixty lines, and Tinker makes one
+   guard in `lead.py`, Scout's column rules in `research.py`, and so on); the task shows those sixty lines, and Tinker makes one
    `edit_file` change there (an exact replacement), then `run_tests`. It cannot create files or write notes: the first three
    cycles, given `write_file` and a whole repository to search, produced `research.txt`, `code.txt` and `production-guide.md`
    instead of code. "No safe change: why" is an accepted answer and becomes a lesson.
@@ -59,7 +59,7 @@ A 4B general model will not write code even when shown the lines and told what t
 ended in "no safe change" and an empty answer. So the engineer step got its own lane, `engineer`, which `TINKER_ENGINEER_MODEL`
 points at a coder model; the crew's lanes are untouched, so nothing about missions or the demo changes.
 
-`scripts/engineer_eval.py` measures a model as the engineer with the same expert, prompt, tools, budget and task shape as the loop:
+`scripts/measure/engineer_eval.py` measures a model as the engineer with the same expert, prompt, tools, budget and task shape as the loop:
 four small edits with a known right answer (a missing dictionary case, an off-by-one slice, a regex that must accept a trailing
 number, a sentence to add to a prompt string), each decided by a test the model is shown failing; and with `--tasks backlog` the
 six real items of the list, decided by the test suite. It runs from the sandbox with Tinker stopped and writes
@@ -103,7 +103,7 @@ Phone **calls** are not free to place by software: every voice API (Twilio and t
 priority-5 alert is the free equivalent: it overrides silent mode on Android and repeats until acknowledged. If you want real calls,
 a Twilio trial account with your number verified works for the trial credit; the hook is one function in `notify.py`.
 
-Test any channel from the workstation: `PYTHONPATH=core .venv/bin/python scripts/notify.py "hello from the crew" --urgent`.
+Test any channel from the workstation: `PYTHONPATH=core .venv/bin/python scripts/admin/send_alert.py "hello from the crew" --urgent`.
 
 ## Approving: the council, then you
 

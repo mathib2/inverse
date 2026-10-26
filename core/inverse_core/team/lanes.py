@@ -3,7 +3,7 @@ whichever OpenAI-compatible server MODEL_PROVIDER names. With Nightshift the def
 in GET /v1/models); with a local provider every lane defaults to the configured NEMOTRON_MODEL, so one local model serves
 the whole team. Override any lane with LANE_<NAME> in .env. On Nightshift `critic` defaults to a different model than
 `fast` and `deep`, so review is independent of the work it reviews; a one-model lab loses that independence unless
-LANE_CRITIC names a second model (docs/agent/LOCAL_MODELS.md)."""
+LANE_CRITIC names a second model (docs/operations/LOCAL_MODELS.md)."""
 from __future__ import annotations
 
 import os

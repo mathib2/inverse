@@ -1,15 +1,15 @@
 # The benchmark: how the crew is tested, and what changed
 
-`scripts/bench.py` runs eight checkable goals (`bench/cases.yaml`) through the crew exactly as the crew page would, and records
+`scripts/measure/bench.py` runs eight checkable goals (`scripts/measure/bench_cases.yaml`) through the crew exactly as the crew page would, and records
 for each: whether every expected item is in the final answer (a number within 1 %, text as a substring), whether at least one
 task was accepted, seconds, model calls, prompt and completion tokens, the reviewer's verdicts, re-asks and unreadable replies.
 Results land in `docs/evidence/bench/<label>.json`; `--compare a.json b.json` prints two runs side by side.
 
 ```bash
 ~/.local/bin/inverse-watch stop                     # Warden shares the CPU: pause it for a clean measurement
-PYTHONPATH=core .venv/bin/python scripts/warmup.py  # one two-token request per agent prefix, so the server's prefix cache is warm
-PYTHONPATH=core .venv/bin/python scripts/bench.py --label mine [--only sensor,weight] [--parallel 1] [--collaborate on]
-PYTHONPATH=core .venv/bin/python scripts/bench.py --compare docs/evidence/bench/baseline.json docs/evidence/bench/mine.json
+PYTHONPATH=core .venv/bin/python scripts/measure/warmup.py  # one two-token request per agent prefix, so the server's prefix cache is warm
+PYTHONPATH=core .venv/bin/python scripts/measure/bench.py --label mine [--only sensor,weight] [--parallel 1] [--collaborate on]
+PYTHONPATH=core .venv/bin/python scripts/measure/bench.py --compare docs/evidence/bench/baseline.json docs/evidence/bench/mine.json
 ~/.local/bin/inverse-watch start
 ```
 
