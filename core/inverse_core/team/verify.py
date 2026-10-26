@@ -18,8 +18,8 @@ def _numbers(obj):
             [walk(v) for v in o]
         elif isinstance(o, (int, float)) and not isinstance(o, bool):
             out.append(float(o))
-        elif isinstance(o, str):
-            out.extend(float(x) for x in re.findall(r"-?\d+\.?\d*(?:e-?\d+)?", o))
+        elif isinstance(o, str):                                               # a hyphen after a digit separates (2026-09, M-001), it is not a minus sign
+            out.extend(float(x) for x in re.findall(r"(?<!\d)-?\d+\.?\d*(?:e-?\d+)?", o))
     walk(obj)
     return out
 

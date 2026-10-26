@@ -89,6 +89,12 @@ def test_a_summary_the_model_doubts_is_read_out_of_the_memory_by_code(tmp_path):
     assert events(ctx, "summary_by_code") and res.confidence == 0.8 and res.answer.startswith("Found and still standing") and C.deterministic(res.to_dict()) is None
 
 
+def test_a_hyphen_after_a_digit_is_a_separator_for_the_evidence_too():
+    from inverse_core.team.verify import unverified_numbers
+    assert unverified_numbers("maintenance on 2026-09", {"form": "records: 2026-09"}) == []                        # a cut date, the same on both sides
+    assert unverified_numbers("the offset is -5 mm", {"rows": [{"offset": "-5"}]}) == [] and unverified_numbers("it is 7", {"x": "2026-09"}) == ["7"]
+
+
 def test_a_phrase_that_rests_on_nothing_is_sent_back():
     ev = [{"type": "calc", "source": "step 1: 2*3", "detail": "= 6 (expected 6) OK"}]
     res = {"answer": "six is 6, as the manual says.", "confidence": 0.9, "assumptions": [], "not_checked": [], "task_goal": "what is 2 times 3", "evidence": ev}
