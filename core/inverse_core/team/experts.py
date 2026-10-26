@@ -80,6 +80,19 @@ def unfilter_quantity(sql, goal):
     return re.sub(r"\s{2,}", " ", new).strip(), True
 
 
+LIST_WORDS = re.compile(r"\b(list|records?|all|each|every|history|entries)\b", re.I)
+_LIMIT = re.compile(r"\s+LIMIT\s+(\d+)\s*$", re.I)
+
+
+def unlimit_list(sql, goal):
+    """A task that asks for the records, the list or the history gets every row: a small LIMIT the model added (LIMIT 1 for "the
+    last maintenance" it imagined) is dropped. Returns (sql, dropped)."""
+    m = _LIMIT.search(sql or "")
+    if not m or int(m.group(1)) >= 12 or not LIST_WORDS.search(goal or "") or re.search(r"\b(last|latest|most recent|newest|first|earliest)\b", goal or "", re.I):
+        return sql, False
+    return sql[:m.start()].rstrip(), True
+
+
 def pin_sensor(sql, goal):
     """A query on the sensors table for a task that names a sensor ('T200-DISP-1') selects it by sensor_id; a filter the model guessed
     (equipment and quantity) is replaced, because a guessed quantity finds nothing. Returns (sql, pinned id or None)."""
@@ -187,6 +200,9 @@ class ResearchExpert(BaseExpert):
             sql, dropped = unfilter_quantity(sql, task.goal)
             if dropped:
                 self.ctx.trace.event("sql_unfiltered", expert=self.name, task=task.id, sql=sql[:160])
+            sql, unlimited = unlimit_list(sql, task.goal)
+            if unlimited:
+                self.ctx.trace.event("sql_unlimited", expert=self.name, task=task.id, sql=sql[:160])
             budget.charge_tool()
             cache = getattr(self.ctx, "sql_cache", None)
             try:

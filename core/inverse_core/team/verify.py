@@ -32,9 +32,10 @@ def claim_numbers(text):
 def unverified_numbers(text, evidence):
     """Numbers in `text` that are not within 1% of any number in `evidence` (or its percentage). IDs, dates and labels do not count."""
     known = _numbers(evidence)
+    pct = bool(re.search(r"%|\bper ?cent", str(text or ""), re.I))        # 0.4 in the evidence covers "40 percent"; 9.81 never covers 981.0
     bad = []
     for tok in claim_numbers(text):
         v = float(tok)
-        if not any(abs(v - k) <= 0.01 * max(abs(k), 1e-9) or abs(abs(k) * 100 - v) <= 1 for k in known):
+        if not any(abs(v - k) <= 0.01 * max(abs(k), 1e-9) or (pct and abs(abs(k) * 100 - v) <= 1) for k in known):
             bad.append(tok)
     return bad

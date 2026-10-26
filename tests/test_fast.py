@@ -55,6 +55,22 @@ def test_an_answer_the_rows_prove_is_accepted_without_a_model_review(tmp_path):
     assert C.verified_by_code(dict(memory, task_goal="x")) is None                                                           # memory and prose: the model looks
 
 
+def test_a_task_that_asks_for_the_records_gets_every_row():
+    from inverse_core.team.experts import unlimit_list
+    goal = "List the maintenance records for P-104 with their dates and what was done."
+    sql = "SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date DESC LIMIT 1"
+    assert unlimit_list(sql, goal) == ("SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date DESC", True)
+    assert unlimit_list(sql, "When was the last maintenance on P-104?")[1] is False                      # the last one: one row is right
+    assert unlimit_list(sql.replace("LIMIT 1", "LIMIT 50"), goal)[1] is False and unlimit_list("SELECT 1", goal)[1] is False
+
+
+def test_a_hundredfold_number_is_grounded_only_as_a_percentage():
+    from inverse_core.team.verify import unverified_numbers
+    assert unverified_numbers("The weight of P-104 is 981.0 N.", [{"mass_kg": 1.0}, {"value": 9.81}]) == ["981.0"]      # 9.81 x 100 is not evidence
+    assert unverified_numbers("The mass is 100 kg.", [{"mass_kg": 1.0}]) == ["100"]
+    assert unverified_numbers("The damping rose by 40 percent.", [{"ratio": 0.4}]) == [] and unverified_numbers("up 40%", [{"r": 0.4}]) == []
+
+
 def test_a_digest_is_read_out_of_the_memory_without_a_model_call(tmp_path):
     calls = []
     ctx, lead = crew(tmp_path, lambda m, msgs: calls.append(1) or json.dumps({"answer": "x", "confidence": 0.9, "assumptions": [], "not_checked": []}))
