@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# The public HTTPS link to the live crew UI (scripts/public_link.py through a Cloudflare quick tunnel).
+# Install: cp scripts/inverse-public ~/.local/bin/ && chmod +x ~/.local/bin/inverse-public
+# Use:     inverse-public start | stop | status | url | log
+set -euo pipefail
+LIVE="${INVERSE_LIVE:-$HOME/inverse-live}"
+LOG="$HOME/logs/public.log"
+SESSION="inverse-public"
+mkdir -p "$HOME/logs"
+case "${1:-status}" in
+  start)
+    if tmux has-session -t "$SESSION" 2>/dev/null; then echo "$SESSION already running"; exit 0; fi
+    [ -x "$HOME/.local/bin/cloudflared" ] || { echo "cloudflared is not installed in ~/.local/bin"; exit 1; }
+    tmux new -d -s "$SESSION" "cd '$LIVE' && PYTHONPATH=core .venv/bin/python -u scripts/public_link.py >> '$LOG' 2>&1"
+    for _ in $(seq 1 30); do
+      sleep 1
+      u=$(python3 -c "import json;print(json.load(open('$LIVE/state/public_url.json')).get('url',''))" 2>/dev/null || true)
+      [ -n "$u" ] && { echo "public link: $u"; exit 0; }
+    done
+    echo "started; the link is not up yet (inverse-public log)";;
+  stop)
+    tmux kill-session -t "$SESSION" 2>/dev/null && echo "$SESSION stopped" || echo "$SESSION was not running"
+    python3 -c "import json;json.dump({'url':''},open('$LIVE/state/public_url.json','w'))" 2>/dev/null || true;;
+  status)
+    tmux has-session -t "$SESSION" 2>/dev/null && echo "$SESSION running" || echo "$SESSION stopped"
+    cat "$LIVE/state/public_url.json" 2>/dev/null; echo;;
+  url)
+    python3 -c "import json;print(json.load(open('$LIVE/state/public_url.json')).get('url',''))";;
+  log)
+    tail -40 "$LOG";;
+  *) echo "usage: inverse-public start|stop|status|url|log"; exit 2;;
+esac

@@ -40,3 +40,17 @@ def test_env_writer_replaces_and_appends(tmp_path):
     p.write_text("ZETARIS_API_KEY=keep\nUI_USER=old\n")
     set_password.write_env(str(p), {"UI_USER": "root", "UI_PASSWORD_HASH": "pbkdf2_sha256$1$s$h"})
     assert p.read_text() == "ZETARIS_API_KEY=keep\nUI_USER=root\nUI_PASSWORD_HASH=pbkdf2_sha256$1$s$h\n"
+
+def test_five_wrong_tries_lock_one_visitor_out_for_the_window_and_not_the_others():
+    import auth
+    auth._BY_CLIENT.clear()
+    for i in range(4):
+        auth.record_failure("203.0.113.7", now=1000 + i)
+    assert auth.locked_for("203.0.113.7", now=1010) == 0
+    auth.record_failure("203.0.113.7", now=1011)
+    wait = auth.locked_for("203.0.113.7", now=1012)
+    assert 880 < wait <= auth.WINDOW and auth.locked_for("198.51.100.2", now=1012) == 0       # another visitor is not locked out
+    assert auth.locked_for("203.0.113.7", now=1000 + auth.WINDOW + 20) == 0                 # the window passes
+    assert auth.crowd_failures(now=1012) == 5 and auth.crowd_failures(now=1000 + auth.WINDOW + 20) == 0
+    auth._BY_CLIENT.clear()
+

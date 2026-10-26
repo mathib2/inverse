@@ -11,6 +11,44 @@ import streamlit as st
 
 COOKIE, DAYS, ITERATIONS = "inverse_session", 7, 200_000
 _FAILS = {"n": 0}                                                             # failed sign-ins since the last success, process-wide
+WINDOW, PER_CLIENT, ALL_CLIENTS = 15 * 60, 5, 30                              # in 15 minutes: 5 wrong tries lock one visitor out; 30 from anyone slow everyone
+_BY_CLIENT = {}                                                               # visitor -> times of its wrong tries in the window
+
+
+def client_id():
+    """Who is knocking: the visitor's address as the public tunnel reports it (Cloudflare's CF-Connecting-IP), else the first
+    X-Forwarded-For hop, else the socket's address. Behind a tunnel the socket is always this machine, so the headers come first."""
+    try:
+        h = {str(k).lower(): str(v) for k, v in dict(st.context.headers).items()}
+    except Exception:
+        h = {}
+    for name in ("cf-connecting-ip", "x-forwarded-for", "x-real-ip"):
+        if h.get(name):
+            return h[name].split(",")[0].strip()[:64]
+    try:
+        return str(st.context.ip_address or "local")[:64]
+    except Exception:
+        return "local"
+
+
+def locked_for(client, now=None):
+    """Seconds until this visitor may try again (0 when it may). Old wrong tries fall out of the window."""
+    now = now if now is not None else time.time()
+    tries = [t for t in _BY_CLIENT.get(client, []) if now - t < WINDOW]
+    _BY_CLIENT[client] = tries
+    if len(tries) < PER_CLIENT:
+        return 0
+    return int(WINDOW - (now - tries[0])) + 1
+
+
+def record_failure(client, now=None):
+    _BY_CLIENT.setdefault(client, []).append(now if now is not None else time.time())
+
+
+def crowd_failures(now=None):
+    """Wrong tries from every visitor in the window: a spread-out guesser is slowed for everyone, never locked out for everyone."""
+    now = now if now is not None else time.time()
+    return sum(1 for tries in _BY_CLIENT.values() for t in tries if now - t < WINDOW)
 _REVOKED = set()                                                              # tokens signed out before they expired
 
 
@@ -98,14 +136,23 @@ def require():
                 p = st.text_input("Password", type="password", autocomplete="current-password")
                 ok = st.form_submit_button("Sign in", type="primary", width="stretch")
             if ok:
-                if _FAILS["n"] >= 3:                                          # after three wrong tries every answer waits, up to 20 s
-                    time.sleep(min(2 ** (_FAILS["n"] - 2), 20))
-                if u.strip() == user and check_password(p, stored):
-                    _FAILS["n"] = 0
-                    signed_in = True
+                who = client_id()
+                wait = locked_for(who)
+                if wait:                                                      # five wrong tries from this visitor: no more checks for a while
+                    st.error(f"Too many wrong tries from this network. Try again in {max(1, wait // 60)} min.")
                 else:
-                    _FAILS["n"] += 1
-                    st.error("Wrong user or password.")
+                    if _FAILS["n"] >= 3:                                      # after three wrong tries every answer waits, up to 20 s
+                        time.sleep(min(2 ** (_FAILS["n"] - 2), 20))
+                    if crowd_failures() >= ALL_CLIENTS:                       # many wrong tries from many places: everyone waits a little
+                        time.sleep(5)
+                    if u.strip() == user and check_password(p, stored):
+                        _FAILS["n"] = 0
+                        _BY_CLIENT.pop(who, None)
+                        signed_in = True
+                    else:
+                        _FAILS["n"] += 1
+                        record_failure(who)
+                        st.error("Wrong user or password.")
             st.caption("This device stays signed in for 7 days. Sign out from the sidebar.")
     if signed_in:
         box.empty()
