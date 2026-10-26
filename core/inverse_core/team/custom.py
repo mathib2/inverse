@@ -58,8 +58,8 @@ DIGEST_WORDS = re.compile(r"\b(summari[sz]e|digest|found so far|ruled out|still 
 def digest(mem):
     """A plain-words digest of the memory tool's output, made by code: what stands, what was ruled out. Every word of it is in
     the tool result, so the reviewer has nothing to refuse; used when the model doubts its own summary or writes none."""
-    refuted = [str(f)[:160] for f in (mem or {}).get("refuted") or []]
-    kept = [str(f)[:160] for f in (mem or {}).get("findings") or [] if str(f)[:160] not in refuted]
+    refuted = [str(f) for f in (mem or {}).get("refuted") or []]
+    kept = [str(f) for f in (mem or {}).get("findings") or [] if str(f) not in refuted]
     return ("Found and still standing: " + ("; ".join(kept) + "." if kept else "nothing yet.")
             + " Ruled out: " + ("; ".join(refuted) + "." if refuted else "nothing yet.")
             + " Still unchecked: nothing else is recorded in the shared memory.")
