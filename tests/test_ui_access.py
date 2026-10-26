@@ -13,6 +13,29 @@ def test_the_public_link_is_read_from_cloudflareds_log_and_kept_in_state(tmp_pat
     assert public_link.read_url(str(tmp_path))["url"] == "https://a-b.trycloudflare.com" and public_link.read_url(str(tmp_path / "x")) == {}
 
 
+def test_funnel_is_used_once_allowed_and_its_approval_link_is_kept_until_then():
+    import subprocess
+
+    import public_link
+
+    class Out:
+        def __init__(self, rc, out):
+            self.returncode, self.stdout, self.stderr = rc, out, ""
+
+    def not_allowed(cmd, **k):
+        raise subprocess.TimeoutExpired(cmd, 20, output="Funnel is not enabled on your tailnet.\nTo enable, visit:\n\n   https://login.tailscale.com/f/funnel?node=abc123\n")
+    url, why = public_link.funnel(8501, sh=not_allowed)
+    assert url is None and "https://login.tailscale.com/f/funnel?node=abc123" in why
+
+    def allowed(cmd, **k):
+        if cmd[1] == "funnel":
+            return Out(0, "Available on the internet:\nhttps://box.tail1.ts.net/\n")
+        return Out(0, '{"Self": {"DNSName": "box.tail1.ts.net."}}')
+    assert public_link.funnel(8501, sh=allowed) == ("https://box.tail1.ts.net", None)
+    denied = lambda cmd, **k: Out(1, "Access denied: serve config denied")
+    assert "sudo tailscale set --operator" in public_link.funnel(8501, sh=denied)[1]
+
+
 def test_password_hash_verifies_and_rejects():
     stored = auth.make_hash("correct horse", iterations=1000)
     assert stored.startswith("pbkdf2_sha256$1000$") and stored != auth.make_hash("correct horse", iterations=1000)   # a new salt each time

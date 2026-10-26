@@ -1,0 +1,394 @@
+{
+ "label": "ten3",
+ "started": "2026-10-26T12:26:15",
+ "agents": {
+  "vera": {
+   "probes": [
+    {
+     "label": "correct, grounded",
+     "expected": "accept",
+     "verdict": "accept",
+     "by": "llm",
+     "reason": "The answer is supported by the evidence.",
+     "pass": true,
+     "calls": 1,
+     "seconds": 5.0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "a number not in the evidence",
+     "expected": "not accept",
+     "verdict": "revise",
+     "by": "rule",
+     "reason": "the number(s) 12.5 in the answer appear in no evidence; use only values the tools returned",
+     "pass": true,
+     "calls": 0,
+     "seconds": 0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "says not available while the rows hold it",
+     "expected": "not accept",
+     "verdict": "revise",
+     "by": "rule",
+     "reason": "the answer says a value is missing, but every query returned rows ({\"equipment_id\": \"P-104\", \"mass_kg\": \"1.0\"}); answer from those values",
+     "pass": true,
+     "calls": 0,
+     "seconds": 0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "correct arithmetic",
+     "expected": "accept",
+     "verdict": "accept",
+     "by": "llm",
+     "reason": "Every claim and number in the answer is covered by the evidence.",
+     "pass": true,
+     "calls": 1,
+     "seconds": 4.7,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "an invented code finding",
+     "expected": "not accept",
+     "verdict": "revise",
+     "by": "rule",
+     "reason": "the number(s) 12 in the answer appear in no evidence; use only values the tools returned",
+     "pass": true,
+     "calls": 0,
+     "seconds": 0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "answers a different question",
+     "expected": "not accept",
+     "verdict": "revise",
+     "by": "rule",
+     "reason": "the task asks for sampling and the rows hold sampling_hz = 100; say those values",
+     "pass": true,
+     "calls": 0,
+     "seconds": 0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "label": "an unsupported phrase",
+     "expected": "not accept",
+     "verdict": "revise",
+     "by": "rule",
+     "reason": "the word(s) manual in the answer rest on nothing in the task or the evidence; say only what the evidence holds",
+     "pass": true,
+     "calls": 0,
+     "seconds": 0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    }
+   ],
+   "rating": {
+    "accuracy": 10.0,
+    "honesty": 10.0,
+    "efficiency": 10.0,
+    "robustness": 10.0,
+    "score": 10.0,
+    "mean_seconds": 1.4
+   }
+  },
+  "atlas": {
+   "probes": [
+    {
+     "goal": "What is 12.5 kg times 9.81 m/s^2 in newtons?",
+     "want": [
+      "reasoning"
+     ],
+     "raw": [
+      [
+       "T1",
+       "research",
+       "Look up the conversion factor from kg to newtons in the Zetaris data"
+      ],
+      [
+       "T2",
+       "research",
+       "Look up the conversion factor from m/s^2 to newtons in the Zetaris dat"
+      ],
+      [
+       "T3",
+       "solver",
+       "Multiply the results of T1 and T2"
+      ]
+     ],
+     "raw_by": "model",
+     "raw_ok": false,
+     "guarded": [
+      "research",
+      "solver"
+     ],
+     "guarded_ok": false,
+     "pass": false,
+     "calls": 1,
+     "seconds": 13.7,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "How many samples are stored for P-104's baseline dataset?",
+     "want": [
+      "research"
+     ],
+     "raw": [
+      [
+       "T1",
+       "research",
+       "Find the number of samples stored for P-104's baseline dataset"
+      ]
+     ],
+     "raw_by": "model",
+     "raw_ok": true,
+     "guarded": [
+      "research"
+     ],
+     "guarded_ok": true,
+     "pass": true,
+     "calls": 1,
+     "seconds": 5.3,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 1
+    },
+    {
+     "goal": "Review core/inverse_core/team/tools.py for security weaknesses.",
+     "want": [
+      "vulnerability"
+     ],
+     "raw": [
+      [
+       "T1",
+       "vulnerability",
+       "Review core/inverse_core/team/tools.py for security weaknesses and pro"
+      ]
+     ],
+     "raw_by": "model",
+     "raw_ok": true,
+     "guarded": [
+      "vulnerability"
+     ],
+     "guarded_ok": true,
+     "pass": true,
+     "calls": 1,
+     "seconds": 9.0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 1
+    },
+    {
+     "goal": "Summarize what the crew has found and ruled out so far.",
+     "want": [
+      "solver"
+     ],
+     "raw": [
+      [
+       "T1",
+       "research",
+       "Summarize what the crew has found and ruled out so far."
+      ]
+     ],
+     "raw_by": "model",
+     "raw_ok": false,
+     "guarded": [
+      "solver"
+     ],
+     "guarded_ok": true,
+     "pass": false,
+     "calls": 1,
+     "seconds": 4.8,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 1
+    },
+    {
+     "goal": "Using the mass of P-104 from the registry, compute its weight in newtons.",
+     "want": [
+      "reasoning",
+      "research"
+     ],
+     "raw": [
+      [
+       "T1",
+       "research",
+       "Look up the weight of P-104 in the registry using the tool 'run_sql'"
+      ]
+     ],
+     "raw_by": "model",
+     "raw_ok": false,
+     "guarded": [
+      "reasoning",
+      "research"
+     ],
+     "guarded_ok": true,
+     "pass": false,
+     "calls": 1,
+     "seconds": 6.1,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 1
+    },
+    {
+     "goal": "Which machines are in the registry, and which of them has no baseline dataset?",
+     "want": [
+      "research"
+     ],
+     "raw": [
+      [
+       "T1",
+       "research",
+       "List all machines in the registry and which of them has no baseline da"
+      ],
+      [
+       "T2",
+       "research",
+       "List all machines in the registry"
+      ]
+     ],
+     "raw_by": "model",
+     "raw_ok": true,
+     "guarded": [
+      "research"
+     ],
+     "guarded_ok": true,
+     "pass": true,
+     "calls": 1,
+     "seconds": 8.0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    }
+   ],
+   "rating": {
+    "accuracy": 5.0,
+    "honesty": 10.0,
+    "efficiency": 9.8,
+    "robustness": 10.0,
+    "score": 7.7,
+    "mean_seconds": 7.8
+   }
+  },
+  "ada": {
+   "probes": [
+    {
+     "goal": "Using the registry mass of P-104, compute its weight in newtons with g = 9.81 m/s^2.",
+     "answer": "981.0",
+     "confidence": 0.7,
+     "checks": {
+      "9.81": false
+     },
+     "pass": false,
+     "unverified_numbers": [
+      "981.0"
+     ],
+     "hedged": false,
+     "evidence": 2,
+     "wall": 20.4,
+     "error": null,
+     "calls": 3,
+     "seconds": 20.2,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "How many sensor samples exist for P-104 across its baseline and current datasets together?",
+     "answer": "800.0",
+     "confidence": 1.0,
+     "checks": {
+      "800": true
+     },
+     "pass": true,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 5,
+     "wall": 20.2,
+     "error": null,
+     "calls": 1,
+     "seconds": 19.4,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "Ask the reasoning expert for the period of a 2 Hz oscillation and report the number.",
+     "answer": "0.5",
+     "confidence": 1.0,
+     "checks": {
+      "0.5": true
+     },
+     "pass": true,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 1,
+     "wall": 31.6,
+     "error": null,
+     "calls": 2,
+     "seconds": 31.6,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 0
+    },
+    {
+     "goal": "Summarize what the crew has found so far, from the shared memory.",
+     "answer": "Found and still standing: architect: No tested expert is available to answer this task well.; research: The equipment 'T-200' exists in the 'obs.equipment_table'. Rows: equipment_id = T-200 [Q1]; sensor_id = P104-DISP-1, quantity = x, unit = m [Q2]; sensor_id = P104-VEL-1, quantity = v, unit =; reas",
+     "confidence": 0.8,
+     "checks": {},
+     "pass": true,
+     "unverified_numbers": [],
+     "hedged": false,
+     "evidence": 1,
+     "wall": 0.0,
+     "error": null,
+     "calls": 0,
+     "seconds": 0,
+     "parse_errors": 0,
+     "sql_errors": 0,
+     "repeats": 0,
+     "completed_by_code": 1
+    }
+   ],
+   "rating": {
+    "accuracy": 7.5,
+    "honesty": 7.5,
+    "efficiency": 10.0,
+    "robustness": 10.0,
+    "score": 8.4,
+    "mean_seconds": 17.8
+   }
+  }
+ }
+}

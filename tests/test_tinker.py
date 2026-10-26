@@ -54,6 +54,7 @@ def test_tinker_knows_where_each_item_lives():
 
 def test_tinker_has_an_engineer_lane_that_env_can_point_at_a_coder_model(monkeypatch):
     import tinker
+    monkeypatch.setenv("MODEL_PROVIDER", "ollama")                                       # Tinker's sandbox runs on the workstation's Ollama
     monkeypatch.setenv("NEMOTRON_MODEL", "nemotron-mini:latest")
     monkeypatch.delenv("TINKER_ENGINEER_MODEL", raising=False)
     monkeypatch.delenv("LANE_DEEP", raising=False)

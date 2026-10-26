@@ -192,19 +192,10 @@ def touched_by_tests(files):
 
 
 def latest_probes():
-    """The newest full probe (every agent), by time: Tinker's own one-agent files (tinker-<agent>.json) sort after the others by
-    name and used to hide every other agent's failures."""
-    folder = os.path.join(ROOT, "docs", "evidence", "probe")
-    try:
-        files = sorted((f for f in os.listdir(folder) if f.endswith(".json") and not f.startswith("tinker-")), key=lambda f: os.path.getmtime(os.path.join(folder, f)))
-        for name in reversed(files):
-            with open(os.path.join(folder, name)) as f:
-                agents = json.load(f).get("agents", {})
-            if len(agents) >= 3:
-                return agents
-    except (OSError, ValueError):
-        pass
-    return {}
+    """Each agent's newest probe entry, ordered by the time each probe recorded (limits.latest_agents). Tinker's own one-agent
+    files (tinker-<agent>.json) are skipped: they once hid every other agent's failures."""
+    from inverse_core.team.limits import latest_agents
+    return latest_agents(ROOT)
 
 
 def baseline(agent, state):

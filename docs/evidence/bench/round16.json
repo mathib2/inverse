@@ -1,0 +1,377 @@
+{
+ "label": "round16",
+ "started": "2026-10-26T08:37:20",
+ "provider": "ollama",
+ "lanes": {
+  "fast": "nemotron-mini:latest",
+  "deep": "nemotron-mini:latest",
+  "critic": "nemotron-mini:latest"
+ },
+ "collaborate": "auto",
+ "parallel": 2,
+ "cases": [
+  {
+   "name": "arithmetic",
+   "goal": "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps.",
+   "run_dir": "/home/<user>/inverse-lab/runs/20261026-083720",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "122.5 [T1.E1]",
+   "duration": 24.2,
+   "calls": 2,
+   "prompt_tokens": 726,
+   "completion_tokens": 192,
+   "latency": {
+    "reasoning": [
+     19.52
+    ],
+    "critic": [
+     4.66
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "122.6": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "registry",
+   "goal": "Which machines are in the equipment registry, and which of them has no baseline dataset?",
+   "run_dir": "/home/<user>/inverse-lab/runs/20261026-083744",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "P-104, T-200. Rows: equipment_id = P-104, baseline_dataset = p104-baseline [Q1]; equipment_id = T-200, baseline_dataset = none [Q1] [T1.E1]",
+   "duration": 22.4,
+   "calls": 3,
+   "prompt_tokens": 2048,
+   "completion_tokens": 89,
+   "latency": {
+    "research": [
+     5.36,
+     9.84
+    ],
+    "critic": [
+     6.97
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "P-104": true,
+    "T-200": true,
+    "baseline": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "samples",
+   "goal": "How many sensor samples are stored for P-104's baseline dataset and for its current dataset?",
+   "run_dir": "/home/<user>/inverse-lab/runs/20261026-083807",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "400 [T1.E1] [T1.E2]",
+   "duration": 19.2,
+   "calls": 2,
+   "prompt_tokens": 1785,
+   "completion_tokens": 73,
+   "latency": {
+    "research": [
+     8.71,
+     10.12
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "400": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "sensor",
+   "goal": "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?",
+   "run_dir": "/home/<user>/inverse-lab/runs/20261026-083827",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1] [T1.E1]",
+   "duration": 19.6,
+   "calls": 2,
+   "prompt_tokens": 1795,
+   "completion_tokens": 84,
+   "latency": {
+    "research": [
+     9.21,
+     10.24
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "100": true,
+    "0.01": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "maintenance",
+   "goal": "List the maintenance records for P-104 with their dates and what was done.",
+   "run_dir": "/home/<user>/inverse-lab/runs/20261026-083846",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "The last maintenance for P-104 was done 2 months ago. Rows: record_id = M-002, date = 2026-10-05, note = [text withheld: matched injection pattern] [Q1] [T1.E1]",
+   "duration": 22.7,
+   "calls": 2,
+   "prompt_tokens": 1778,
+   "completion_tokens": 106,
+   "latency": {
+    "research": [
+     8.14,
+     14.32
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "2026-09-02": false,
+    "2026-10-05": true
+   },
+   "expert_used": true,
+   "pass": false,
+   "clean": false
+  },
+  {
+   "name": "weight",
+   "goal": "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2.",
+   "run_dir": "/home/<user>/inverse-lab/runs/20261026-083909",
+   "tasks": [
+    [
+     "T1",
+     "solver",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "9.81 [T1.E1] [T1.E2]",
+   "duration": 35.2,
+   "calls": 4,
+   "prompt_tokens": 4850,
+   "completion_tokens": 179,
+   "latency": {
+    "lead": [
+     11.2
+    ],
+    "solver": [
+     10.89,
+     6.77,
+     6.15
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "9.81": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "code",
+   "goal": "Review core/inverse_core/team/tools.py for security weaknesses. Name the file you reviewed and the most important finding with its line number, or say that none was found in it.",
+   "run_dir": "/home/<user>/inverse-lab/runs/20261026-083945",
+   "tasks": [
+    [
+     "T1",
+     "vulnerability",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "A low severity weakness was found in the code. A network call has no timeout. 1 verified finding(s): low core/inverse_core/team/tools.py:253 a network call has no timeout [T1.E1] [T1.E2]",
+   "duration": 47.3,
+   "calls": 2,
+   "prompt_tokens": 1543,
+   "completion_tokens": 239,
+   "latency": {
+    "vulnerability": [
+     32.55
+    ],
+    "critic": [
+     14.66
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "tools.py": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "summary",
+   "goal": "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.",
+   "run_dir": "/home/<user>/inverse-lab/runs/20261026-084032",
+   "tasks": [
+    [
+     "T1",
+     "solver",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "Found and still standing: vulnerability: core/inverse_core/team/tools.py:253 a network call has no timeout; vulnerability: core/inverse_core/team/tools.py:253 a network call has no timeout; reasoning: 122.5; research: P-104, T-200. Rows: equipment_id = P-104, baseline_dataset = p104-baseline [Q1]; equipment_id = T-200, baseline_dataset = none [Q1]; research: 400; research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; research: The last maintenance for P-104 was done 2 months ago. Rows: record_id = M-002, date = 2026-10-05, note = [text withheld: matched injection pattern] [Q1]; solver: 9.",
+   "duration": 25.0,
+   "calls": 1,
+   "prompt_tokens": 922,
+   "completion_tokens": 86,
+   "latency": {
+    "critic": [
+     24.94
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {},
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  }
+ ],
+ "totals": {
+  "cases": 8,
+  "pass": 7,
+  "clean": 7,
+  "expert_used": 8,
+  "mean_duration": 26.9,
+  "total_duration": 215.6,
+  "mean_calls": 2.25,
+  "prompt_tokens": 15447,
+  "completion_tokens": 1048,
+  "fallbacks": 0,
+  "reasks": 0,
+  "parse_errors": 0,
+  "call_latency_median": 10.0
+ }
+}

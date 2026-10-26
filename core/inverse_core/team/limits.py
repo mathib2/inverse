@@ -16,18 +16,31 @@ IDS = {v["name"].lower(): k for k, v in CREW.items()}                        # "
 MAX_LINES, MAX_CHARS = 3, 140
 
 
-def latest_probe(root):
-    """The newest full probe file (Tinker's per-agent files are skipped), or {}."""
-    files = sorted(f for f in glob.glob(os.path.join(root, "docs", "evidence", "probe", "*.json")) if not os.path.basename(f).startswith("tinker-"))
-    for f in reversed(files):
+def latest_agents(root):
+    """Agent -> its entry in the newest probe that measured it. Newest by the time the probe recorded ("started"), so a fresh
+    checkout, where every file has the same date, picks what the workstation picks; a partial rerun (ten3: three agents)
+    updates those agents and leaves the others at their last full measurement. Tinker's own files (tinker-*.json) are skipped."""
+    rows = []
+    for f in glob.glob(os.path.join(root, "docs", "evidence", "probe", "*.json")):
+        if os.path.basename(f).startswith("tinker-"):
+            continue
         try:
             with open(f, encoding="utf-8") as fh:
                 d = json.load(fh)
-            if d.get("agents"):
-                return d
         except (OSError, ValueError):
             continue
-    return {}
+        if isinstance(d, dict) and isinstance(d.get("agents"), dict):
+            rows.append((str(d.get("started") or ""), os.path.getmtime(f), d["agents"]))
+    out = {}
+    for _, _, agents in sorted(rows, key=lambda r: (r[0], r[1])):
+        out.update(agents)
+    return out
+
+
+def latest_probe(root):
+    """{"agents": ...} from latest_agents, or {} when no probe was ever written."""
+    agents = latest_agents(root)
+    return {"agents": agents} if agents else {}
 
 
 def report_items(root):

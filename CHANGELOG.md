@@ -3,6 +3,13 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## Nightshift first, inverse-live on its own, no false findings (2026-10-26, night)
+- Nightshift is the primary provider. Every model call goes to Meterless Nightshift first: Nemotron-Mini-4B on a laptop GPU, about 59 tokens a second against 6 to 10 on the workstation's CPU. A call Nightshift cannot answer goes to the workstation's Ollama with the same model; the trace names the provider of every call and the sidebar says which one runs the AI. Nightshift's engine had never opened its API on the laptop: it froze creating a workspace in the OneDrive Documents folder; the launcher now points it at a local folder (`docs/operations/NIGHTSHIFT_TUNNEL.md`).
+- `~/inverse-live` stands on its own: its own `.env`, its own Node packages, its own H-MEM/World Model and Markovian sidecars on ports named in `.env` (`SIDECAR_URL`, `MARKOVIAN_URL`), with a copy of the crew's memory. It had been writing its memory into a sidecar another folder started on Oct 24, which lacked inverse-live's fix for malformed requests.
+- Sentinel no longer reports "no timeout" for a call that sets one: the scan reads the whole call across nested brackets, the finding is re-checked against the rule on its line, and Vera's objection stands when the evidence shows the opposite of an absence (`timeout=20` for "no timeout").
+- The measurement history that lived only on the workstation (benchmark rounds 1 to 17, probes, engineer evaluations) is in `docs/evidence/`; each agent's baseline is its newest measured probe by recorded time.
+- The public link moves to Tailscale Funnel's permanent address by itself once the tailnet's owner allows Funnel for the workstation (`docs/operations/ACCESS.md`).
+
 ## The repository reorganized: what's where (2026-10-26, evening)
 - Code, one module per agent: `team/research.py` (Scout), `team/reasoning.py` (Euler), `team/sql_guard.py` (from `team/experts.py`); `team/vulnerability.py` (Sentinel, from `team/custom.py`, which keeps Ada); `team/watch.py` (Warden, from `core/inverse_core/watch.py`); `core/inverse_core/injection_guard.py` (from `agents/guard.py`); `team/council_wire.py` (from `team/wire.py`). No behaviour changes.
 - Page modules named after what the sidebar shows: `ui/advanced_ui.py` (was `team.py`), `ui/warden_ui.py` (was `autonomy.py`), `ui/live_ui.py` (was `live.py`); the dead old crew page is gone and its live helpers live in `ui/chat_ui.py`. The Live panel has the veto and approve box again, which Tinker's phone alert points to.

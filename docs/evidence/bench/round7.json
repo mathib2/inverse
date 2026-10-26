@@ -1,0 +1,449 @@
+{
+ "label": "round7",
+ "started": "2026-10-25T16:07:16",
+ "provider": "ollama",
+ "lanes": {
+  "fast": "nemotron-mini:latest",
+  "deep": "nemotron-mini:latest",
+  "critic": "nemotron-mini:latest"
+ },
+ "collaborate": "auto",
+ "parallel": 2,
+ "cases": [
+  {
+   "name": "arithmetic",
+   "goal": "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-160716",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "122.55 [T1.E1]",
+   "duration": 25.8,
+   "calls": 3,
+   "prompt_tokens": 1315,
+   "completion_tokens": 183,
+   "latency": {
+    "lead": [
+     7.12
+    ],
+    "reasoning": [
+     15.36
+    ],
+    "critic": [
+     3.31
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "122.6": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "registry",
+   "goal": "Which machines are in the equipment registry, and which of them has no baseline dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-160742",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 2,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "**T1 (research)**: T-200 [T1.E1] [T1.E2]\n\n**T2 (research)**: T-200. Rows: equipment_id = T-200, baseline_dataset = none [Q1] [T2.E1]",
+   "duration": 61.9,
+   "calls": 7,
+   "prompt_tokens": 4577,
+   "completion_tokens": 239,
+   "latency": {
+    "lead": [
+     7.43
+    ],
+    "research": [
+     20.22,
+     29.75,
+     18.19,
+     15.69
+    ],
+    "critic": [
+     6.09,
+     8.71
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ],
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "P-104": false,
+    "T-200": true,
+    "baseline": true
+   },
+   "expert_used": true,
+   "pass": false,
+   "clean": false
+  },
+  {
+   "name": "samples",
+   "goal": "How many sensor samples are stored for P-104's baseline dataset and for its current dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-160844",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "400 [T1.E1] [T1.E2]",
+   "duration": 45.9,
+   "calls": 5,
+   "prompt_tokens": 3459,
+   "completion_tokens": 179,
+   "latency": {
+    "lead": [
+     10.48,
+     6.27
+    ],
+    "research": [
+     8.7,
+     16.17
+    ],
+    "critic": [
+     3.74
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "400": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "sensor",
+   "goal": "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-160931",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1] [T1.E1]",
+   "duration": 27.5,
+   "calls": 4,
+   "prompt_tokens": 2764,
+   "completion_tokens": 144,
+   "latency": {
+    "lead": [
+     6.6
+    ],
+    "research": [
+     8.14,
+     9.74
+    ],
+    "critic": [
+     2.84
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "100": true,
+    "0.01": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "maintenance",
+   "goal": "List the maintenance records for P-104 with their dates and what was done.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-160958",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "{\"records\":[{\"record_id\": \"M-001\", \"date\": \"2026-09-02\", \"note\": \"Routine inspection. Mount bolts torqued. Baseline vibration recorded.\", \"query\": \"Q1\"}, {\"record_id\": \"M-002\", \"date\": \"2026-10-05\", \"note\": \"[text withheld: matched injection pattern]\", \"query\": \"Q1\"}] [T1.E1]",
+   "duration": 49.7,
+   "calls": 5,
+   "prompt_tokens": 3604,
+   "completion_tokens": 273,
+   "latency": {
+    "lead": [
+     5.14,
+     5.97
+    ],
+    "research": [
+     7.71,
+     25.72
+    ],
+    "critic": [
+     4.94
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "2026-09-02": true,
+    "2026-10-05": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "weight",
+   "goal": "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-161048",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 2,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "**T1 (research)**: 9.81. Rows: mass_kg = 1.0 [Q1] [T1.E1] [T1.E2]\n\n**T2 (reasoning)**: The weight of P-104 is approximately 9.81 newtons. [T2.E1]",
+   "duration": 67.9,
+   "calls": 6,
+   "prompt_tokens": 3756,
+   "completion_tokens": 427,
+   "latency": {
+    "lead": [
+     10.11
+    ],
+    "research": [
+     11.29,
+     9.65
+    ],
+    "critic": [
+     5.14,
+     7.16
+    ],
+    "reasoning": [
+     24.21
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ],
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "9.81": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "code",
+   "goal": "Review core/inverse_core/team/tools.py for security weaknesses. Name the file you reviewed and the most important finding with its line number, or say that none was found in it.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-161156",
+   "tasks": [
+    [
+     "T1",
+     "vulnerability",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "vulnerability",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 2,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "**T1 (vulnerability)**: Reviewed core/inverse_core/team/tools.py: the fixed-rule scan found no pattern hit in 1 file(s), so no weakness is claimed. [T1.E1]\n\n**T2 (vulnerability)**: Reviewed core/inverse_core/team/tools.py: the fixed-rule scan found no pattern hit in 1 file(s), so no weakness is claimed. [T2.E1]",
+   "duration": 22.8,
+   "calls": 3,
+   "prompt_tokens": 1357,
+   "completion_tokens": 143,
+   "latency": {
+    "lead": [
+     11.12
+    ],
+    "critic": [
+     5.29,
+     6.37
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ],
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "tools.py": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "summary",
+   "goal": "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-161219",
+   "tasks": [
+    [
+     "T1",
+     "solver",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The crew has found that no equipment with id 1 exists. The following steps and facts are still unchecked: [T1.E1]",
+   "duration": 63.8,
+   "calls": 3,
+   "prompt_tokens": 2914,
+   "completion_tokens": 347,
+   "latency": {
+    "lead": [
+     5.63
+    ],
+    "solver": [
+     26.94
+    ],
+    "critic": [
+     31.26
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {},
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  }
+ ],
+ "totals": {
+  "cases": 8,
+  "pass": 7,
+  "clean": 7,
+  "expert_used": 8,
+  "mean_duration": 45.7,
+  "total_duration": 365.3,
+  "mean_calls": 4.5,
+  "prompt_tokens": 23746,
+  "completion_tokens": 1935,
+  "fallbacks": 0,
+  "reasks": 0,
+  "parse_errors": 0,
+  "call_latency_median": 8.4
+ }
+}

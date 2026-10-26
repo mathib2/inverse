@@ -19,10 +19,18 @@ if ! git diff --quiet "$before" HEAD -- requirements.txt; then
   .venv/bin/python -m pip install -q --disable-pip-version-check -r requirements.txt
 fi
 tmux respawn-pane -k -t 3:1 "cd ~/inverse-live && PYTHONPATH=core .venv/bin/streamlit run ui/app.py --server.port 8501 --server.address 127.0.0.1 --server.headless true > ~/streamlit.log 2>&1"
-tmux kill-session -t inverse-markovian 2>/dev/null || true
-if [ -f ~/inverse-live/services/meterless-sidecar/markovian/serve.ts ]; then
-  tmux new-session -d -s inverse-markovian "cd ~/inverse-live/services/meterless-sidecar && MARKOVIAN_PORT=8101 SIDECAR_STATE=$HOME/inverse-live/services/meterless-sidecar/.state npx tsx markovian/serve.ts >> ~/markovian.log 2>&1"
-fi
+# This checkout's own sidecars (H-MEM/World Model and Markovian, on the ports SIDECAR_URL and MARKOVIAN_URL name in .env), restarted
+# so they run the code just deployed. Only a process serving from this checkout's sidecar folder is stopped, never another folder's.
+tmux kill-session -t inverse-markovian 2>/dev/null || true          # the old fixed-port (8101) Markovian session, retired
+SIDE="$HOME/inverse-live/services/meterless-sidecar"
+port_of() { echo "$1" | sed -n 's|.*:\([0-9][0-9]*\).*|\1|p'; }
+for k in SIDECAR_URL MARKOVIAN_URL; do
+  p=$(port_of "$(grep -m1 "^$k=" .env | cut -d= -f2-)"); [ -n "$p" ] || continue
+  pid=$(ss -ltnp 2>/dev/null | grep ":$p " | grep -o "pid=[0-9]*" | head -1 | cut -d= -f2)
+  if [ -n "$pid" ] && [ "$(readlink "/proc/$pid/cwd")" = "$SIDE" ]; then kill "$pid" 2>/dev/null || true; fi
+done
+sleep 1
+bash scripts/run_sidecars.sh || true
 ~/.local/bin/inverse-watch restart || true          # the watcher runs the code it was deployed with
 for _ in $(seq 1 30); do
   if curl -sf -m 2 http://127.0.0.1:8501/_stcore/health >/dev/null; then

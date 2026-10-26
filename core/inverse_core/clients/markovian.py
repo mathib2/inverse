@@ -37,8 +37,9 @@ def ensure_marker(reply, final, completed="", remaining="", decisions="", contex
 
 
 class MarkovianClient:
-    def __init__(self, url="http://127.0.0.1:8101", timeout=30):             # markovian/serve.ts; 8100 is the H-MEM/World Model sidecar
-        self.url, self.timeout = url.rstrip("/"), timeout
+    def __init__(self, url=None, timeout=30):                                # markovian/serve.ts; SIDECAR_URL is the H-MEM/World Model sidecar
+        from .sidecars import markovian_url
+        self.url, self.timeout = (url or markovian_url()).rstrip("/"), timeout
 
     def health(self):
         r = requests.get(self.url + "/markovian/healthz", timeout=5)

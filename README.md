@@ -83,9 +83,9 @@ Any agent can propose a change to the crew at no cost, inside the JSON it alread
 
 Shared findings, refuted claims and reviewer lessons live in Meterless H-MEM across missions. A claim written by a deterministic check outranks a tool result, which outranks a model's claim: a refutation cannot be overwritten by a later model claim. Stop the sidecar and memory visibly breaks; that is an automated test.
 
-## Local by default
+## Nightshift first, the workstation as fallback
 
-`MODEL_PROVIDER=ollama` (default): every agent runs on the local models served on the workstation (`docs/operations/LOCAL_MODELS.md`). `MODEL_PROVIDER=nightshift` switches the same crew to Meterless Nightshift with NVIDIA Nemotron routes; nothing else changes. Lanes (`fast`, `deep`, `critic`) can point at different models (`LANE_*`), so Vera can review on a model other than the one that did the work.
+`MODEL_PROVIDER=nightshift` (the default): every model call of every agent goes first to Meterless Nightshift, which serves NVIDIA Nemotron-Mini-4B on a laptop's GPU (about 59 tokens a second) and reaches the workstation through an SSH tunnel (`docs/operations/NIGHTSHIFT_TUNNEL.md`). When Nightshift cannot answer (the laptop is asleep, the tunnel is down), the call goes to the workstation's own Ollama with the same model, and Nightshift is tried first again two minutes later; each call's provider is in the trace and the sidebar says which one runs the AI. `MODEL_PROVIDER=ollama` runs everything on the workstation (`docs/operations/LOCAL_MODELS.md`). Lanes (`fast`, `deep`, `critic`) can point at different models (`LANE_*`), so Vera can review on a model other than the one that did the work.
 
 ## Sponsor technology
 
@@ -123,7 +123,8 @@ The UI listens on loopback only. To reach it from another machine, use an SSH tu
 ## Honest limitations
 
 - The data platform federates one synthetic service (`data/README.md`); no real plant data was used.
-- With the 4B local model, answers are short and sometimes thin even when the evidence is right; the deterministic layer keeps them honest, not eloquent. A larger model through Nightshift writes better plans and answers.
+- The crew runs a 4B model, Nemotron-Mini: answers are short and sometimes thin even when the evidence is right; the deterministic layer keeps them honest, not eloquent.
+- Nightshift has no Linux build, so it runs on a Windows laptop that must be on and awake; while it is not, the crew runs on the workstation's CPU, several times slower.
 - One Warden per checkout; "new data" is a row count and a last timestamp.
 - Only tool-using agents (Ada, and agents Forge builds) can start a conversation; the others answer when asked and read their inbox.
 - Agents never change their own code unattended.

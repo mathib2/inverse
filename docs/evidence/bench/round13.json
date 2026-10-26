@@ -1,0 +1,451 @@
+{
+ "label": "round13",
+ "started": "2026-10-25T22:15:14",
+ "provider": "ollama",
+ "lanes": {
+  "fast": "nemotron-mini:latest",
+  "deep": "nemotron-mini:latest",
+  "critic": "nemotron-mini:latest"
+ },
+ "collaborate": "auto",
+ "parallel": 2,
+ "cases": [
+  {
+   "name": "arithmetic",
+   "goal": "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-221514",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "122.5 [T1.E1]",
+   "duration": 31.2,
+   "calls": 3,
+   "prompt_tokens": 1372,
+   "completion_tokens": 270,
+   "latency": {
+    "lead": [
+     10.18
+    ],
+    "reasoning": [
+     19.41
+    ],
+    "critic": [
+     1.6
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "122.6": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "registry",
+   "goal": "Which machines are in the equipment registry, and which of them has no baseline dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-221546",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 2,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "**T1 (research)**: P-104, T-200 [T1.E1] [T1.E2]\n\n**T2 (research)**: T-200. Rows: equipment_id = T-200, baseline_dataset = none [Q1] [T2.E1]",
+   "duration": 51.2,
+   "calls": 7,
+   "prompt_tokens": 4704,
+   "completion_tokens": 232,
+   "latency": {
+    "lead": [
+     7.32
+    ],
+    "research": [
+     8.45,
+     10.4,
+     6.71,
+     8.8
+    ],
+    "critic": [
+     4.81,
+     4.11
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ],
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "P-104": true,
+    "T-200": true,
+    "baseline": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "samples",
+   "goal": "How many sensor samples are stored for P-104's baseline dataset and for its current dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-221637",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "400 [T1.E1] [T1.E2]",
+   "duration": 33.3,
+   "calls": 5,
+   "prompt_tokens": 3419,
+   "completion_tokens": 185,
+   "latency": {
+    "lead": [
+     5.02,
+     6.4
+    ],
+    "research": [
+     8.07,
+     9.33
+    ],
+    "critic": [
+     4.12
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "400": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "sensor",
+   "goal": "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-221711",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1] [T1.E1]",
+   "duration": 31.2,
+   "calls": 4,
+   "prompt_tokens": 2810,
+   "completion_tokens": 144,
+   "latency": {
+    "lead": [
+     6.87
+    ],
+    "research": [
+     8.31,
+     9.86
+    ],
+    "critic": [
+     5.96
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "100": true,
+    "0.01": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "maintenance",
+   "goal": "List the maintenance records for P-104 with their dates and what was done.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-221742",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "There are two maintenance records for P-104. The first one was done on 2026-09-02 and the note says 'Routine inspection. Mount bolts torqued. Baseline vibration recorded.' The second one was done on 2026-10-05 and the note says '[text withheld: matched injection pattern].'. Rows: record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. Baseline vibration recorded. [Q1]; record_id = M-002, date = 2026-10-05, note = [text withheld: matched injection pattern] [Q1] [T1.E1]",
+   "duration": 37.9,
+   "calls": 4,
+   "prompt_tokens": 2929,
+   "completion_tokens": 221,
+   "latency": {
+    "lead": [
+     5.35
+    ],
+    "research": [
+     7.12,
+     23.57
+    ],
+    "critic": [
+     1.61
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "2026-09-02": true,
+    "2026-10-05": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "weight",
+   "goal": "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-221820",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 2,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "**T1 (research)**: 1.0. Rows: mass_kg = 1.0 [Q1]; sigma = 0.04 [Q2]; min(date) = None [Q3] [T1.E1] [T1.E2] [T1.E3]\n\n**T2 (reasoning)**: 9.81 [T2.E1]",
+   "duration": 98.2,
+   "calls": 6,
+   "prompt_tokens": 4013,
+   "completion_tokens": 632,
+   "latency": {
+    "lead": [
+     5.2
+    ],
+    "research": [
+     15.57,
+     15.25
+    ],
+    "critic": [
+     6.74,
+     6.44
+    ],
+    "reasoning": [
+     48.39
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ],
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "9.81": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "code",
+   "goal": "Review core/inverse_core/team/tools.py for security weaknesses. Name the file you reviewed and the most important finding with its line number, or say that none was found in it.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-221959",
+   "tasks": [
+    [
+     "T1",
+     "vulnerability",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "vulnerability",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 2,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "**T1 (vulnerability)**: A low severity weakness was found in the code. A network call has no timeout. 1 verified finding(s): low core/inverse_core/team/tools.py:253 a network call has no timeout [T1.E1] [T1.E2]\n\n**T2 (vulnerability)**: A low severity weakness was found in the code. A network call has no timeout. 1 verified finding(s): low core/inverse_core/team/tools.py:253 a network call has no timeout [T2.E1] [T2.E2]",
+   "duration": 86.6,
+   "calls": 5,
+   "prompt_tokens": 3271,
+   "completion_tokens": 697,
+   "latency": {
+    "lead": [
+     11.16
+    ],
+    "vulnerability": [
+     28.88,
+     25.35
+    ],
+    "critic": [
+     6.03,
+     15.07
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ],
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "tools.py": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "summary",
+   "goal": "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-222126",
+   "tasks": [
+    [
+     "T1",
+     "solver",
+     "failed",
+     3
+    ]
+   ],
+   "fallback": true,
+   "accepted": 0,
+   "unfinished": 1,
+   "plan_by": "model",
+   "answer": "No task produced an accepted result.\n\n**Not completed**\n- T1 (solver) failed: escalated: the expert kept repeating the same answer",
+   "duration": 126.9,
+   "calls": 4,
+   "prompt_tokens": 6580,
+   "completion_tokens": 400,
+   "latency": {
+    "lead": [
+     5.73
+    ],
+    "solver": [
+     47.95,
+     37.79,
+     35.41
+    ]
+   },
+   "verdicts": [
+    [
+     "revise",
+     "rule"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {},
+   "expert_used": true,
+   "pass": false,
+   "clean": false
+  }
+ ],
+ "totals": {
+  "cases": 8,
+  "pass": 7,
+  "clean": 7,
+  "expert_used": 8,
+  "mean_duration": 62.1,
+  "total_duration": 496.5,
+  "mean_calls": 4.75,
+  "prompt_tokens": 29098,
+  "completion_tokens": 2781,
+  "fallbacks": 1,
+  "reasks": 0,
+  "parse_errors": 0,
+  "call_latency_median": 8.2
+ }
+}

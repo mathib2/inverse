@@ -133,8 +133,22 @@ def test_reference_engine_drives_a_three_chunk_chain(markovian_server):
     assert r["chunks"][1]["carryover_in"].startswith("COMPLETED: f1") and r["chunk_config"]["carryoverTokens"] == 600
 
 
-def test_client_default_url_is_the_markovian_service_not_the_hmem_sidecar():
+def test_client_default_url_is_the_markovian_service_not_the_hmem_sidecar(monkeypatch):
+    monkeypatch.delenv("MARKOVIAN_URL", raising=False)
     assert MarkovianClient().url == "http://127.0.0.1:8101"
+    monkeypatch.setenv("MARKOVIAN_URL", "http://127.0.0.1:8111/")                  # a checkout's own service, named in its .env
+    assert MarkovianClient().url == "http://127.0.0.1:8111"
+
+
+def test_each_checkout_reaches_its_own_hmem_sidecar(monkeypatch):
+    from inverse_core.clients.sidecars import port
+    from inverse_core.clients.world import WorldClient
+    from inverse_core.ledger import SidecarLedger
+    monkeypatch.delenv("SIDECAR_URL", raising=False)
+    assert SidecarLedger().url == WorldClient().url == "http://127.0.0.1:8100"
+    monkeypatch.setenv("SIDECAR_URL", "http://127.0.0.1:8110")
+    assert SidecarLedger().url == WorldClient().url == "http://127.0.0.1:8110" and port(SidecarLedger().url) == 8110
+    assert SidecarLedger("http://x:1").url == "http://x:1"                          # an explicit address still wins
 
 
 def test_a_stray_final_marker_cannot_end_the_chain_early():

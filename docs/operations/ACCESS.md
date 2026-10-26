@@ -22,13 +22,15 @@ and `deploy-live`; a new password signs every device out.
 ## A link that never changes (optional, once, by the owner)
 
 Tailscale Funnel gives the workstation a permanent public address, `https://<machine>.<tailnet>.ts.net`, with no third party in
-between. It needs two things the crew cannot do for itself:
+between. The public-link service (`scripts/public_link.py`) tries Funnel first, at start and every 15 minutes while it runs the
+quick tunnel, and switches to it by itself, so the owner only has to allow it:
 
-1. In the Tailscale admin console, under **Access controls**, allow Funnel for this machine (the console offers to add the
-   `funnel` attribute when Funnel is first used).
-2. On the workstation, once: `sudo tailscale funnel --bg 8501`.
+1. Open the approval link the service keeps in `state/public_url.json` (`funnel_enable`, also in `inverse-public log`), signed in
+   to Tailscale as the tailnet's owner, and approve. It turns on HTTPS certificates and the `funnel` attribute for this machine.
+2. Only if the log then says this user may not change Tailscale's serve settings: on the workstation, once,
+   `sudo tailscale set --operator=$USER`.
 
-Then stop the quick tunnel with `inverse-public stop`.
+Within 15 minutes the sidebar and the phone show the permanent address, and the quick tunnel stops.
 
 ## The code
 

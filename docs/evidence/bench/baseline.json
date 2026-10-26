@@ -1,0 +1,443 @@
+{
+ "label": "baseline",
+ "started": "2026-10-25T13:57:05",
+ "provider": "ollama",
+ "lanes": {
+  "fast": "nemotron-mini:latest",
+  "deep": "nemotron-mini:latest",
+  "critic": "nemotron-mini:latest"
+ },
+ "collaborate": "auto",
+ "parallel": 2,
+ "cases": [
+  {
+   "name": "arithmetic",
+   "goal": "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-135706",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The conversion of kg to newtons is 9.81 m/s^2. The result of 12.5 kg times 9.81 m/s^2 is 122.625 newtons.",
+   "duration": 73.0,
+   "calls": 5,
+   "prompt_tokens": 2328,
+   "completion_tokens": 491,
+   "latency": {
+    "lead": [
+     6.25,
+     11.18
+    ],
+    "reasoning": [
+     22.7,
+     22.63
+    ],
+    "critic": [
+     10.2
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "122.6": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "registry",
+   "goal": "Which machines are in the equipment registry, and which of them has no baseline dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-135819",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 2,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The equipment IDs in the registry are P-104 and T-200. The machine with no baseline dataset is not found.",
+   "duration": 55.6,
+   "calls": 8,
+   "prompt_tokens": 2888,
+   "completion_tokens": 334,
+   "latency": {
+    "lead": [
+     13.58,
+     7.76
+    ],
+    "research": [
+     5.99,
+     4.8,
+     7.31,
+     4.3
+    ],
+    "critic": [
+     3.49,
+     7.98
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ],
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "P-104": true,
+    "T-200": true,
+    "baseline": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "samples",
+   "goal": "How many sensor samples are stored for P-104's baseline dataset and for its current dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-135914",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "failed",
+     3
+    ],
+    [
+     "T2",
+     "reasoning",
+     "failed",
+     0
+    ]
+   ],
+   "fallback": true,
+   "accepted": 0,
+   "unfinished": 2,
+   "plan_by": "rule",
+   "answer": "No task produced an accepted result.\n\n**Not completed**\n- T1 (research) failed: You repeated your previous answer. CHANGE STRATEGY: use a different approach or different queries. \u00abthe last maintenance was done 2 months ago\u00bb: the last maintenance was done 3 months ago (the number(s) 2 are not in the evidence)\n- T2 (reasoning) failed: skipped: dependency ['T1'] did not produce an accepted result",
+   "duration": 64.7,
+   "calls": 8,
+   "prompt_tokens": 3647,
+   "completion_tokens": 464,
+   "latency": {
+    "lead": [
+     8.96,
+     8.93
+    ],
+    "research": [
+     14.6,
+     4.62,
+     7.11,
+     4.37,
+     5.42
+    ],
+    "critic": [
+     10.3
+    ]
+   },
+   "verdicts": [
+    [
+     "revise",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "400": false
+   },
+   "expert_used": true,
+   "pass": false,
+   "clean": false
+  },
+  {
+   "name": "sensor",
+   "goal": "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-140019",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "failed",
+     3
+    ]
+   ],
+   "fallback": true,
+   "accepted": 0,
+   "unfinished": 1,
+   "plan_by": "model",
+   "answer": "No task produced an accepted result.\n\n**Not completed**\n- T1 (research) failed: HTTPError: 400 Client Error: Bad Request for url: http://localhost:8888/api/v1.0/sql-editor/sqls/run",
+   "duration": 36.6,
+   "calls": 4,
+   "prompt_tokens": 2017,
+   "completion_tokens": 270,
+   "latency": {
+    "lead": [
+     6.18
+    ],
+    "research": [
+     17.34,
+     6.9,
+     5.6
+    ]
+   },
+   "verdicts": [],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "100": false,
+    "0.01": false
+   },
+   "expert_used": true,
+   "pass": false,
+   "clean": false
+  },
+  {
+   "name": "maintenance",
+   "goal": "List the maintenance records for P-104 with their dates and what was done.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-140056",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "failed",
+     3
+    ]
+   ],
+   "fallback": true,
+   "accepted": 0,
+   "unfinished": 1,
+   "plan_by": "model",
+   "answer": "No task produced an accepted result.\n\n**Not completed**\n- T1 (research) failed: You repeated your previous answer. CHANGE STRATEGY: use a different approach or different queries. the expert reported zero confidence",
+   "duration": 36.9,
+   "calls": 8,
+   "prompt_tokens": 3336,
+   "completion_tokens": 261,
+   "latency": {
+    "lead": [
+     4.87,
+     5.92
+    ],
+    "research": [
+     7.86,
+     3.4,
+     5.11,
+     2.48,
+     4.53,
+     2.4
+    ]
+   },
+   "verdicts": [
+    [
+     "revise",
+     "rule"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "2026-09-02": false,
+    "2026-10-05": false
+   },
+   "expert_used": true,
+   "pass": false,
+   "clean": false
+  },
+  {
+   "name": "weight",
+   "goal": "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-140133",
+   "tasks": [
+    [
+     "T1",
+     "solver",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The weight of P-104 in newtons cannot be computed using the mass from the equipment registry and the given value of g = 9.81 m/s^2, as the SQL query to find the equipment with id 1 failed.",
+   "duration": 56.2,
+   "calls": 5,
+   "prompt_tokens": 3159,
+   "completion_tokens": 341,
+   "latency": {
+    "lead": [
+     10.44,
+     11.09
+    ],
+    "solver": [
+     9.85,
+     11.95
+    ],
+    "critic": [
+     12.69
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "9.81": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "code",
+   "goal": "Review core/inverse_core/team/tools.py for security weaknesses and name the most important finding with its line number.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-140230",
+   "tasks": [
+    [
+     "T1",
+     "vulnerability",
+     "done",
+     2
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "[T1.E3]",
+   "duration": 211.6,
+   "calls": 7,
+   "prompt_tokens": 5551,
+   "completion_tokens": 1140,
+   "latency": {
+    "lead": [
+     6.83,
+     12.5
+    ],
+    "vulnerability": [
+     36.4,
+     6.99,
+     107.51
+    ],
+    "critic": [
+     16.43,
+     24.72
+    ]
+   },
+   "verdicts": [
+    [
+     "revise",
+     "llm"
+    ],
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "tools.py": false
+   },
+   "expert_used": true,
+   "pass": false,
+   "clean": false
+  },
+  {
+   "name": "summary",
+   "goal": "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261025-140601",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "The crew has found that the cube root of 27 is 3, not 3, and the factorial of 5 is 120, not 120. However, the steps without arithmetic are not machine-verified.",
+   "duration": 53.1,
+   "calls": 4,
+   "prompt_tokens": 1722,
+   "completion_tokens": 352,
+   "latency": {
+    "lead": [
+     9.75,
+     11.5
+    ],
+    "reasoning": [
+     25.73
+    ],
+    "critic": [
+     6.15
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {},
+   "expert_used": false,
+   "pass": true,
+   "clean": true
+  }
+ ],
+ "totals": {
+  "cases": 8,
+  "pass": 4,
+  "clean": 4,
+  "expert_used": 7,
+  "mean_duration": 73.5,
+  "total_duration": 587.7,
+  "mean_calls": 6.12,
+  "prompt_tokens": 24648,
+  "completion_tokens": 3653,
+  "fallbacks": 3,
+  "reasks": 0,
+  "parse_errors": 0,
+  "call_latency_median": 7.9
+ }
+}

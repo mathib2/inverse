@@ -45,7 +45,8 @@ def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=Fals
         ebudget.charge_tokens(r.get("usage"))
     u = r.get("usage") or {}
     ctx.trace.event("llm", agent=who, lane=lane, model=r.get("model"), latency_s=r.get("latency_s"), finish=r.get("finish_reason"),
-                    prompt_tokens=u.get("prompt_tokens"), completion_tokens=u.get("completion_tokens"), prompt_est=est)
+                    prompt_tokens=u.get("prompt_tokens"), completion_tokens=u.get("completion_tokens"), prompt_est=est,
+                    provider=r.get("provider"), **({"fallback": r["fallback"][:160]} if r.get("fallback") else {}))
     out = {"text": r["text"], "model": r.get("model"), "usage": r.get("usage")}
     if json_reply:
         try:

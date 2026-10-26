@@ -40,9 +40,10 @@ class InMemoryLedger:
 class SidecarLedger(InMemoryLedger):
     """Same trust rules, persisted through the H-MEM sidecar (survives restarts)."""
 
-    def __init__(self, url="http://127.0.0.1:8100", timeout=10):
+    def __init__(self, url=None, timeout=10):
+        from .clients.sidecars import hmem_url
         super().__init__()
-        self.url, self.timeout = url, timeout
+        self.url, self.timeout = url or hmem_url(), timeout
 
     def record(self, equipment, hypothesis, source, confidence):
         self.rows = self.recall(equipment)  # refresh from H-MEM so trust rules see persisted history

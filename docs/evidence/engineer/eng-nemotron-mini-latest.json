@@ -1,0 +1,70 @@
+{
+ "label": "eng-nemotron-mini-latest",
+ "model": "nemotron-mini:latest",
+ "started": "2026-10-25T23:09:47",
+ "tasks": [
+  {
+   "name": "missing_case",
+   "model": "nemotron-mini:latest",
+   "seconds": 34.8,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 0,
+   "passed": false,
+   "answer": "no safe change: old text occurs 0 times in core/inverse_core/eval_target.py; it must occur exactly once",
+   "error": "",
+   "test_summary": "1 failed in 0.04s",
+   "run": "20261025-230810"
+  },
+  {
+   "name": "off_by_one",
+   "model": "nemotron-mini:latest",
+   "seconds": 20.5,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": true,
+   "answer": "yes safe change: The change is safe.",
+   "error": "",
+   "test_summary": "1 passed in 0.01s",
+   "run": "20261025-230845"
+  },
+  {
+   "name": "regex",
+   "model": "nemotron-mini:latest",
+   "seconds": 13.6,
+   "llm_calls": 2,
+   "tool_calls": 1,
+   "edit_attempts": 0,
+   "edit_applied": 0,
+   "passed": false,
+   "answer": "no safe change: no change found",
+   "error": "",
+   "test_summary": "1 failed in 0.03s",
+   "run": "20261025-230906"
+  },
+  {
+   "name": "prompt_sentence",
+   "model": "nemotron-mini:latest",
+   "seconds": 27.2,
+   "llm_calls": 3,
+   "tool_calls": 2,
+   "edit_attempts": 1,
+   "edit_applied": 1,
+   "passed": false,
+   "answer": "yes safe change: The line 'You are the reasoning expert. Show every step. Use the calculator for arithmetic.' has been changed to 'You are the reasoning expert.",
+   "error": "",
+   "test_summary": "1 failed in 0.03s",
+   "run": "20261025-230920"
+  }
+ ],
+ "totals": {
+  "tasks": 4,
+  "passed": 1,
+  "edits_applied": 2,
+  "mean_seconds": 24.0,
+  "mean_llm_calls": 2.75
+ }
+}
