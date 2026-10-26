@@ -286,7 +286,7 @@ class ReasoningExpert(BaseExpert):
             found = re.search(r"(?<![\w.])" + re.escape(name) + r"\s*[=:]\s*(-?\d+(?:\.\d+)?)", str(context or ""))
             if found:
                 expr = re.sub(r"\b" + re.escape(name) + r"\b", found.group(1), expr)
-        return expr
+        return expr.strip()
 
     def _check(self, steps, context=""):
         ev, bad = [], []
