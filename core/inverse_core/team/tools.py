@@ -303,11 +303,16 @@ class Tools:
         p = self._inside(path)
         with open(p, encoding="utf-8") as f:
             text = f.read()
-        n = text.count(str(old))
+        old, new = str(old), str(new)
+        if text.count(old) == 0:                                                # the model copied the excerpt's line numbers: strip them and try again
+            bare = re.sub(r"(?m)^\s*\d+: ?", "", old)
+            if bare != old and text.count(bare) == 1:
+                old, new = bare, re.sub(r"(?m)^\s*\d+: ?", "", new)
+        n = text.count(old)
         if n != 1:
-            raise ToolError(f"old text occurs {n} times in {path}; it must occur exactly once (copy it exactly, including indentation)")
+            raise ToolError(f"old text occurs {n} times in {path}; it must occur exactly once (copy it exactly, including indentation, without line numbers)")
         with open(p, "w", encoding="utf-8") as f:
-            f.write(text.replace(str(old), str(new), 1))
+            f.write(text.replace(old, new, 1))
         return {"edited": path, "removed_chars": len(str(old)), "added_chars": len(str(new))}
 
     def _run_tests(self):

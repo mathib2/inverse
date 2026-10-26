@@ -57,6 +57,8 @@ def test_sandbox_tools_refuse_outside_the_sandbox_and_fetch_refuses_this_machine
     out = t.call("edit_file", {"path": "notes_tinker_test.md", "old": "two", "new": "three"}, _budget(), who="tinker")
     assert out["edited"] == "notes_tinker_test.md" and open(os.path.join(t.root, "notes_tinker_test.md")).read() == "one three\n"
     assert "exactly once" in t.call("edit_file", {"path": "notes_tinker_test.md", "old": "zzz", "new": "y"}, _budget(), who="tinker")["error"]
+    out = t.call("edit_file", {"path": "notes_tinker_test.md", "old": "1: one three", "new": "1: one four"}, _budget(), who="tinker")   # line numbers copied from the excerpt
+    assert out["edited"] == "notes_tinker_test.md" and open(os.path.join(t.root, "notes_tinker_test.md")).read() == "one four\n"
     assert "text files" in t.call("write_file", {"path": "x.bin", "content": "y"}, _budget(), who="tinker")["error"]
     os.remove(os.path.join(t.root, "notes_tinker_test.md"))
 
