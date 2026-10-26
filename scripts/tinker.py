@@ -56,8 +56,8 @@ RESEARCH_PROMPT = ("You are Tinker, the crew's improvement engineer, in the rese
 ENGINEER_ROLE = "Makes the smallest code change in the sandbox that helps with one item of the crew's improvement list, then runs the tests."
 ENGINEER_PROMPT = ("You are Tinker, the crew's improvement engineer, in the engineering step. The task names the file and shows the lines that matter. "
                    "Make exactly one edit_file call on that file: a short exact old text copied from the lines shown and its replacement (a tighter rule, a better "
-                   "sentence in a prompt string, a missing case). Never create a new file; never write notes; never touch tests. Then call run_tests. "
-                   'If you see no safe change, answer {"answer":"no safe change: <why>","confidence":0.5,"assumptions":[],"not_checked":[]} and nothing else.')
+                   "sentence in a prompt string, a missing case) that does what 'What to change' says. Never create a new file; never write notes; never touch tests. "
+                   'Then call run_tests. Only when the lines shown cannot host that change, answer {"answer":"no safe change: <why>","confidence":0.5,"assumptions":[],"not_checked":[]}.')
 PLACES = {                                                                    # where each kind of item lives: the file and a word that finds the region
     "vera": ("core/inverse_core/team/critic.py", "def deterministic"), "atlas": ("core/inverse_core/team/lead.py", "def _guard"),
     "scout": ("core/inverse_core/team/experts.py", "def complete_columns"), "euler": ("core/inverse_core/team/experts.py", "class ReasoningExpert"),
@@ -105,6 +105,25 @@ def backlog(report_text, probes):
                 what = p.get("goal") or p.get("label") or "a probe"
                 items.append(f"{agent}: the probe '{str(what)[:90]}' fails")
     return list(dict.fromkeys(items))
+
+
+def details(report_text):
+    """The paragraph under each numbered item of the report, by the item's bold title: where to change what, and how it is measured."""
+    out, title, buf = {}, None, []
+    for ln in str(report_text or "").splitlines():
+        m = re.match(r"^\d+\.\s+\*\*(.+?)\*\*(.*)$", ln)
+        if m:
+            if title:
+                out[title] = re.sub(r"\s+", " ", " ".join(buf)).strip(" :")
+            title, buf = re.sub(r"\s+", " ", m.group(1)).strip(), [m.group(2)]
+        elif title and ln.startswith((" ", "\t")):
+            buf.append(ln.strip())
+        elif title:
+            out[title] = re.sub(r"\s+", " ", " ".join(buf)).strip(" :")
+            title, buf = None, []
+    if title:
+        out[title] = re.sub(r"\s+", " ", " ".join(buf)).strip(" :")
+    return out
 
 
 def pick(items, state):
@@ -288,8 +307,10 @@ def cycle():
         if note:
             memory.add_finding(f"tinker: {item[:80]}: {note[:200]}", r.evidence[:2], source="web", confidence=0.4, expert="tinker")
         path, excerpt = place_of(item)
+        hint = details(report).get(item, "")
         engineer = CustomExpert(ctx, "tinker", ENGINEER_ROLE, ENGINEER_PROMPT, "deep", ["read_file", "grep", "edit_file", "run_tests"])
-        e = engineer.run(Task("E1", f"Make the smallest code change that helps with: {item}\nResearch note: {note[:500]}\nThe file: {path}\nThe lines that matter:\n{excerpt[:5000]}", "tinker"),
+        e = engineer.run(Task("E1", f"Make the smallest code change that helps with: {item}\nWhat to change: {hint[:700] or 'see the research note'}\nResearch note: {note[:400]}"
+                                    f"\nThe file: {path}\nThe lines that matter:\n{excerpt[:5000]}", "tinker"),
                          memory, ExpertBudget(tool_calls=8, tokens=150000, seconds=900))
         say("Engineering: " + str(e.answer or "")[:400], kind="result")
         files = changed_files()
