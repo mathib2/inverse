@@ -9,7 +9,9 @@ from test_council import crew, events
 
 def test_a_solver_task_about_a_machine_starts_from_the_facts_and_a_bare_word_is_asked_again(tmp_path):
     replies = iter([json.dumps({"answer": "Error", "confidence": 0.5, "assumptions": [], "not_checked": []}),
-                    json.dumps({"answer": "P-104 has a mass of 12.5 kg, so it weighs 122.6 N.", "confidence": 0.9, "assumptions": [], "not_checked": []})])
+                    json.dumps({"answer": "P-104 has a mass of 1.0 kg, so it weighs 1000.0 N.", "confidence": 0.9, "assumptions": [], "not_checked": []}),
+                    json.dumps({"tool": "calc", "args": {"expr": "1.0 * 9.81"}, "why": "the weight"}),
+                    json.dumps({"answer": "P-104 has a mass of 1.0 kg, so it weighs 9.81 N.", "confidence": 0.9, "assumptions": [], "not_checked": []})])
     seen = []
 
     def script(model, messages):
@@ -20,7 +22,7 @@ def test_a_solver_task_about_a_machine_starts_from_the_facts_and_a_bare_word_is_
     res = ctx.registry.experts["solver"].run(Task("T1", "Using the registry mass of P-104, compute its weight in newtons with g = 9.81.", "solver"), lead.memory, ExpertBudget())
     assert res.evidence[0]["source"].startswith("run_sql(SELECT mass_kg") and events(ctx, "data_prefetched")           # the fact was fetched by code
     assert seen[0][-1] == "user" and seen[0].count("assistant") == 1                                                  # the model saw the tool result before its first turn
-    assert events(ctx, "bare_answer") and res.answer.startswith("P-104 has a mass")                                   # "Error" was not accepted as an answer
+    assert events(ctx, "bare_answer") and events(ctx, "calc_nudge") and res.answer.endswith("9.81 N.")                 # "Error" was not an answer; 1000.0 was not computed
 
 
 def test_a_task_that_says_ask_the_reasoning_expert_asks_it_by_code(tmp_path):
