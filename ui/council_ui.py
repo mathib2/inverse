@@ -101,8 +101,7 @@ def render(root, configs, ledger, sidecar):
     ss = st.session_state
     c = Council(root)
     s = c.summary()
-    st.caption("Agents propose changes to their own crew while they work; Vera and the agent concerned vote; a fixed rule decides; every change can be undone. "
-               "Code changes are never applied by agents: they become a task card for people.")
+    st.caption("The agents propose changes to their own crew; Vera and the agent concerned vote; a rule decides; everything can be undone.")
     last = s["sessions"][-1] if s["sessions"] else None
     if ss.pop("council_session", False):
         import team

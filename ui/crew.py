@@ -131,7 +131,6 @@ def _live(live, configs):
 
 
 def crew_cards(configs):
-    st.markdown("### The crew")
     rows = roster(configs)
     for i in range(0, len(rows), 3):
         cols = st.columns(3, gap="small")
@@ -145,9 +144,8 @@ def crew_cards(configs):
 
 def conversation(events, configs):
     msgs = [e for e in events if e.get("kind") == "message"]
-    st.markdown("### What they said to each other")
     if not msgs:
-        st.caption("No messages in this run: each agent worked from Atlas's task alone.")
+        st.caption("No messages in this run.")
     for m in msgs:
         st.markdown(f"{ICON.get(m.get('type'), '💬')} **{crew_name(m.get('from'), configs)} → {crew_name(m.get('to'), configs)}**"
                     + (f" · {m.get('task')}" if m.get("task") else "") + f": {str(m.get('text') or '')[:400]}")
@@ -184,14 +182,13 @@ def how_it_went(events, configs):
 
 def render(ledger, ai_online, sidecar, health=None):
     ss, configs = st.session_state, _configs()
-    st.markdown("## INVERSE crew")
-    st.caption("Eight AI agents that run on this computer, on local models, with no cloud: they look things up in the data platform, "
-               "review code, work through problems, check each other's work, talk to each other, and keep going on their own.")
+    c1, c2 = st.columns([3, 2], vertical_alignment="center")
+    c1.markdown("## INVERSE crew")
+    c1.caption("Eight AI agents on local models. Give them a goal: they plan, look things up, check each other and answer with evidence.")
     if health:
-        parts.status_row(health)
-    crew_cards(configs)
+        with c2:
+            parts.status_row(health)
 
-    st.markdown("### Give the crew a goal")
     cols = st.columns(len(EXAMPLES))
     for col, (label, text) in zip(cols, EXAMPLES):
         if col.button(label, key="crew_ex_" + label, width="stretch"):
@@ -201,11 +198,11 @@ def render(ledger, ai_online, sidecar, health=None):
     live = LIVE.get("run")
     running = bool(live and live["thread"].is_alive())
     if not ai_online:
-        st.caption("The crew is paused because the AI is offline. See **AI** under Connections in the sidebar.")
+        st.caption("Paused: the AI is offline. See **AI** under Connections in the sidebar.")
     elif not data_online:
         st.caption("The data platform is offline, so Scout and Ada cannot query it. See **Data platform** under Connections in the sidebar.")
     elif running:
-        st.caption("A mission is running. It keeps running if you leave or reload this page; stop it, or wait for it to finish, before starting another.")
+        st.caption("A mission is running; it keeps running if you leave or reload this page.")
     if st.button("Go", type="primary", icon=":material/play_arrow:", disabled=not ai_online or not data_online or not goal.strip() or running):
         for k in ("crew_out", "crew_plan", "crew_dir", "crew_replay", "crew_events", "crew_error", "crew_last"):
             ss.pop(k, None)
@@ -250,26 +247,29 @@ def render(ledger, ai_online, sidecar, health=None):
             ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = ss.team_out, ss.team_plan, ss.team_dir, ss.team_events, True
     if ss.get("crew_out"):
         if ss.get("crew_replay"):
-            st.info(f"Showing the mission saved at `{os.path.relpath(ss.crew_dir, ROOT)}`: nothing below was recomputed. Press **Go** to start a new one.")
+            st.caption(f"The newest saved mission ({os.path.relpath(ss.crew_dir, ROOT)}); nothing was recomputed. Press **Go** for a new one.")
         answer(ss.crew_out, ss.crew_plan, configs)
-        conversation(ss.get("crew_events", []), configs)
+        with st.expander("What they said to each other"):
+            conversation(ss.get("crew_events", []), configs)
         how_it_went(ss.get("crew_events", []), configs)
 
-    st.markdown("### On its own")
-    autonomy.render(ROOT, configs)
-
-    st.markdown("### The council")
-    council_ui.render(ROOT, configs, ledger, sidecar)
-
-    runs = team.saved_runs()
-    st.markdown("### Past missions")
-    if not runs:
-        st.caption("No saved missions yet. Every completed mission is kept with its plan, its trace and the conversation.")
-        return
-    c1, c2 = st.columns([5, 1])
-    pick = c1.selectbox("Saved missions", runs, format_func=lambda r: f"{r['when']} · {r['goal'][:90]}", key="crew_pick", label_visibility="collapsed")
-    if c2.button("Show", icon=":material/history:", width="stretch") and team._load_run(pick["dir"]):
-        ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = ss.team_out, ss.team_plan, ss.team_dir, ss.team_events, True
-        ss.pop("crew_last", None)
-        st.toast(f"Showing the mission from {pick['when']} at the top of the page")
-        st.rerun()
+    st.divider()
+    section = st.radio("Section", ["The crew", "On its own", "Council", "Past missions"], key="crew_section", horizontal=True, label_visibility="collapsed")
+    if section == "The crew":
+        crew_cards(configs)
+    elif section == "On its own":
+        autonomy.render(ROOT, configs)
+    elif section == "Council":
+        council_ui.render(ROOT, configs, ledger, sidecar)
+    else:
+        runs = team.saved_runs()
+        if not runs:
+            st.caption("No saved missions yet.")
+            return
+        c1, c2 = st.columns([5, 1])
+        pick = c1.selectbox("Saved missions", runs, format_func=lambda r: f"{r['when']} · {r['goal'][:90]}", key="crew_pick", label_visibility="collapsed")
+        if c2.button("Show", icon=":material/history:", width="stretch") and team._load_run(pick["dir"]):
+            ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = ss.team_out, ss.team_plan, ss.team_dir, ss.team_events, True
+            ss.pop("crew_last", None)
+            st.toast(f"Showing the mission from {pick['when']} at the top of the page")
+            st.rerun()

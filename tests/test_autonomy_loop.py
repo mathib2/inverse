@@ -95,3 +95,11 @@ def test_live_commands_and_tinker_signals(tmp_path, monkeypatch):
     monkeypatch.setenv("TEXTBELT_TO", "15555550100")
     assert "textbelt" in notify.channels()
 
+def test_tinker_knows_where_each_item_lives():
+    import tinker
+    path, excerpt = tinker.place_of("Vera must doubt numbers and scope by rule, not by taste.")
+    assert path.endswith("critic.py") and excerpt.splitlines()[0].split(": ", 1)[1].startswith("def deterministic")
+    path, excerpt = tinker.place_of("Scout must answer the whole question.")
+    assert path.endswith("experts.py") and "def complete_columns" in excerpt
+    assert tinker.place_of("something about nothing")[0] == "prompts/research.md"
+
