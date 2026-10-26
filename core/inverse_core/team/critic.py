@@ -60,7 +60,7 @@ def deterministic(result):
     if sql and all(isinstance(e.get("rows"), list) and e["rows"] for e in sql) and HEDGE.search(answer):
         shown = "; ".join(json.dumps(e["rows"][0], default=str)[:120] for e in sql[:3])
         return "revise", f"the answer says a value is missing, but every query returned rows ({shown}); answer from those values"
-    bad = unverified_numbers(answer, evidence)
+    bad = unverified_numbers(answer, [evidence, task_goal(result)])          # the task's own numbers (a given g, a mass) are inputs, not inventions
     if bad:                                                                   # a number from nowhere is the one mistake the reviewer's model misses most
         return "revise", f"the number(s) {', '.join(bad[:4])} in the answer appear in no evidence; use only values the tools returned"
     missing = asked_but_missing(task_goal(result), answer, sql)

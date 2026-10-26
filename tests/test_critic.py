@@ -95,3 +95,9 @@ def test_rules_catch_a_number_from_nowhere_and_an_asked_value_left_out():
     res["answer"] = "The sampling rate is 100 Hz and the noise level is 0.01."
     assert C.deterministic(res) is None
 
+def test_a_number_given_in_the_task_is_not_a_number_from_nowhere():
+    res = {"answer": "On the Moon, with g = 1.62, the 1.0 kg mass weighs 1.62 N [Q1].", "confidence": 0.9, "assumptions": [], "not_checked": [],
+           "task_goal": "What does the 1.0 kg mass weigh on the Moon, where gravity is 1.62 m/s^2?",
+           "evidence": [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"equipment_id": "P-104", "mass_kg": "1.0"}]}]}
+    assert C.deterministic(res) is None
+
