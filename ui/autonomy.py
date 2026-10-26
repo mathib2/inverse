@@ -84,8 +84,7 @@ def render(root, configs=None):
         if hb and age is not None and age < 150 and hb.get("status") != "stopped":
             nxt = hb.get("next_check")
             when = f"next look at the data in about {max(0, int(nxt - time.time())) // 60} min" if nxt and hb.get("status") == "sleeping" else "working right now"
-            st.success(f"**{warden} is awake** (cycle {hb.get('cycle')}, {when}). Every {int(hb.get('interval', 0)) // 60} minutes it looks for new sensor data "
-                       f"(a machine with new data gets a crew mission), runs the standing missions on their schedule, and takes any goal queued here first.")
+            st.success(f"**{warden} is awake** · cycle {hb.get('cycle')} · {when} · checks every {int(hb.get('interval', 0)) // 60} min: queued goals, standing missions, new sensor data.")
         else:
             st.warning(f"**{warden} is not running.** On the workstation: `~/.local/bin/inverse-watch start`. Goals queued here wait until it starts.")
         cur = _load(os.path.join(state_dir, "current.json"))
@@ -98,7 +97,7 @@ def render(root, configs=None):
         rows = missions(root)
         if rows:
             last = state.get("missions") or {}
-            st.caption("Standing missions (`missions.yaml`, plus what the council and people change in `missions.local.yaml`):")
+            st.caption("Standing missions:")
             st.dataframe(pd.DataFrame([{"mission": m["name"].replace("_", " "), "every": f"{m.get('every', 24)} h", "last run": _ago(last.get(m["name"])), "goal": str(m["goal"])[:110]} for m in rows]),
                          hide_index=True, width="stretch")
         done = manifests(root)
@@ -119,7 +118,7 @@ def render(root, configs=None):
                     ss = st.session_state
                     ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = ss.team_out, ss.team_plan, ss.team_dir, ss.team_events, True
                     st.rerun(scope="app")
-        st.caption("New sensor data for a machine starts a crew mission about it, with a goal written by a fixed rule, not a model. This panel refreshes every 10 seconds.")
+        st.caption("Refreshes every 10 seconds.")
 
     live()
     c1, c2 = st.columns([5, 1])
