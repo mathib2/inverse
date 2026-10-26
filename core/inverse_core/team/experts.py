@@ -34,7 +34,7 @@ class BaseExpert:
         raise NotImplementedError
 
 
-QUERY_MAX_TOKENS, ANSWER_MAX_TOKENS, STEPS_MAX_TOKENS = 300, 500, 700         # reply caps per call: three short SELECTs, one answer, at most five steps
+QUERY_MAX_TOKENS, ANSWER_MAX_TOKENS, STEPS_MAX_TOKENS = 300, 350, 450         # reply caps per call: three short SELECTs, one answer, at most five steps
 SCHEMA = """Tables (Zetaris, read-only; always the obs. prefix; text values in single quotes; no semicolon):
 obs.equipment_table(equipment_id text like 'P-104' or 'T-200', name text, mass_kg number, baseline_dataset text: a dataset id or the text 'none', current_dataset text)
 obs.sensors_table(sensor_id text like 'P104-DISP-1': a sensor named in the task is selected by sensor_id, equipment_id text, quantity text: 'x' is displacement and 'v' is velocity, unit text, sigma number = the noise level, sampling_hz number = the sampling rate)
@@ -80,11 +80,25 @@ def unfilter_quantity(sql, goal):
     return re.sub(r"\s{2,}", " ", new).strip(), True
 
 
+LIST_WORDS = re.compile(r"\b(list|records?|all|each|every|history|entries)\b", re.I)
+_LIMIT = re.compile(r"\s+LIMIT\s+(\d+)\s*$", re.I)
+
+
+def unlimit_list(sql, goal):
+    """A task that asks for the records, the list or the history gets every row: a small LIMIT the model added (LIMIT 1 for "the
+    last maintenance" it imagined) is dropped. Returns (sql, dropped)."""
+    m = _LIMIT.search(sql or "")
+    if not m or int(m.group(1)) >= 12 or not LIST_WORDS.search(goal or "") or re.search(r"\b(last|latest|most recent|newest|first|earliest)\b", goal or "", re.I):
+        return sql, False
+    return sql[:m.start()].rstrip(), True
+
+
 def pin_sensor(sql, goal):
     """A query on the sensors table for a task that names a sensor ('T200-DISP-1') selects it by sensor_id; a filter the model guessed
     (equipment and quantity) is replaced, because a guessed quantity finds nothing. Returns (sql, pinned id or None)."""
     ids = SENSOR_ID.findall(goal or "")
-    if not ids or "obs.sensors_table" not in (sql or "").lower() or "sensor_id" in (sql or "").lower():
+    where = re.split(r"\sWHERE\s", sql or "", maxsplit=1, flags=re.I)
+    if not ids or "obs.sensors_table" not in (sql or "").lower() or (len(where) == 2 and "sensor_id" in where[1].lower()):   # already selected by id
         return sql, None
     head = re.split(r"\sWHERE\s", sql, maxsplit=1, flags=re.I)[0].rstrip()
     tail = re.search(r"\s(ORDER\s+BY\s.*|LIMIT\s.*)$", sql, re.I | re.S)
@@ -187,6 +201,9 @@ class ResearchExpert(BaseExpert):
             sql, dropped = unfilter_quantity(sql, task.goal)
             if dropped:
                 self.ctx.trace.event("sql_unfiltered", expert=self.name, task=task.id, sql=sql[:160])
+            sql, unlimited = unlimit_list(sql, task.goal)
+            if unlimited:
+                self.ctx.trace.event("sql_unlimited", expert=self.name, task=task.id, sql=sql[:160])
             budget.charge_tool()
             cache = getattr(self.ctx, "sql_cache", None)
             try:

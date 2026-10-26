@@ -49,6 +49,9 @@ in under a second. Everything below follows from those three numbers: fewer call
 | 12 | 7/8 | 7 | 507 | 4.8 | a one-task plan carries the goal verbatim, placeholder tasks are refused, plain arithmetic goes to Euler, a lookup that feeds a computation is rewritten as a lookup, and numbers Scout states that the rows do not contain are replaced by the row values (the arithmetic case: 37 s and 3 calls; the summary case failed: Ada reported zero confidence three times on a memory of ten refuted findings) |
 | 13 | 7/8 | 7 | 496 | 4.8 | a summary the model doubts, or leaves empty, is read out of the memory by code (`summary_by_code`); the digest fired, and the number rule refused it: a finding cut at "2026-09" read as minus nine on the evidence side |
 | 14 | 8/8 | 8 | 548 | 5.5 | a hyphen after a digit is a separator on the evidence side too, and evidence numbers carry no sign, as claim numbers never did; the second fully passing round, on the deployed code (b2250af), with Tinker and Warden stopped |
+| 15 | 7/8 | 7 | 693 | 5.1 | the fourth batch of agent rules (26 Oct, PR #52), run cold: the registry case needed 12 calls and left P-104 out; the memory digest alone took 282 s |
+| 16 | 7/8 | 7 | 216 | 2.3 | plain goals planned by rule (no planner call), answers the tool results prove accepted by code (no critic call), the digest read out of the memory (no model call): 27 s per case; the maintenance case lost a row to a LIMIT 1 the model wrote |
+| 17 | **8/8** | 8 | **222** | 2.4 | a task that asks for the records gets every row; a hundredfold number is grounded only as a percentage. 28 s per case against 68 s in round 14: 59 percent faster, nothing lost |
 | nano | stopped | | | | `nemotron-3-nano:4b` on every lane (26 Oct): the arithmetic case took 130 s against 31 s, so the round was stopped; a newer 4B is not faster on this CPU |
 | hosted | 7/8 | 7 | 893 | 7.4 | the sponsor's hosted Nemotron through the tunnel (26 Oct, `MODEL_PROVIDER=nightshift`, served by `nemotron-3-ultra-550b`): a 40-token request answers in 2 s, but the whole benchmark is slower than local round 14 because the big model writes five times more (146k prompt + 14.8k completion tokens against 37k + 3k) and the pipeline makes more calls; the code case alone took 409 s and 15 calls; the summary case failed by rule twice. Not adopted |
 
@@ -71,6 +74,15 @@ The failures that remained longest, and what decided them:
   rewritten as "look up the values; the computation is another task's", and when Scout's answer states numbers the rows do not
   contain, the code-made row values become the answer (`scout_numbers_dropped`): Scout and Vera agree by construction instead of
   after three refusals.
+
+## Where the time went, and where it does not go any more
+
+Round 15, read from its traces: the planner's call cost 6 to 12 s on every goal, Vera's review 5 to 10 s on every task, and
+Ada's two calls on a 3,600-token memory dump 254 s for the digest. Round 17 removes them where nothing is lost: a plain lookup,
+an arithmetic with its numbers in the goal, a summary or a review of a named path is planned by rule and then gets the same
+guard every plan gets; an answer whose every number is in its own rows or calculator results, with nothing hedged or unchecked,
+is accepted by code; a digest is read out of the memory by code. The model still plans anything else, still judges prose and
+code findings, and the probes for Atlas and Vera switch both shortcuts off so they keep measuring the model.
 
 ## Bigger is not faster here
 

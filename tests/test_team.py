@@ -243,7 +243,7 @@ def test_rule_plan_routes_machines_code_and_summaries_deterministically():
     assert "P-104" in p.tasks[0].goal and "T-200" in p.tasks[0].goal and p.tasks[1].depends_on == ["T1"]
     assert [t.expert for t in rule_plan("Review this repository's own code for security weaknesses.", names, eq).tasks] == ["vulnerability"]
     assert [t.expert for t in rule_plan("Summarize what the crew has found and ruled out so far.", names, eq).tasks] == ["solver"]
-    assert [t.expert for t in rule_plan("How many sensors are there?", names, eq).tasks] == ["solver"]
+    assert [t.expert for t in rule_plan("How many sensors are there?", names, eq).tasks] == ["research"]           # a lookup with no machine named: Scout
     assert [t.expert for t in rule_plan("How many sensors are there?", ["reasoning"], eq).tasks] == ["reasoning"]
     p.validate(set(names))
 

@@ -96,6 +96,7 @@ def run_expert(lead, ctx, name, goal, expect, budget):
 
 
 def probe_vera(lead, ctx):
+    lead.critic.code_first = False                                            # the model verdict is what this probe measures; missions accept proven answers by code
     out = []
     for label, goal, result, expect in VERA:
         result = {"confidence": 0.9, "assumptions": [], "not_checked": [], **copy.deepcopy(result)}
@@ -109,6 +110,7 @@ def probe_vera(lead, ctx):
 
 
 def probe_atlas(lead, ctx):
+    lead.rule_first = False                                                   # the raw planner is what this probe measures; missions plan plain goals by rule
     out, guard = [], lead._guard
     for goal, want in ATLAS:
         lead._guard = lambda p: p                                            # the raw plan first: the planner's own judgement

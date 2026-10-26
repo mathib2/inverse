@@ -95,6 +95,24 @@ def unsupported_words(goal, answer, evidence):
     return sorted({w for w in re.findall(r"[a-z]{6,}", _fold(answer)) if w[:5] not in known and w not in PLAIN})
 
 
+def verified_by_code(result):
+    """An answer whose every number is in its own tool results (rows or calculator), with nothing hedged and nothing left unchecked,
+    needs no model review: the reason to accept, or None when a model should look."""
+    ev = [e for e in result.get("evidence") or [] if isinstance(e, dict)]
+    if not ev or not all(str(e.get("type")) in ("sql", "calc") or str(e.get("source") or "").startswith(("run_sql(", "calc(")) for e in ev):
+        return None
+    answer = str(result.get("answer") or "")
+    nums = claim_numbers(answer)
+    if not nums or unverified_numbers(answer, [ev, task_goal(result)]) or HEDGE.search(answer) or result.get("not_checked"):
+        return None
+    try:
+        if float(result.get("confidence") or 0) < 0.6:
+            return None
+    except (TypeError, ValueError):
+        return None
+    return f"every number in the answer ({', '.join(nums[:4])}) is in the tool results and nothing is hedged: accepted by code"
+
+
 def task_goal(result):
     return str(result.get("task_goal") or "")
 
@@ -198,6 +216,8 @@ def _read(j):
 
 
 class Critic:
+    code_first = True                                                         # what the tool results prove is accepted without a model call; tests of the model path turn it off
+
     def __init__(self, ctx, lane="critic"):
         self.ctx, self.lane = ctx, lane
         self.note = limits.note(getattr(ctx, "root", "."), "critic")          # what Vera is known to get wrong, and the aim to fix it
@@ -208,6 +228,10 @@ class Critic:
         if hard:
             self.ctx.trace.event("critic", task=task.id, verdict=hard[0], reason=hard[1], by="rule")
             return {"verdict": hard[0], "reason": hard[1], "by": "rule"}
+        easy = verified_by_code(result) if self.code_first else None
+        if easy:                                                              # the tool results already prove it: no model call
+            self.ctx.trace.event("critic", task=task.id, verdict="accept", reason=easy, by="code")
+            return {"verdict": "accept", "reason": easy, "by": "code"}
         payload = {"task": task.goal, "answer": result.get("answer"), "confidence": result.get("confidence"), "assumptions": result.get("assumptions"),
                    "not_checked": result.get("not_checked"),
                    "evidence": [{k: v for k, v in e.items() if k not in ("rows", "result")} | ({"rows": e["rows"][:8]} if isinstance(e.get("rows"), list) else {})

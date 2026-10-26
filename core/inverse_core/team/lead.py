@@ -18,6 +18,7 @@ from .expert import ExpertBudget, Task
 from .llmcall import BadReply, ask
 from . import limits
 from .plan import PLACEHOLDER, Plan, PlanError
+from .verify import claim_numbers
 from .registry import ConfigError
 from .tools import CODE_TOOLS, Tools
 
@@ -51,7 +52,7 @@ def _norm(s):
 
 
 CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|vulnerab\w*|exploit\w*)\b", re.I)
-CALC_WORDS = re.compile(r"\b(compute|calculate|derive|deriv\w+|multipl\w+|times|divide\w*|convert\w*|weight|force|torque|energy|frequency|damping|ratio|percent\w*|average|mean|formula|equation"
+CALC_WORDS = re.compile(r"\b(compute|calculate|derive|deriv\w+|multipl\w+|times|divide\w*|convert\w*|weight|weigh\w*|force|torque|energy|frequency|damping|ratio|percent\w*|average|mean|formula|equation"
                         r"|why|whether|should|needs?|compare\w*|explain|assess\w*|diagnos\w+|recommend\w*|judge)\b", re.I)   # a computation or a judgement: Euler after Scout
 DATA_WORDS = re.compile(r"\b(registry|maintenance|sensors?|samples?|datasets?|records?|tables?|rows|stored|specification\w*|history|sql|quer\w+)\b", re.I)
 LACK_WORDS = re.compile(r"\b(we have no|there is no|no (?:converter|expert|agent|tool|one) (?:for|that|who)|nobody (?:can|knows)|the crew (?:lacks|cannot)|none of (?:you|the agents) can)\b", re.I)
@@ -91,13 +92,35 @@ def rule_plan(goal, names, equipment):
             add("reasoning", f"Using the accepted results from the earlier tasks, answer this in plain words: {goal}", deps=[t.id for t in tasks])
     elif SUMMARY_WORDS.search(goal):
         add("solver", goal + " Use the shared memory tool first.")
+    elif LOOKUP_WORDS.search(goal) and DATA_WORDS.search(goal):                # a lookup that names no machine (the registry as a whole): Scout
+        add("research", goal)
     if not tasks:
         add("solver" if "solver" in names else ("reasoning" if "reasoning" in names else next(iter(names))), goal)
     return Plan(goal, tasks)
 
 
+def simple_goal(goal, equipment=()):
+    """A goal whose plan a rule writes as well as the model would, and in no time: a plain lookup, an arithmetic with its numbers in
+    the goal and no machine to look up, a summary, a review of a named path. Not a goal that says the crew lacks something (the
+    architect path), not a long or two-part goal."""
+    g = str(goal or "").strip()
+    if not g or len(g) > 300 or LACK_WORDS.search(g) or " then " in g.lower() or ";" in g:
+        return None
+    machines = [m for m in equipment if re.search(rf"(?<![\w-]){re.escape(m)}(?![\w-])", g, re.I)]
+    if CODE_WORDS.search(g) and PATH_WORD.search(g) and not machines:
+        return "a review of a named path"
+    if SUMMARY_WORDS.search(g):
+        return "a summary of what the crew knows"
+    if LOOKUP_WORDS.search(g) and DATA_WORDS.search(g) and not CALC_WORDS.search(g):
+        return "a plain lookup"
+    if CALC_WORDS.search(g) and claim_numbers(g) and not DATA_WORDS.search(g) and not machines:
+        return "an arithmetic with its numbers in the goal"
+    return None
+
+
 class Lead:
-    def __init__(self, ctx, registry, memory, critic=None, max_attempts=3, plan_lane="deep", compose_lane="deep", rule_fallback=True):
+    def __init__(self, ctx, registry, memory, critic=None, max_attempts=3, plan_lane="deep", compose_lane="deep", rule_fallback=True, rule_first=True):
+        self.rule_first = rule_first                                          # plain goals are planned by rule, without a model call
         self.ctx, self.registry, self.memory = ctx, registry, memory
         self.rule_fallback = rule_fallback                                    # a plan by rule when the model cannot write one (small local models)
         self.critic = critic or Critic(ctx)
@@ -113,6 +136,11 @@ class Lead:
     def plan(self, goal, collaborate=False, votes=1):
         """votes > 1 samples that many plans at temperature 0.7 and keeps the most common task/expert structure
         (self-consistency, Wang et al. 2022): a majority over samples is more reliable than one greedy decode."""
+        kind = simple_goal(goal, self.ctx.equipment) if self.rule_first else None
+        if kind:                                                              # no model call: the rule plan, then the same guard every plan gets
+            plan = self._guard(rule_plan(goal, self.registry.names(), self.ctx.equipment).validate(self.registry.names(), self.creators()))
+            self.ctx.trace.event("plan", goal=goal, tasks=[t.__dict__ | {"result": None} for t in plan.tasks], model=None, by="rule", reason=f"{kind}: planned by rule, no model call")
+            return self.review_plan(plan) if collaborate else plan
         msgs = [{"role": "system", "content": self.plan_system()}, {"role": "user", "content": goal}]
         before = set(self.registry.configs)                                  # experts proposed by losing or invalid samples are dropped again
         if votes > 1:
@@ -169,7 +197,7 @@ class Lead:
         if len(plan.tasks) == 1 and plan.tasks[0].expert not in ("research", *self.creators()) and goal not in plan.tasks[0].goal:
             plan.tasks[0].goal = goal                                         # a one-task plan loses nothing by carrying the goal itself: the planner's paraphrase can only drop a detail or be the example text
             changes.append(f"{plan.tasks[0].id}: the goal verbatim (a one-task plan)")
-        if len(plan.tasks) == 1 and plan.tasks[0].expert == "solver" and "reasoning" in names and CALC_WORDS.search(goal) and re.search(r"\d", goal) and not DATA_WORDS.search(goal):
+        if len(plan.tasks) == 1 and plan.tasks[0].expert == "solver" and "reasoning" in names and CALC_WORDS.search(goal) and claim_numbers(goal) and not DATA_WORDS.search(goal):   # a number to compute with, never an id such as P-104
             plan.tasks[0].expert = "reasoning"                                # plain arithmetic with the numbers in the goal: Euler computes and self-checks; Ada would look for facts that are not there
             changes.append(f"{plan.tasks[0].id}: solver -> reasoning (arithmetic with nothing to look up)")
         for t in plan.tasks:

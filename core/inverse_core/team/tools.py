@@ -121,7 +121,7 @@ class Tools:
 
     def __init__(self, ctx, allowed=None, owner=""):
         self.ctx, self.root = ctx, os.path.realpath(getattr(ctx, "root", ".") or ".")
-        self.allowed = [t for t in (allowed or list(self.SPECS)) if t in self.SPECS]
+        self.allowed = [t for t in (list(self.SPECS) if allowed is None else allowed) if t in self.SPECS]   # an empty list means no tools, not every tool
         self.memory, self.owner, self.task_id = None, owner, None            # set per task by the expert that holds this toolbox
 
     def describe(self):
@@ -266,7 +266,9 @@ class Tools:
             raise ToolError("fetch_url takes a public http(s) URL")
         if host in ("localhost",) or host.endswith(".local") or _private(host):
             raise ToolError("fetch_url reads public pages only, never this machine or the local network")
-        r = requests.get(url, headers={"User-Agent": UA}, timeout=20, stream=True)
+        r = requests.get(url, headers={"User-Agent": UA}, timeout=20, stream=True, allow_redirects=False)
+        if r.is_redirect or r.is_permanent_redirect:                           # a redirect could point at this machine or the local network: never followed blindly
+            raise ToolError(f"fetch_url does not follow redirects; fetch the final address instead ({str(r.headers.get('Location', ''))[:120]})")
         r.raise_for_status()
         raw = b""
         for chunk in r.iter_content(65536):

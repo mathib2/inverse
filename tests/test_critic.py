@@ -3,6 +3,8 @@ reply that cannot be read is asked for once more; a correct arithmetic answer is
 No model and no network: the model is scripted through the council tests' crew fixture."""
 import json
 
+import pytest
+
 from inverse_core.team import critic as C
 from inverse_core.team.expert import Task
 from test_council import crew, events
@@ -100,4 +102,10 @@ def test_a_number_given_in_the_task_is_not_a_number_from_nowhere():
            "task_goal": "What does the 1.0 kg mass weigh on the Moon, where gravity is 1.62 m/s^2?",
            "evidence": [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"equipment_id": "P-104", "mass_kg": "1.0"}]}]}
     assert C.deterministic(res) is None
+
+@pytest.fixture(autouse=True)
+def _the_model_reviews(monkeypatch):
+    """These tests exercise Vera's model verdict; what the tool results prove is otherwise accepted by code first."""
+    from inverse_core.team.critic import Critic
+    monkeypatch.setattr(Critic, "code_first", False)
 
