@@ -189,13 +189,36 @@ def touched_by_tests(files):
 
 
 def latest_probes():
+    """The newest full probe (every agent), by time: Tinker's own one-agent files (tinker-<agent>.json) sort after the others by
+    name and used to hide every other agent's failures."""
     folder = os.path.join(ROOT, "docs", "evidence", "probe")
     try:
-        files = sorted(f for f in os.listdir(folder) if f.endswith(".json"))
-        with open(os.path.join(folder, files[-1])) as f:
-            return json.load(f).get("agents", {})
-    except (OSError, ValueError, IndexError):
-        return {}
+        files = sorted((f for f in os.listdir(folder) if f.endswith(".json") and not f.startswith("tinker-")), key=lambda f: os.path.getmtime(os.path.join(folder, f)))
+        for name in reversed(files):
+            with open(os.path.join(folder, name)) as f:
+                agents = json.load(f).get("agents", {})
+            if len(agents) >= 3:
+                return agents
+    except (OSError, ValueError):
+        pass
+    return {}
+
+
+def baseline(agent, state):
+    """The agent's mark before a change: Tinker's own last measurement, else the latest full probe's. None only when neither exists."""
+    mark = (state.get("marks") or {}).get(agent)
+    if mark is not None:
+        return mark
+    try:
+        return float(((latest_probes().get(agent) or {}).get("rating") or {}).get("score"))
+    except (TypeError, ValueError):
+        return None
+
+
+def mergeable(improved, own_test_passes):
+    """A change merges on its own only when it measurably helps: the agent's probe rose, or the item's own test now passes. A change
+    that merely runs under the tests (coverage) is left as a branch for a person: that let three no-ops through."""
+    return bool(improved) or bool(own_test_passes)
 
 
 def agent_of(item):
@@ -477,15 +500,14 @@ def cycle():
             else:
                 agent = agent_of(item)
                 if agent:
-                    before = state.get("marks", {}).get(agent)
+                    before = baseline(agent, state)
                     say(f"Tests pass; probing {agent} to see if the change helps.")
                     after = probe_mark(agent)
                     if after is not None:
                         state.setdefault("marks", {})[agent] = max(after, before or 0) if before is not None else after
                 improved = bool(agent) and after is not None and before is not None and after > before + 0.1
                 _, tpass_after, _ = item_test(item)
-                covered = touched_by_tests(files)
-                mergeable = improved or covered or bool(tpass_after)
+                merge_ok = mergeable(improved, tpass_after)
                 if agent and after is not None and before is not None and after < before - 0.5:
                     outcome, _ = f"the probe got worse ({before} -> {after}); reverted", revert()
                 elif tpath and tpass_after is False:
@@ -507,8 +529,8 @@ def cycle():
                         except Exception:
                             pass
                         approved, why = (False, "a person merges")
-                        if not mergeable:
-                            why = "no measurable effect: the probe did not move and no test runs the changed lines"
+                        if not merge_ok:
+                            why = "no measured improvement: the probe did not rise and no test of this item passes"
                         elif AUTOMERGE == "council":
                             approved, why = council_merge(ctx, branch, files, note, summary, before, after)
                         if approved:
@@ -538,7 +560,7 @@ def cycle():
                                 say(text, kind="alert", url=url, notified=sent)
                         else:
                             text = f"Tinker proposes a change for: {item[:90]}. Files: {', '.join(files)}. Tests pass" + (f"; probe {agent} {before} -> {after}" if agent and after is not None else "") + f". Not merged on its own ({why}). Approve by merging the branch."
-                            sent = notify.notify(text, title="INVERSE needs your approval" if mergeable else "INVERSE left a branch", urgent=mergeable, url=url)
+                            sent = notify.notify(text, title="INVERSE needs your approval" if merge_ok else "INVERSE left a branch", urgent=merge_ok, url=url)
                             say(text + f" {url}", kind="alert", url=url, notified=sent)
                     sh(["git", "checkout", "-q", "lab"])
     except Exception as ex:
