@@ -148,6 +148,14 @@ def agent_of(item):
     return next((a for w, a in AGENT_WORDS.items() if w in low), None)
 
 
+def lanes_for_tinker():
+    """The crew's lanes plus an `engineer` lane: TINKER_ENGINEER_MODEL when set (a coder model measured by scripts/engineer_eval.py),
+    else the deep lane's model. The crew's own lanes are not touched."""
+    lanes = Lanes()
+    lanes.mapping["engineer"] = os.environ.get("TINKER_ENGINEER_MODEL", "").strip() or lanes.mapping["deep"]
+    return lanes
+
+
 def place_of(item):
     """The file and the lines an item is about, so the engineer starts at the right place instead of searching."""
     low = str(item or "").lower()
@@ -295,7 +303,7 @@ def cycle():
     state["heartbeat"] = {"ts": time.time(), "status": "working", "item": item}
     save_state(state)
     say(f"Next on my list ({len(items)} items): {item}")
-    ctx = Ctx(Lanes(), Trace(os.path.join(ROOT, "runs")), Budget(max_llm_calls=30, max_seconds=1500), guard=guard.sanitize, equipment=[], root=ROOT)
+    ctx = Ctx(lanes_for_tinker(), Trace(os.path.join(ROOT, "runs")), Budget(max_llm_calls=30, max_seconds=1500), guard=guard.sanitize, equipment=[], root=ROOT)
     memory = TeamMemory(SidecarLedger())
     outcome, branch, before, after = "no change", None, None, None
     try:
@@ -308,7 +316,7 @@ def cycle():
             memory.add_finding(f"tinker: {item[:80]}: {note[:200]}", r.evidence[:2], source="web", confidence=0.4, expert="tinker")
         path, excerpt = place_of(item)
         hint = details(report).get(item, "")
-        engineer = CustomExpert(ctx, "tinker", ENGINEER_ROLE, ENGINEER_PROMPT, "deep", ["read_file", "grep", "edit_file", "run_tests"])
+        engineer = CustomExpert(ctx, "tinker", ENGINEER_ROLE, ENGINEER_PROMPT, "engineer", ["read_file", "grep", "edit_file", "run_tests"])
         e = engineer.run(Task("E1", f"Make the smallest code change that helps with: {item}\nWhat to change: {hint[:700] or 'see the research note'}\nResearch note: {note[:400]}"
                                     f"\nThe file: {path}\nThe lines that matter:\n{excerpt[:5000]}", "tinker"),
                          memory, ExpertBudget(tool_calls=8, tokens=150000, seconds=900))

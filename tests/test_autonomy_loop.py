@@ -109,3 +109,13 @@ def test_tinker_knows_where_each_item_lives():
     report = "## List\n\n1. **Vera must x.** Where: `critic.py`,\n   the rule. Measured by her probe.\n2. **Atlas must y**: in `lead.py`.\n\nDone since: all.\n"
     assert tinker.details(report) == {"Vera must x.": "Where: `critic.py`, the rule. Measured by her probe.", "Atlas must y": "in `lead.py`."}
 
+def test_tinker_has_an_engineer_lane_that_env_can_point_at_a_coder_model(monkeypatch):
+    import tinker
+    monkeypatch.setenv("NEMOTRON_MODEL", "nemotron-mini:latest")
+    monkeypatch.delenv("TINKER_ENGINEER_MODEL", raising=False)
+    monkeypatch.delenv("LANE_DEEP", raising=False)
+    assert tinker.lanes_for_tinker().model("engineer") == tinker.lanes_for_tinker().model("deep") == "nemotron-mini:latest"
+    monkeypatch.setenv("TINKER_ENGINEER_MODEL", "qwen2.5-coder:7b")
+    lanes = tinker.lanes_for_tinker()
+    assert lanes.model("engineer") == "qwen2.5-coder:7b" and lanes.model("deep") == "nemotron-mini:latest"       # the crew's lanes are untouched
+
