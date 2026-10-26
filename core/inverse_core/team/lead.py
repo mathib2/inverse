@@ -27,18 +27,20 @@ Experts:
 Known equipment IDs: {equipment}
 Return ONLY JSON: {{"tasks":[{{"id":"T1","goal":"<one self-contained instruction, written by you for THIS goal>","expert":"<a name from the list>","depends_on":[]}}]}}
 Write every goal in your own words for the goal you were given; never copy the example text or leave a placeholder.
-Use research to look facts up in the registry, sensor specs, maintenance history and samples (counts and ranges, not raw dumps), reasoning for derivations and calculations, solver for multi-step work with tools, vulnerability for a review of our own code.
+Use research to look facts up in the registry, sensor specs, maintenance history and samples (counts and ranges, not raw dumps), reasoning for derivations and calculations from given facts, solver for multi-step work with tools and for any summary or digest of what the crew knows (it has the shared memory tool), vulnerability for a review of our own code.
 If no expert fits a task and an architect is on the team, give the architect a task to design, create and test an expert for that need, assign the dependent task to the expert name the architect should create (lowercase snake_case), and make it depend on the architect's task. Without an architect, define one (at most 2) by adding "new_experts":[{{"name":"snake_case","role":"one sentence","system_prompt":"its instructions","tools":["..."],"model_lane":"fast|deep"}}] to the JSON, using only these tools: {tools}. Prefer an existing expert when one fits."""
 
 COMPOSE_SYSTEM = """Write the final answer for the user from the accepted expert results. Rules: use only facts present in the results; cite every claim as
-[T1.E2] (task id, evidence number); say which expert produced each part; state uncertainty and what was NOT checked. Tasks that did not finish are
-listed for you under "unfinished": do not describe them or guess why they failed (that is reported separately, verbatim); just do not fill their gap.
+[T1.E2] (task id, evidence number); say which expert produced each part; state uncertainty and what was NOT checked. The goal may ask several
+things: answer each of them from the results and say plainly which one has no result. Tasks that did not finish are listed for you under
+"unfinished": do not describe them or guess why they failed (that is reported separately, verbatim); just do not fill their gap.
 Be concise (under 220 words)."""
 
 REVIEW_TAIL = ("\nYou are reviewing the team plan before work starts. For YOUR tasks only, say whether each is doable as written with "
                "your tools, and fix the wording if not (keep the same id). Return ONLY JSON: "
                '{"ok":true|false,"changes":[{"id":"T1","goal":"rewritten self-contained instruction"}],"missing":["what you need that no task provides"]}')
 NEW_EXPERT_BUDGET = {"tool_calls": 6, "tokens": 40000, "seconds": 240}
+PLAN_MAX_TOKENS, REVIEW_MAX_TOKENS, COMPOSE_MAX_TOKENS = 700, 400, 650          # reply caps: at 10 tokens/s on a CPU an unbounded reply is the long tail
 
 
 def _norm(s):
@@ -46,6 +48,11 @@ def _norm(s):
 
 
 CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|vulnerab\w*|exploit\w*)\b", re.I)
+CALC_WORDS = re.compile(r"\b(compute|calculate|derive|deriv\w+|multipl\w+|times|divide\w*|convert\w*|weight|force|torque|energy|frequency|damping|ratio|percent\w*|average|mean|formula|equation"
+                        r"|why|whether|should|needs?|compare\w*|explain|assess\w*|diagnos\w+|recommend\w*|judge)\b", re.I)   # a computation or a judgement: Euler after Scout
+DATA_WORDS = re.compile(r"\b(registry|maintenance|sensors?|samples?|datasets?|records?|tables?|rows|stored|specification\w*|history|sql|quer\w+)\b", re.I)
+PATH_WORD = re.compile(r"[\w./-]+/[\w./-]+")                                 # a repository path named in a goal
+LOOKUP_WORDS = re.compile(r"^\W*(how many|how much|list|what is|what are|what was|which|when|show|name|give me)\b", re.I)   # a plain lookup: Scout alone
 SUMMARY_WORDS = re.compile(r"\b(summari[sz]e|digest|what (do|does) (we|the crew|the team) know|found so far|ruled out|still unchecked)\b", re.I)
 
 
@@ -63,9 +70,10 @@ def rule_plan(goal, names, equipment):
     if CODE_WORDS.search(goal) and not machines:
         add("vulnerability", goal)
     elif machines:
-        add("research", f"From the registry, the sensor specifications and the maintenance history: what do we know about {' and '.join(machines)}, "
-                        f"what was done to {'them' if len(machines) > 1 else 'it'} and when, and how much sensor data is there?")
-        add("reasoning", f"Using the accepted results from the earlier tasks, answer this in plain words: {goal}", deps=[t.id for t in tasks])
+        add("research", f"With read-only queries on the registry, the sensor specifications, the maintenance history and the sample tables for "
+                        f"{' and '.join(machines)}, answer: {goal}")
+        if CALC_WORDS.search(goal) or not LOOKUP_WORDS.search(goal):          # a plain lookup ends with Scout; anything else goes on to Euler
+            add("reasoning", f"Using the accepted results from the earlier tasks, answer this in plain words: {goal}", deps=[t.id for t in tasks])
     elif SUMMARY_WORDS.search(goal):
         add("solver", goal + " Use the shared memory tool first.")
     if not tasks:
@@ -82,12 +90,15 @@ class Lead:
         self.bus = getattr(ctx, "bus", None) or Bus()                         # the experts' conversation: results, reviews, questions, answers
         ctx.bus = self.bus
 
+    def plan_system(self):
+        """The planner's system prompt as sent: byte-stable per process, so the model server's prefix cache holds it."""
+        return PLAN_SYSTEM.format(experts="\n".join(f"- {n}: {r}" for n, r in self.registry.roles().items()),
+                                  equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(Tools.SPECS))
+
     def plan(self, goal, collaborate=False, votes=1):
         """votes > 1 samples that many plans at temperature 0.7 and keeps the most common task/expert structure
         (self-consistency, Wang et al. 2022): a majority over samples is more reliable than one greedy decode."""
-        prompt = PLAN_SYSTEM.format(experts="\n".join(f"- {n}: {r}" for n, r in self.registry.roles().items()),
-                                    equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(Tools.SPECS))
-        msgs = [{"role": "system", "content": prompt}, {"role": "user", "content": goal}]
+        msgs = [{"role": "system", "content": self.plan_system()}, {"role": "user", "content": goal}]
         before = set(self.registry.configs)                                  # experts proposed by losing or invalid samples are dropped again
         if votes > 1:
             plan = self._vote(goal, msgs, votes)
@@ -96,7 +107,7 @@ class Lead:
                 return self.review_plan(plan) if collaborate else plan
         err = ""
         for _ in range(2):
-            out = ask(self.ctx, self.plan_lane, msgs, "lead_plan", json_reply=True)
+            out = ask(self.ctx, self.plan_lane, msgs, "lead_plan", json_reply=True, max_tokens=PLAN_MAX_TOKENS)
             try:
                 plan = self._parse_plan(goal, out["json"])
                 self._prune(before, plan)
@@ -131,7 +142,38 @@ class Lead:
     def _parse_plan(self, goal, j):
         for spec in (j.get("new_experts") or [])[:2]:
             self._create_expert(spec)
-        return Plan.from_dict({"goal": goal, "tasks": j["tasks"][:5]}).validate(self.registry.names(), self.creators())
+        return self._guard(Plan.from_dict({"goal": goal, "tasks": j["tasks"][:5]}).validate(self.registry.names(), self.creators()))
+
+    def _guard(self, plan):
+        """Three routing rules a 4B planner gets wrong often enough to cost a mission, applied by code and traced: a data lookup
+        given to the reasoning agent goes to research; a summary of what the crew knows goes to the solver (it has the memory
+        tool); a goal that asks for a computation gets a reasoning task after the lookups when the plan has none."""
+        names, changes = self.registry.names(), []
+        path = next((m.group(0).rstrip("/.") for m in PATH_WORD.finditer(plan.goal)), None)
+        for t in plan.tasks:
+            if t.expert == "reasoning" and "research" in names and DATA_WORDS.search(t.goal) and not CALC_WORDS.search(t.goal):
+                t.expert, _ = "research", changes.append(f"{t.id}: reasoning -> research (a data lookup)")
+            elif t.expert == "reasoning" and not CALC_WORDS.search(t.goal) and not re.search(r"\d", t.goal):   # nothing to compute: Euler would invent arithmetic
+                to = "vulnerability" if CODE_WORDS.search(t.goal) and "vulnerability" in names else ("solver" if "solver" in names else None)
+                if to:
+                    t.expert, _ = to, changes.append(f"{t.id}: reasoning -> {to} (no numbers and nothing to compute)")
+            if t.expert == "vulnerability" and path and not PATH_WORD.search(t.goal):
+                t.goal, _ = f"{t.goal} Path: {path}", changes.append(f"{t.id}: the path from the goal added ({path})")
+        if SUMMARY_WORDS.search(plan.goal) and "solver" in names and len(plan.tasks) == 1 and plan.tasks[0].expert in ("reasoning", "research", "solver"):
+            if plan.tasks[0].expert != "solver":
+                plan.tasks[0].expert, _ = "solver", changes.append(f"{plan.tasks[0].id}: -> solver (a summary needs the shared memory)")
+            if "memory" not in plan.tasks[0].goal.lower():
+                plan.tasks[0].goal, _ = plan.tasks[0].goal + " Use the shared memory tool first.", changes.append(f"{plan.tasks[0].id}: the memory tool named")
+        if len(plan.tasks) == 1 and plan.tasks[0].expert == "research" and plan.goal.strip() not in plan.tasks[0].goal:   # Scout sees the whole question, not a paraphrase of half of it
+            plan.tasks[0].goal, _ = f"{plan.tasks[0].goal} (The whole goal: {plan.goal.strip()})", changes.append(f"{plan.tasks[0].id}: the whole goal appended")
+        if CALC_WORDS.search(plan.goal) and "reasoning" in names and plan.tasks and all(t.expert == "research" for t in plan.tasks) and len(plan.tasks) < 5:   # lookups only
+            deps = [t.id for t in plan.tasks]
+            plan.tasks.append(Task(f"T{len(plan.tasks) + 1}", f"Using the accepted results from the earlier tasks, answer this in plain words: {plan.goal}", "reasoning", deps))
+            changes.append(f"{plan.tasks[-1].id}: reasoning added (the goal asks for a computation)")
+        if changes:
+            self.ctx.trace.event("plan_guard", changes=changes)
+            plan.validate(names, self.creators())
+        return plan
 
     @staticmethod
     def signature(plan):
@@ -142,7 +184,7 @@ class Lead:
         samples, invalid = [], 0
         for i in range(votes):
             try:                                                             # an unreadable sample counts as invalid; it does not end the vote
-                out = ask(self.ctx, self.plan_lane, msgs, f"lead_plan_sample{i + 1}", json_reply=True, temperature=0.7)
+                out = ask(self.ctx, self.plan_lane, msgs, f"lead_plan_sample{i + 1}", json_reply=True, temperature=0.7, max_tokens=PLAN_MAX_TOKENS)
                 samples.append((self._parse_plan(goal, out["json"]), out["model"]))
             except (PlanError, ConfigError, KeyError, TypeError, AttributeError, ValueError):
                 invalid += 1
@@ -191,7 +233,7 @@ class Lead:
                            "your_tasks": [t.id for t in mine]}
                 try:
                     out = ask(self.ctx, expert.lane, [{"role": "system", "content": (expert.prompt or expert.role) + REVIEW_TAIL},
-                                                      {"role": "user", "content": json.dumps(payload)}], f"{name}_plan_review", json_reply=True)
+                                                      {"role": "user", "content": json.dumps(payload)}], f"{name}_plan_review", json_reply=True, max_tokens=REVIEW_MAX_TOKENS)
                     review = dict(out["json"]) | {"model": out["model"]}
                 except (ValueError, KeyError, TypeError):
                     review = {"ok": True, "changes": [], "missing": [], "note": "review reply was not valid JSON; plan kept as drafted"}
@@ -288,7 +330,7 @@ class Lead:
         task.lessons = self._mem("lessons", task.expert) or []               # what reviewers told this expert before (Reflexion)
         if task.lessons:
             self.ctx.trace.event("lessons", task=task.id, expert=task.expert, count=len(task.lessons))
-        last, repeats = None, 0
+        last, repeats, rejected_once = None, 0, ""
         for attempt in range(1, self.max_attempts + 1):
             if attempt > 1 and self.stopped():
                 task.status, task.feedback = "failed", "stopped by a person before another attempt; the last note was: " + task.feedback
@@ -325,6 +367,11 @@ class Lead:
             task.result = res.to_dict()
             self.ctx.trace.event("expert_result", task=task.id, expert=task.expert, confidence=res.confidence, evidence=len(res.evidence),
                                  models=res.models_used, tool_calls=budget.tool_calls, tokens=budget.tokens)
+            if last is not None and _norm(res.answer) == last and rejected_once:   # the same answer after a reviewer's reject: the reject stands
+                task.status, task.feedback = "rejected", rejected_once
+                self._mem("refute", f"{task.expert}: {res.answer[:200]}", rejected_once, source="llm_critic", expert=task.expert)
+                self.ctx.trace.event("task_rejected", task=task.id, reason=rejected_once)
+                return
             if last is not None and _norm(res.answer) == last:
                 repeats += 1
                 self.ctx.trace.event("stuck", task=task.id, repeats=repeats)
@@ -361,9 +408,13 @@ class Lead:
                 return
             if reason:                                                        # the reviewer's note goes on the bus, addressed to the expert
                 self.bus.post("critic", task.expert, reason, type="review", task=task.id, verdict=review["verdict"])
-            if review.get("by") == "llm" and reason and "unknown verdict" not in reason:   # a reviewer's reason is a lesson; a parse problem is not
-                self._mem("add_lesson", task.expert, f"{task.goal[:80]}: {reason[:200]}")
-            if review["verdict"] == "reject":
+            kept = review.get("problems") or []
+            if review.get("by") == "llm" and kept:                             # only an objection that checked out becomes a lesson, in its checkable words
+                self._mem("add_lesson", task.expert, (f"{task.goal[:80]}: " + "; ".join(f"\u00ab{str(k.get('quote'))[:80]}\u00bb {k.get('why') or k.get('check')}" for k in kept[:2]))[:240])
+            if review["verdict"] == "reject" and review.get("by") == "llm" and attempt == 1 and self.max_attempts > 1:   # once: a second reject is final
+                self.ctx.trace.event("reject_retried", task=task.id, reason=reason[:200])   # a 4B reviewer's reject is a strong revise: one more try with the quote
+                rejected_once = reason
+            elif review["verdict"] == "reject":
                 task.status, task.feedback = "rejected", reason
                 self._mem("refute", f"{task.expert}: {res.answer[:200]}", reason, source="llm_critic" if review.get("by") == "llm" else "validator",
                           expert=task.expert)
@@ -397,10 +448,14 @@ class Lead:
         self.ctx.trace.event("composing", accepted=len(ok), unfinished=len(problems))
         if not ok:                                                            # nothing survived review: the answer is written by code, never by a model
             text, model, fallback = "No task produced an accepted result.", None, True
+        elif len(ok) == 1 or (len(ok) == 2 and sum(len(str(t.result["answer"])) for t in ok) < 900):   # short results ARE the answer: cited by code, no writer call
+            cite = lambda t: " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1))
+            text = f"{ok[0].result['answer']} {cite(ok[0])}" if len(ok) == 1 else "\n\n".join(f"**{t.id} ({t.expert})**: {t.result['answer']} {cite(t)}" for t in ok)
+            model, fallback = None, False
         else:
           try:
             out = ask(self.ctx, self.compose_lane, [{"role": "system", "content": COMPOSE_SYSTEM},
-                      {"role": "user", "content": json.dumps({"goal": plan.goal, "results": payload, "unfinished": problems}, default=str)}], "lead_compose")
+                      {"role": "user", "content": json.dumps({"goal": plan.goal, "results": payload, "unfinished": problems}, default=str)}], "lead_compose", max_tokens=COMPOSE_MAX_TOKENS)
             text, model, fallback = out["text"].strip(), out["model"], False
           except Exception as e:                                              # the writer is down: assemble the answer by code, nothing is lost
             text = "\n\n".join(f"**{t.id} ({t.expert})**: {t.result['answer']} " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1)) for t in ok) \

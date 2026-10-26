@@ -29,6 +29,8 @@ WORDS = {"accept": {"accept", "accepted", "approve", "approved", "ok", "okay", "
 STOP = set("the a an and or of to in on for is are was were be been with by at from as that this it its not no than then into "
            "has have had does did done will would can could should about into over under each there their these those".split())
 MAX_PROBLEMS = 3
+HEDGE = re.compile(r"\b(not (available|provided|specified|given|found|present|included)|cannot be (computed|determined|found)|no (data|value|information|rows)|unavailable|unknown)\b", re.I)
+MAX_TOKENS = 500                                                             # three quoted problems and a sentence fit; a reply that rambles is cut, then re-asked
 
 
 def _detail(e):
@@ -47,15 +49,48 @@ def deterministic(result):
     if any(_detail(e).startswith("REFUSED") for e in evidence) and not any(e.get("type") == "sql" and not _detail(e).startswith("REFUSED") for e in evidence):
         why = next(_detail(e) for e in evidence if _detail(e).startswith("REFUSED"))
         return "revise", f"every query was refused by the SQL guard ({why[9:]}); write a read-only SELECT on the listed tables"
+    errors = [e for e in evidence if _detail(e).startswith("ERROR")]
+    if errors and not any(e.get("type") == "sql" and not _detail(e).startswith(("ERROR", "REFUSED")) for e in evidence):
+        return "revise", f"every query failed ({_detail(errors[0])[6:160]}); use only the listed tables and columns and quote text values such as 'P-104'"
     mism = [e for e in evidence if "MISMATCH" in _detail(e)]
     if mism:
         return "revise", "a calculation does not match its expected value: " + str(mism[0].get("source", ""))
+    sql = [e for e in evidence if e.get("type") == "sql" and not _detail(e).startswith(("ERROR", "REFUSED"))]
+    answer = str(result.get("answer") or "")
+    if sql and all(isinstance(e.get("rows"), list) and e["rows"] for e in sql) and HEDGE.search(answer):
+        shown = "; ".join(json.dumps(e["rows"][0], default=str)[:120] for e in sql[:3])
+        return "revise", f"the answer says a value is missing, but every query returned rows ({shown}); answer from those values"
+    bad = unverified_numbers(answer, [evidence, task_goal(result)])          # the task's own numbers (a given g, a mass) are inputs, not inventions
+    if bad:                                                                   # a number from nowhere is the one mistake the reviewer's model misses most
+        return "revise", f"the number(s) {', '.join(bad[:4])} in the answer appear in no evidence; use only values the tools returned"
+    missing = asked_but_missing(task_goal(result), answer, sql)
+    if missing:
+        return "revise", "the task asks for " + "; ".join(f"{word} and the rows hold {col} = {val}" for word, col, val in missing[:3]) + "; say those values"
     try:
         if float(result.get("confidence") or 0) <= 0.0:
             return "revise", "the expert reported zero confidence"
     except (TypeError, ValueError):
         return "revise", "the expert reported no usable confidence"
     return None
+
+
+def task_goal(result):
+    return str(result.get("task_goal") or "")
+
+
+def asked_but_missing(goal, answer, sql):
+    """Concepts the task names (sampling rate, noise, mass, dates...) whose column value the rows hold and the answer leaves out:
+    the research expert's own CONCEPTS table, read the other way round."""
+    from .experts import CONCEPTS
+    low, out = answer.lower(), []
+    for pat, table, col in CONCEPTS:
+        m = pat.search(goal or "")
+        if not m:
+            continue
+        vals = [str(r.get(col)) for e in sql for r in (e.get("rows") or [])[:4] if isinstance(r, dict) and r.get(col) not in (None, "")]
+        if vals and not any(v.lower() in low for v in vals):
+            out.append((m.group(0), col, vals[0]))
+    return out
 
 
 def norm_verdict(v):
@@ -76,13 +111,32 @@ def _words(s):
     return {w for w in re.findall(r"[a-z][a-z0-9_-]{3,}", _fold(s)) if w not in STOP}
 
 
+def _values(evidence):
+    """The evidence's values as one lowercase text: rows, results and details, never the query or tool call that produced them
+    (a claim is not supported by the words of its own SELECT)."""
+    out = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if k not in ("source", "sql"):                                # column names describe the values; the SELECT text does not
+                    out.append(str(k))
+                    walk(v)
+        elif isinstance(o, (list, tuple)):
+            [walk(v) for v in o]
+        elif o is not None and not isinstance(o, bool):
+            out.append(str(o))
+    walk(evidence)
+    return _fold(" ".join(out))
+
+
 def check_problems(problems, answer, evidence):
     """Each objection tested by code. One is kept only when its quote is copied from the answer and the evidence does not
     cover it: a number in the quote is missing from the evidence, or, for a quote without numbers, fewer than half of its
     content words appear anywhere in the evidence. A quote whose numbers are all in the evidence is covered: the numbers are
     what code can check, the words around them are phrasing. Returns (kept, dropped), each a list of {"quote", "why", "check"}."""
     kept, dropped = [], []
-    hay, ev_text = _fold(answer), _fold(json.dumps(evidence, default=str))
+    hay, ev_text = _fold(answer), _values(evidence)
     for p in (problems or [])[:8]:
         if isinstance(p, str):
             p = {"quote": p}
@@ -127,6 +181,7 @@ class Critic:
         self.ctx, self.lane = ctx, lane
 
     def review(self, task, result):
+        result["task_goal"] = task.goal                                       # the rules read what the task asked for
         hard = deterministic(result)
         if hard:
             self.ctx.trace.event("critic", task=task.id, verdict=hard[0], reason=hard[1], by="rule")
@@ -140,7 +195,7 @@ class Critic:
         for attempt in (1, 2):                                                # a reply that cannot be read is asked for once more
             calls += 1
             try:
-                out = ask(self.ctx, self.lane, messages, "critic", json_reply=True)
+                out = ask(self.ctx, self.lane, messages, "critic", json_reply=True, max_tokens=MAX_TOKENS)
                 model, read = out["model"], _read(out["json"])
                 problem = None if read else f"verdict {str((out['json'] or {}).get('verdict'))[:60]!r} is not accept, revise or reject"
             except (BadReply, ValueError, KeyError, AttributeError, TypeError) as e:

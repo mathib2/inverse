@@ -1,0 +1,33 @@
+# Checkable goals for scripts/bench.py. Every expected item must appear in the final answer: a number within 1 %, any other
+# text as a case-insensitive substring. The answers come from the synthetic data (data/README.md) and from arithmetic.
+- name: arithmetic
+  goal: "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps."
+  expect: ["122.6"]
+  expert: reasoning
+- name: registry
+  goal: "Which machines are in the equipment registry, and which of them has no baseline dataset?"
+  expect: ["P-104", "T-200", "baseline"]
+  expert: research
+- name: samples
+  goal: "How many sensor samples are stored for P-104's baseline dataset and for its current dataset?"
+  expect: ["400"]
+  expert: research
+- name: sensor
+  goal: "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?"
+  expect: ["100", "0.01"]
+  expert: research
+- name: maintenance
+  goal: "List the maintenance records for P-104 with their dates and what was done."
+  expect: ["2026-09-02", "2026-10-05"]
+  expert: research
+- name: weight
+  goal: "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2."
+  expect: ["9.81"]
+- name: code
+  goal: "Review core/inverse_core/team/tools.py for security weaknesses. Name the file you reviewed and the most important finding with its line number, or say that none was found in it."
+  expect: ["tools.py"]
+  expert: vulnerability
+- name: summary
+  goal: "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked."
+  expect: []
+  expert: solver

@@ -73,7 +73,11 @@ class Tools:
         self.memory, self.owner, self.task_id = None, owner, None            # set per task by the expert that holds this toolbox
 
     def describe(self):
-        return "\n".join(f"- {n}: {self.SPECS[n][0]}" for n in self.allowed)
+        text = "\n".join(f"- {n}: {self.SPECS[n][0]}" for n in self.allowed)
+        if "run_sql" in self.allowed:                                           # the same value-annotated schema the research expert gets
+            from .experts import SCHEMA
+            text += "\n" + SCHEMA
+        return text
 
     def call(self, name, args, budget, who=""):
         """Runs one tool. Unknown or disallowed tools and bad arguments come back as {"error": ...} so the model can recover;
@@ -187,7 +191,7 @@ class Tools:
         rows, blocked = scrub(rows)                                             # untrusted text never reaches a model raw, whatever the column is called
         if blocked:
             self.ctx.trace.event("injection_guard", agent=self.owner, blocked=blocked[:5])
-        return {"sql": sql, "rows": rows[:50], "count": len(rows)}
+        return {"sql": sql, "rows": rows[:12], "count": len(rows)}            # a dozen rows is what a 4B model can read; the count says the rest
 
     def _calc(self, expr):
         return {"expr": str(expr), "value": safe_eval(str(expr))}

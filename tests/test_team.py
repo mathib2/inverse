@@ -155,13 +155,13 @@ def script(model, messages):
     if sys.startswith("You are the lead"):
         return json.dumps({"tasks": [{"id": "T1", "goal": "What is the mass of P-104?", "expert": "research", "depends_on": []},
                                       {"id": "T2", "goal": "Weight in newtons at g=9.81", "expert": "reasoning", "depends_on": ["T1"]}]})
+    if sys.startswith("You are the Research expert") and user.startswith("These are the rows your queries returned"):   # the answer turn of the same conversation
+        return json.dumps({"answer": "P-104 has mass 12.5 kg [Q1]", "confidence": 0.9, "assumptions": []})
     if sys.startswith("You are the Research expert") and "Return ONLY JSON: {\"queries\"" in sys:
         # first attempt writes a destructive query (refused by the SQL guard), the retry follows the Critic's feedback
         if "REVIEWER SENT THIS BACK" in user:
             return json.dumps({"queries": ["SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'"]})
         return json.dumps({"queries": ["DROP TABLE obs.equipment_table"]})
-    if sys.startswith("Answer the task using ONLY the rows"):
-        return json.dumps({"answer": "P-104 has mass 12.5 kg [Q1]", "confidence": 0.9, "assumptions": []})
     if sys.startswith("You are an adversarial reviewer"):
         return json.dumps({"verdict": "accept", "reason": "supported by Q1"})
     if sys.startswith("You are the Reasoning expert"):

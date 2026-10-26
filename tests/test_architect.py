@@ -91,7 +91,7 @@ def test_lead_runs_the_architect_then_the_expert_it_created(tmp_path):
     assert events(ctx, "expert_created")[0]["by"] == "architect" and plan.tasks[1].result["answer"] == "122.625 N"
     assert [e["source"][:11] for e in plan.tasks[0].result["evidence"]] == ["create_expe", "test_expert"]
     out = lead.compose(plan)
-    assert set(out["citations"]) == {"T1.E1", "T2.E1"} and out["unknown_citations"] == []
+    assert set(out["citations"]) >= {"T1.E1", "T2.E1"} and out["unknown_citations"] == []      # two short results: composed by code, every evidence item cited
 
 
 def test_task_for_an_expert_the_architect_never_created_fails_clearly(tmp_path):

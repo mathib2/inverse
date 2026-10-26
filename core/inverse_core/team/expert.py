@@ -29,6 +29,10 @@ class Task:
     messages: list = field(default_factory=list)  # notes and results other experts addressed to this one, set by the Lead at delegation
 
 
+PROPOSE_TAIL = ('To propose a change to the crew, add "propose":[{"k":"cfg|mission|note|code","t":"<agent id, mission name, shared or repo>","w":"<the change>",'
+                '"y":"<why>","p":{<exact change>}}] (at most 2) to your final JSON. ')   # one sentence, shared by every expert prompt
+
+
 @dataclass
 class ExpertResult:
     answer: str

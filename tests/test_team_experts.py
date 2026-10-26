@@ -118,12 +118,12 @@ def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produce
     calls = []
     def greedy(model, messages):
         calls.append([m["content"][:30] for m in messages if m["role"] == "user"])
-        return json.dumps({"tool": "calc", "args": {"expr": "1"}})
+        return json.dumps({"tool": "calc", "args": {"expr": str(len(calls))}})                    # a new expression each time: not a repeated call
     ctx2 = make_ctx(tmp_path / "runs2", greedy, root=str(tmp_path))
     with pytest.raises(BudgetExceeded, match="tool-call budget 3 exceeded"):                     # told to answer, it asked for a tool again: the task fails honestly
         CustomExpert(ctx2, "s", "r", "p", "fast", ["calc"]).run(Task("T1", "x", "s"), TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=3))
     assert calls[-1][-1].startswith("Your tool budget is spent") and len(events(ctx2, "llm")) == 4
-    assert sum(c.startswith("[earlier tool result") for c in calls[-1]) == 1                        # the oldest of three results is a stub
+    assert sum(c.startswith("[earlier tool result") for c in calls[-1]) == 0                        # short conversations are never folded (the prefix cache holds)
 
 
 # --- model replies that are not clean JSON -------------------------------------------------------------------------------------
@@ -161,7 +161,7 @@ def test_compose_reports_unfinished_tasks_verbatim_not_through_the_model(tmp_pat
     failed = Task("T2", "review", "vulnerability", status="failed", feedback="JSONDecodeError: Extra data: line 3 column 1 (char 155)")
     from inverse_core.team.plan import Plan
     out = lead.compose(Plan("g", [done, failed]))
-    assert out["answer"].startswith("P-104 weighs 1 kg [T1.E1].") and "**Not completed**" in out["answer"]
+    assert out["answer"].startswith("1 kg [T1.E1]") and "**Not completed**" in out["answer"]          # one result: cited by code, no writer call
     assert "T2 (vulnerability) failed: JSONDecodeError: Extra data: line 3 column 1 (char 155)" in out["answer"]
     assert out["citations"] == {"T1.E1": done.result["evidence"][0]} and out["unfinished"][0]["why"].startswith("JSONDecodeError")
 
@@ -214,7 +214,7 @@ def test_run_survives_a_failing_reviewer_and_a_failing_writer(tmp_path):
     assert plan.tasks[0].status == "done" and any("could not review" in n for n in plan.tasks[0].result["not_checked"])
     assert events(ctx, "critic")[0]["verdict"] == "unreviewed"
     out = lead.compose(plan, str(tmp_path))
-    assert "It is 2 [T1.E1]" in out["answer"] and "assembled by code" in out["answer"] and events(ctx, "compose")[0]["fallback"] is True
+    assert "It is 2 [T1.E1]" in out["answer"] and events(ctx, "compose")[0]["model"] is None             # one result: the writer is not called at all
     assert json.load(open(tmp_path / "answer.json"))["answer"] == out["answer"]                 # replayable without a model
 
 

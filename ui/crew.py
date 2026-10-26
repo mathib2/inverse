@@ -203,7 +203,9 @@ def render(ledger, ai_online, sidecar, health=None):
             return
 
         def mission():
-            plan = lead.plan(goal, collaborate=True)
+            plan = lead.plan(goal, collaborate=False)
+            if len(plan.tasks) >= 3:                                            # a plan review costs one model call per expert: worth it only for a real plan
+                plan = lead.review_plan(plan)
             holder["plan"] = plan
             plan.save(ctx.trace.dir)
             lead.run(plan, ctx.trace.dir, parallel=2)

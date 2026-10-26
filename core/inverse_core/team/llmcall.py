@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import threading
 
-from ..clients.meterless import extract_json
+from ..clients.meterless import extract_json, provider_id
 from .bus import Bus
 
 
@@ -26,10 +26,13 @@ class Ctx:
         self.stop = threading.Event()                                         # set by a person: the Lead finishes the step in progress and skips the rest
 
 
-def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False, temperature=None):
+def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False, temperature=None, lenient=False):
     """json_reply asks the runtime for one JSON object and parses it; a reply that still cannot be parsed is traced
     (first 300 characters) before the error propagates, so a failed run explains itself."""
     ctx.budget.charge_llm()
+    est = sum(len(str(m.get("content") or "")) for m in messages) // 3        # a rough token count; the local model's window is 4096
+    if provider_id() != "nightshift" and est + (max_tokens or 2500) > 4096:
+        ctx.trace.event("prompt_too_long", agent=who, lane=lane, prompt_est=est, max_tokens=max_tokens or 2500)
     kw = {"max_tokens": max_tokens} if max_tokens else {}
     if json_reply:
         kw["json_object"] = True
@@ -38,12 +41,17 @@ def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=Fals
     r = ctx.lanes.client(lane).chat(messages, **kw)
     if ebudget:
         ebudget.charge_tokens(r.get("usage"))
-    ctx.trace.event("llm", agent=who, lane=lane, model=r.get("model"), latency_s=r.get("latency_s"), finish=r.get("finish_reason"))
+    u = r.get("usage") or {}
+    ctx.trace.event("llm", agent=who, lane=lane, model=r.get("model"), latency_s=r.get("latency_s"), finish=r.get("finish_reason"),
+                    prompt_tokens=u.get("prompt_tokens"), completion_tokens=u.get("completion_tokens"), prompt_est=est)
     out = {"text": r["text"], "model": r.get("model"), "usage": r.get("usage")}
     if json_reply:
         try:
             out["json"] = extract_json(r["text"])
         except ValueError as e:
             ctx.trace.event("llm_parse_error", agent=who, lane=lane, model=r.get("model"), finish=r.get("finish_reason"), preview=(r["text"] or "")[:300])
+            if lenient:                                                       # the caller carries on (a chain that must not stop): json is None
+                out["json"] = None
+                return out
             raise BadReply(str(e)) from e
     return out
