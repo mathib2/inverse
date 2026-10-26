@@ -292,7 +292,7 @@ class ReasoningExpert(BaseExpert):
         ev, bad = [], []
         for i, s in enumerate(steps, 1):
             calc = s.get("calc")
-            if not calc and not s.get('calc_type', '').lower() in ('root', 'power'):
+            if not calc and not s.get('calc_type', '').lower() in ('root', 'power', 'cube_root'):
                 ev.append({"type": "step", "source": f"step {i}", "detail": str(s.get("claim") or "")})
                 continue
             calc = self.resolve(calc, context)
