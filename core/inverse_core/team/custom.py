@@ -43,6 +43,13 @@ CHUNK_MAX_TOKENS = 600                                                        # 
 TURN_MAX_TOKENS = 900                                                         # one tool call or one final JSON per reply; the long tail is cut, never the work
 
 
+ASK_WORDS = re.compile(r"\bask (?:the )?(research|reasoning|solver) (?:expert|agent)\b(?: (?:for|to|about|what|how|whether|which))?", re.I)
+BARE = re.compile(r"^\W*(error|none|null|n/?a|unknown|done|ok|yes|no)\W*$", re.I)
+PREFETCH = [                                                                  # what a solver task asks about a machine -> the queries, run by code before the model speaks
+    (re.compile(r"\b(mass|weigh\w*|kg)\b", re.I), ["SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = '{m}'"]),
+    (re.compile(r"\bsensors?\b", re.I), ["SELECT sensor_id, quantity, unit, sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = '{m}'"]),
+    (re.compile(r"\b(samples?|datasets?|readings?)\b", re.I), ["SELECT baseline_dataset, current_dataset FROM obs.equipment_table WHERE equipment_id = '{m}'"]),
+]
 MEMORY_WORDS = re.compile(r"\b(memory|summari[sz]e|digest|found so far|ruled out|still unchecked|what (do|does) (we|the crew|the team) know)\b", re.I)
 
 
@@ -73,7 +80,7 @@ class CustomExpert(BaseExpert):
         A tool call repeated with the same arguments is not run again: the model is told once, and the next repeat ends the
         loop with an answer written by code from the tool results (a 4B model can loop on one call until the clock runs out).
         Returns (final json, models used)."""
-        models, j, seen = [], {}, dict(seen or {})
+        models, j, seen, nudged = [], {}, dict(seen or {}), False
         for _ in range(budget.max_tool_calls + 2):
             low = budget.tool_calls >= budget.max_tool_calls or budget.tokens >= 0.7 * budget.max_tokens
             if low:
@@ -82,6 +89,13 @@ class CustomExpert(BaseExpert):
             models.append(r["model"])
             j = r["json"] if isinstance(r["json"], dict) else {}
             if "tool" not in j:
+                answer = str(j.get("answer") or "").strip()
+                if not nudged and (BARE.match(answer) or (not re.search(r"\d", answer) and len(answer.split()) < 3)):   # "Error" is not an answer: once more
+                    nudged = True
+                    self.ctx.trace.event("bare_answer", agent=self.name, answer=answer[:60])
+                    msgs += [{"role": "assistant", "content": r["text"]},
+                             {"role": "user", "content": "That is not an answer. Write the answer to the task as a full sentence, from the tool results you have, in the final JSON shape."}]
+                    continue
                 return j, models
             if low:                                                          # the model still wants a tool: the budget is spent, and the run says so
                 raise BudgetExceeded(f"tool-call budget {budget.max_tool_calls} exceeded")
@@ -124,15 +138,43 @@ class CustomExpert(BaseExpert):
         self.toolbox.memory, self.toolbox.task_id = memory, task.id
         evidence = []
         msgs = [{"role": "system", "content": self._system()}, {"role": "user", "content": self._task_text(task) + self._previous(task)}]
+        seen = {}
+        machines = [m for m in self.ctx.equipment if re.search(r"(?<![\w-])" + re.escape(m) + r"(?![\w-])", task.goal, re.I)]
+        if "run_sql" in self.toolbox.allowed and machines:                     # the facts a task asks about a machine are looked up by code first
+            for pat, templates in PREFETCH:
+                if not pat.search(task.goal):
+                    continue
+                for m in machines[:2]:
+                    for sql in templates:
+                        out = self.toolbox.call("run_sql", {"sql": sql.format(m=m)}, budget, who=self.name)
+                        evidence.append({"type": "tool", "source": f"run_sql({sql.format(m=m)[:100]})", "detail": json.dumps(out, default=str)[:300], "result": out})
+                        msgs += [{"role": "assistant", "content": json.dumps({"tool": "run_sql", "args": {"sql": sql.format(m=m)}, "why": "a fact the task asks for"})},
+                                 {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:1800]}]
+                        seen[f"run_sql({json.dumps({'sql': sql.format(m=m)}, sort_keys=True)[:160]})"] = 1
+                        for ds in (out.get("rows") or [{}])[0].values() if isinstance(out, dict) and "baseline_dataset" in str(out) else []:
+                            if ds and ds != "none":                            # every dataset the registry names for the machine: its count, so a total is a calc away
+                                q = f"SELECT COUNT(*) AS n FROM obs.{str(ds).replace('-', '_')}_samples"
+                                cnt = self.toolbox.call("run_sql", {"sql": q}, budget, who=self.name)
+                                evidence.append({"type": "tool", "source": f"run_sql({q})", "detail": json.dumps(cnt, default=str)[:300], "result": cnt})
+                                msgs += [{"role": "assistant", "content": json.dumps({"tool": "run_sql", "args": {"sql": q}, "why": f"samples of {ds}"})},
+                                         {"role": "user", "content": json.dumps({"tool_result": cnt}, default=str)[:1800]}]
+            if len(evidence) > 0:
+                self.ctx.trace.event("data_prefetched", expert=self.name, task=task.id, machines=machines[:2], queries=len(evidence))
+        m_ask = ASK_WORDS.search(task.goal)
+        if m_ask and "ask_expert" in self.toolbox.allowed:                     # "ask the reasoning expert ..." is an instruction, not a suggestion: the question is asked by code
+            question = (task.goal[:m_ask.start()] + task.goal[m_ask.end():]).strip(" ,.;:") or task.goal
+            out = self.toolbox.call("ask_expert", {"expert": m_ask.group(1).lower(), "question": question}, budget, who=self.name)
+            evidence.append({"type": "tool", "source": f"ask_expert({m_ask.group(1).lower()}: {question[:80]})", "detail": json.dumps(out, default=str)[:300], "result": out})
+            msgs += [{"role": "assistant", "content": json.dumps({"tool": "ask_expert", "args": {"expert": m_ask.group(1).lower(), "question": question}, "why": "the task says to ask"})},
+                     {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:1800]}]
+            self.ctx.trace.event("consult_prefetched", expert=self.name, task=task.id, to=m_ask.group(1).lower(), question=question[:120])
         if "memory" in self.toolbox.allowed and MEMORY_WORDS.search(task.goal):   # a summary starts from what the crew knows: that lookup is done by code, not left to the model
             out = self.toolbox.call("memory", {}, budget, who=self.name)
             evidence.append({"type": "tool", "source": "memory({})", "detail": json.dumps(out, default=str)[:300], "result": out})
             msgs += [{"role": "assistant", "content": json.dumps({"tool": "memory", "args": {}, "why": "what the crew already found or ruled out"})},
                      {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:1800]}]
             self.ctx.trace.event("memory_prefetched", expert=self.name, task=task.id, findings=len((out or {}).get("findings") or []), refuted=len((out or {}).get("refuted") or []))
-            seen = {"memory({})": 1}
-        else:
-            seen = {}
+            seen["memory({})"] = 1
         j, models = self._loop(msgs, budget, evidence, seen)
         answer = str(j.get("answer") or "")                                   # null stays empty, and the Lead asks again
         bad = unverified_numbers(answer, {"results": [e.get("result") for e in evidence]})

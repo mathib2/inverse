@@ -66,12 +66,28 @@ def deterministic(result):
     missing = asked_but_missing(task_goal(result), answer, sql)
     if missing:
         return "revise", "the task asks for " + "; ".join(f"{word} and the rows hold {col} = {val}" for word, col, val in missing[:3]) + "; say those values"
+    loose = unsupported_words(task_goal(result), answer, evidence) if task_goal(result) else []
+    if len(loose) >= 2 or (loose and len(answer.split()) <= 12):               # a short answer with one word from nowhere, or any answer with two
+        return "revise", f"the word(s) {', '.join(loose[:4])} in the answer rest on nothing in the task or the evidence; say only what the evidence holds"
     try:
         if float(result.get("confidence") or 0) <= 0.0:
             return "revise", "the expert reported zero confidence"
     except (TypeError, ValueError):
         return "revise", "the expert reported no usable confidence"
     return None
+
+
+PLAIN = set("therefore because result results answer answers value values total number numbers means equals equal approximately about rows query "
+            "queries record records found shows given provided using where which there these those their while after before since hence thus "
+            "machine machines registry dataset datasets sensor sensors sample samples maintenance equipment newtons seconds percent according "
+            "respectively between within without around during through should would could might every other first second third".split())
+
+
+def unsupported_words(goal, answer, evidence):
+    """Words of six letters or more in the answer that appear in neither the task nor the evidence (by their first five letters, so
+    'weighs' is covered by 'weight'), outside a list of plain phrasing words: 'as the manual says' with no manual anywhere."""
+    known = {w[:5] for w in re.findall(r"[a-z]+", (_fold(goal) + " " + _values(evidence)))} | {w[:5] for w in PLAIN}
+    return sorted({w for w in re.findall(r"[a-z]{6,}", _fold(answer)) if w[:5] not in known and w not in PLAIN})
 
 
 def task_goal(result):
