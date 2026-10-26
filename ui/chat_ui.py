@@ -200,21 +200,25 @@ def _alerts():
     if st.button("Send a test alert now", icon=":material/send:", disabled=not chans):
         sent = notify.notify("Test from the INVERSE crew: alerts reach this phone.", urgent=True)
         st.toast("Sent on: " + ", ".join(sent) if sent else "Nothing was sent: no channel answered")
-    p = os.path.join(ROOT, "state", "notifications.jsonl")
     rows = []
-    try:
-        with open(p, encoding="utf-8") as f:
-            for ln in f.readlines()[-30:]:
-                try:
-                    rows.append(json.loads(ln))
-                except ValueError:
-                    continue
-    except OSError:
-        pass
+    for name in ("alerts.jsonl", "notifications.jsonl"):
+        try:
+            with open(os.path.join(ROOT, "state", name), encoding="utf-8") as f:
+                for ln in f.readlines()[-30:]:
+                    try:
+                        rows.append(json.loads(ln))
+                    except ValueError:
+                        continue
+        except OSError:
+            pass
+    rows.sort(key=lambda r: str(r.get("ts", "")))
     if not rows:
         st.caption("Nothing sent yet.")
-    for r in reversed(rows):
-        st.markdown(f"<span class='inv-muted'>{parts.esc(str(r.get('ts', ''))[:16].replace('T', ' '))}</span> {parts.esc(str(r.get('text', ''))[:300])}", unsafe_allow_html=True)
+    for r in reversed(rows[-40:]):
+        took = r.get("sent")
+        where = ("sent on " + ", ".join(took)) if took else ("no channel took it" if took == [] else "")
+        st.markdown(f"<span class='inv-muted'>{parts.esc(str(r.get('ts', ''))[:16].replace('T', ' '))}</span> **{parts.esc(str(r.get('title', ''))[:40])}** "
+                    f"{parts.esc(str(r.get('text', ''))[:300])} <span class='inv-muted'>{parts.esc(where)}</span>", unsafe_allow_html=True)
 
 
 def _artifacts(ledger, sidecar, configs):

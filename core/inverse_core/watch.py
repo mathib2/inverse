@@ -13,7 +13,7 @@ import os
 import threading
 import time
 
-from . import chat
+from . import chat, digest
 import traceback
 
 import requests
@@ -322,6 +322,10 @@ class Watcher:
             try:
                 done = self.cycle(force=force)
                 self.log(f"cycle {self.state['cycles']} done: {len(done)} run(s)")
+                try:
+                    digest.send_if_due(self.root)                             # the phone hears what the crew said, every NOTIFY_DIGEST_MINUTES
+                except Exception:
+                    pass
             except Exception:
                 self.log("cycle failed:\n" + traceback.format_exc()[-1500:])
             force = False

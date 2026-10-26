@@ -30,6 +30,7 @@ Known equipment IDs: {equipment}
 Return ONLY JSON: {{"tasks":[{{"id":"T1","goal":"<one self-contained instruction, written by you for THIS goal>","expert":"<a name from the list>","depends_on":[]}}]}}
 Write every goal in your own words for the goal you were given; never copy the example text or leave a placeholder.
 Use research to look facts up in the registry, sensor specs, maintenance history and samples (counts and ranges, not raw dumps), reasoning for derivations and calculations from given facts, solver for multi-step work with tools and for any summary or digest of what the crew knows (it has the shared memory tool), vulnerability for a review of our own code.
+Routing rules, apply the first that fits: a calculation whose numbers are all in the goal -> one task, reasoning alone. A summary, digest, or "what do we know" -> one task, solver alone. A lookup of facts in the registry, sensors, maintenance or samples -> research, one task per distinct lookup, and nothing else. A lookup followed by a computation on it -> research first, then one reasoning task that depends on it. A review of our own code -> one task, vulnerability alone.
 If no expert fits a task and an architect is on the team, give the architect a task to design, create and test an expert for that need, assign the dependent task to the expert name the architect should create (lowercase snake_case), and make it depend on the architect's task. Without an architect, define one (at most 2) by adding "new_experts":[{{"name":"snake_case","role":"one sentence","system_prompt":"its instructions","tools":["..."],"model_lane":"fast|deep"}}] to the JSON, using only these tools: {tools}. Prefer an existing expert when one fits."""
 
 COMPOSE_SYSTEM = """Write the final answer for the user from the accepted expert results. Rules: use only facts present in the results; cite every claim as
@@ -56,6 +57,17 @@ DATA_WORDS = re.compile(r"\b(registry|maintenance|sensors?|samples?|datasets?|re
 LACK_WORDS = re.compile(r"\b(we have no|there is no|no (?:converter|expert|agent|tool|one) (?:for|that|who)|nobody (?:can|knows)|the crew (?:lacks|cannot)|none of (?:you|the agents) can)\b", re.I)
 PATH_WORD = re.compile(r"[\w./-]+/[\w./-]+")                                 # a repository path named in a goal
 LOOKUP_WORDS = re.compile(r"^\W*(how many|how much|list|what is|what are|what was|which|when|show|name|give me)\b", re.I)   # a plain lookup: Scout alone
+GIVEN = re.compile(r"\b([A-Za-z]+)\s+(?:is|=|equals)\s+(-?\d+(?:\.\d+)?)\s*([A-Za-z][\w/^]{0,7})?")   # "gravity is 1.62 m/s^2" -> gravity = 1.62 m/s^2
+
+
+def given_values(goal):
+    """The constants a goal states ('gravity is 1.62 m/s^2', 'g = 9.81'), as 'name = value unit; ...'; '' when it states none."""
+    out = []
+    for m in GIVEN.finditer(str(goal or "")):
+        out.append(f"{m.group(1)} = {m.group(2)}" + (f" {m.group(3)}" if m.group(3) else ""))
+    return "; ".join(dict.fromkeys(out))
+
+
 SUMMARY_WORDS = re.compile(r"\b(summari[sz]e|digest|what (do|does) (we|the crew|the team) know|found so far|ruled out|still unchecked)\b", re.I)
 
 
@@ -237,14 +249,17 @@ class Lead:
 
     def _forge_by_rule(self, task, goal):
         """The expert a plan names but nobody built: a template expert with the calculator and read-only SQL, registered for this run
-        and traced as forge_by_rule. The architect's judgement is better when it works; this is what happens when it does not."""
+        and traced as forge_by_rule. The constants the goal states ride along as given values, so a Moon question is not answered
+        with Earth's gravity. The architect's judgement is better when it works; this is what happens when it does not."""
         name = str(task.expert)
         if name in self.registry.experts or not re.fullmatch(r"[a-z][a-z0-9_]{2,40}", name):
             return name in self.registry.experts
+        given = given_values(goal)
         try:
             self._create_expert({"name": name, "role": f"Answers, with tools, questions like: {str(goal)[:120]}",
-                                 "system_prompt": f"You are {name}, an expert the crew built for this: {str(goal)[:200]} Settle every number with the calc tool and "
-                                                  "every fact with one read-only SELECT; cite the tool results; say plainly what you could not check.",
+                                 "system_prompt": f"You are {name}, an expert the crew built for this: {str(goal)[:200]} "
+                                                  + (f"GIVEN VALUES, use exactly these in calc and no textbook value in their place: {given}. " if given else "")
+                                                  + "Settle every number with the calc tool and every fact with one read-only SELECT; cite the tool results; say plainly what you could not check.",
                                  "tools": ["calc", "run_sql"], "model_lane": "fast"})
             self.ctx.trace.event("forge_by_rule", task=task.id, name=name)
         except Exception as ex:

@@ -129,10 +129,63 @@ def details(report_text):
 
 
 def pick(items, state):
-    """The item tried longest ago (never tried first); one awaiting approval is skipped."""
+    """The item tried longest ago (never tried first); one awaiting approval, or already merged, is skipped while anything else is left."""
     tried = state.get("tried", {})
-    open_items = [i for i in items if tried.get(i, {}).get("outcome") != "awaiting approval"]
+    open_items = [i for i in items if tried.get(i, {}).get("outcome") != "awaiting approval" and not str(tried.get(i, {}).get("outcome") or "").startswith("merged")]
     return min(open_items or items, key=lambda i: tried.get(i, {}).get("last", 0)) if (open_items or items) else None
+
+
+def test_file_for(item):
+    """backlog_tests/test_<slug>.py: the test that defines done for an item, when someone wrote one."""
+    slug = re.sub(r"[^a-z0-9]+", "_", item.lower())[:40].strip("_")
+    return os.path.join(ROOT, "backlog_tests", f"test_{slug}.py")
+
+
+def item_test(item):
+    """(path, passes, tail of the output) for the item's own test, or (None, None, '') when there is none."""
+    p = test_file_for(item)
+    if not os.path.exists(p):
+        return None, None, ""
+    rc, out = sh([sys.executable, "-m", "pytest", "-q", os.path.relpath(p, ROOT), "-p", "no:cacheprovider"], timeout=600, env={"PYTHONPATH": "core"})
+    return p, rc == 0, "\n".join(out.splitlines()[-15:])[:1500]
+
+
+def changed_lines(files):
+    """{file: the line numbers added or changed in the working tree against HEAD}; a file git does not know is all of its lines."""
+    out = {}
+    for f in files:
+        rc, diff = sh(["git", "diff", "-U0", "--", f])
+        lines = set()
+        for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", diff or "", re.M):
+            start, n = int(m.group(1)), int(m.group(2) or 1)
+            lines.update(range(start, start + n))
+        if not lines and not (diff or "").strip():
+            try:
+                with open(os.path.join(ROOT, f), encoding="utf-8") as fh:
+                    lines = set(range(1, sum(1 for _ in fh) + 1))
+            except OSError:
+                pass
+        out[f] = lines
+    return out
+
+
+def touched_by_tests(files):
+    """True when the suite executes at least one changed line (coverage over the whole suite, read from its JSON report)."""
+    py = [f for f in files if f.endswith(".py") and not f.startswith("tests/")]
+    if not py:
+        return False
+    sh([sys.executable, "-m", "coverage", "run", "--include=" + ",".join(py), "-m", "pytest", "-q", "tests", "-p", "no:cacheprovider"], timeout=900, env={"PYTHONPATH": "core"})
+    sh([sys.executable, "-m", "coverage", "json", "-o", "state/coverage.json", "-q"])
+    try:
+        with open(os.path.join(ROOT, "state", "coverage.json"), encoding="utf-8") as fh:
+            rep = json.load(fh).get("files") or {}
+    except (OSError, ValueError):
+        return False
+    for f, lines in changed_lines(py).items():
+        executed = set((rep.get(f) or rep.get(os.path.abspath(os.path.join(ROOT, f))) or {}).get("executed_lines") or [])
+        if lines & executed:
+            return True
+    return False
 
 
 def latest_probes():
@@ -326,6 +379,11 @@ def cycle():
             memory.add_finding(f"tinker: {item[:80]}: {note[:200]}", r.evidence[:2], source="web", confidence=0.4, expert="tinker")
         path, excerpt = place_of(item)
         hint = details(report).get(item, "")
+        tpath, tpass, tout = item_test(item)
+        if tpath and tpass:
+            say(f"The test that defines done already passes: {os.path.relpath(tpath, ROOT)}", kind="result")
+        if tpath and tout and not tpass:
+            hint = (hint + f"\nTHE TEST THAT DEFINES DONE (it fails now; make it pass without touching it): {os.path.relpath(tpath, ROOT)}\n{tout}")[:2400]
         engineer = CustomExpert(ctx, "tinker", ENGINEER_ROLE, ENGINEER_PROMPT, "engineer", ["read_file", "grep", "edit_file", "run_tests"])
         e = engineer.run(Task("E1", f"Make the smallest code change that helps with: {item}\nWhat to change: {hint[:700] or 'see the research note'}\nResearch note: {note[:400]}"
                                     f"\nThe file: {path}\nThe lines that matter:\n{excerpt[:5000]}", "tinker"),
@@ -351,8 +409,15 @@ def cycle():
                     after = probe_mark(agent)
                     if after is not None:
                         state.setdefault("marks", {})[agent] = max(after, before or 0) if before is not None else after
+                improved = bool(agent) and after is not None and before is not None and after > before + 0.1
+                _, tpass_after, _ = item_test(item)
+                covered = touched_by_tests(files)
+                mergeable = improved or covered or bool(tpass_after)
                 if agent and after is not None and before is not None and after < before - 0.5:
                     outcome, _ = f"the probe got worse ({before} -> {after}); reverted", revert()
+                elif tpath and tpass_after is False:
+                    outcome, _ = "the item's own test still fails; reverted", revert()
+                    memory.add_lesson("tinker", f"{item[:80]}: the change to {', '.join(files)} did not make {os.path.basename(tpath)} pass")
                 else:
                     slug = re.sub(r"[^a-z0-9]+", "-", item.lower())[:40].strip("-")
                     branch = f"auto/{time.strftime('%Y%m%d-%H%M')}-{slug}"
@@ -369,7 +434,9 @@ def cycle():
                         except Exception:
                             pass
                         approved, why = (False, "a person merges")
-                        if AUTOMERGE == "council":
+                        if not mergeable:
+                            why = "no measurable effect: the probe did not move and no test runs the changed lines"
+                        elif AUTOMERGE == "council":
                             approved, why = council_merge(ctx, branch, files, note, summary, before, after)
                         if approved:
                             t_alert = time.time()
@@ -398,7 +465,7 @@ def cycle():
                                 say(text, kind="alert", url=url, notified=sent)
                         else:
                             text = f"Tinker proposes a change for: {item[:90]}. Files: {', '.join(files)}. Tests pass" + (f"; probe {agent} {before} -> {after}" if agent and after is not None else "") + f". Not merged on its own ({why}). Approve by merging the branch."
-                            sent = notify.notify(text, title="INVERSE needs your approval", urgent=True, url=url)
+                            sent = notify.notify(text, title="INVERSE needs your approval" if mergeable else "INVERSE left a branch", urgent=mergeable, url=url)
                             say(text + f" {url}", kind="alert", url=url, notified=sent)
                     sh(["git", "checkout", "-q", "lab"])
     except Exception as ex:
