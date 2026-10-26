@@ -6,8 +6,9 @@ import requests
 
 
 class WorldClient:
-    def __init__(self, url="http://127.0.0.1:8100", timeout=10):
-        self.url, self.timeout = url, timeout
+    def __init__(self, url=None, timeout=10):
+        from .sidecars import hmem_url
+        self.url, self.timeout = url or hmem_url(), timeout
 
     def record(self, run_id, equipment, dataset, hypothesis, validator_results, source="validator"):
         r = requests.post(self.url + "/world/record", timeout=self.timeout, json={

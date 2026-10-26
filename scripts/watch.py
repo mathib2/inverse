@@ -20,7 +20,9 @@ from inverse_core.team.watch import Watcher  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("INVERSE_PRIORITY", "warden")                            # Warden's model calls wait while a person's mission runs (team/gate.py)
 RUNS = os.path.join(ROOT, "runs")
-SIDECARS = {8100: "/healthz", 8101: "/healthz"}
+from inverse_core.clients.sidecars import hmem_url, markovian_url, port  # noqa: E402
+
+SIDECARS = {port(hmem_url()): "/healthz", port(markovian_url()): "/healthz"}     # this checkout's own ports, from .env
 
 
 def _up(port):
@@ -89,7 +91,7 @@ def main():
         return ctx.council.session(ctx, lead.registry, lead.memory, world, reason=reason, by="warden")
 
     def services():
-        """The memory sidecar (8100) and Markovian (8101) must answer before a run; start them if not (run_sidecars.sh is idempotent)."""
+        """The memory sidecar and Markovian must answer before a run; start them if not (run_sidecars.sh is idempotent)."""
         down = [p for p in SIDECARS if not _up(p)]
         if down:
             print(f"{time.strftime('%H:%M:%S')} sidecars down on {down}; starting them", flush=True)

@@ -23,7 +23,7 @@ def build(zetaris, ledger, world=None, root=".", runs_dir="runs", on_event=None,
 
     markovian = None
     try:                                                              # Meterless Markovian service (markovian/serve.ts), if it is running
-        mk = MarkovianClient(os.environ.get("MARKOVIAN_URL", "http://127.0.0.1:8101"), timeout=120)
+        mk = MarkovianClient(timeout=120)                                    # MARKOVIAN_URL from .env, else the default port
         mk.health()
         markovian = mk
     except Exception:
