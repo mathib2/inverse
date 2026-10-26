@@ -152,6 +152,13 @@ class Lead:
         tool); a goal that asks for a computation gets a reasoning task after the lookups when the plan has none."""
         names, changes = self.registry.names(), []
         path = next((m.group(0).rstrip("/.") for m in PATH_WORD.finditer(plan.goal)), None)
+        goal = plan.goal.strip()
+        if len(plan.tasks) == 1 and plan.tasks[0].expert not in ("research", *self.creators()) and goal not in plan.tasks[0].goal:
+            plan.tasks[0].goal = goal                                         # a one-task plan loses nothing by carrying the goal itself: the planner's paraphrase can only drop a detail or be the example text
+            changes.append(f"{plan.tasks[0].id}: the goal verbatim (a one-task plan)")
+        if len(plan.tasks) == 1 and plan.tasks[0].expert == "solver" and "reasoning" in names and CALC_WORDS.search(goal) and re.search(r"\d", goal) and not DATA_WORDS.search(goal):
+            plan.tasks[0].expert = "reasoning"                                # plain arithmetic with the numbers in the goal: Euler computes and self-checks; Ada would look for facts that are not there
+            changes.append(f"{plan.tasks[0].id}: solver -> reasoning (arithmetic with nothing to look up)")
         for t in plan.tasks:
             if t.expert == "reasoning" and "research" in names and DATA_WORDS.search(t.goal) and not CALC_WORDS.search(t.goal):
                 t.expert, _ = "research", changes.append(f"{t.id}: reasoning -> research (a data lookup)")
