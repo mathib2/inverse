@@ -58,7 +58,7 @@ def _busy(on, goal=""):
         if on:
             os.makedirs(os.path.dirname(p), exist_ok=True)
             with open(p, "w") as f:
-                json.dump({"goal": goal[:200], "started": time.strftime("%Y-%m-%dT%H:%M:%S")}, f)
+                json.dump({"goal": goal[:200], "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "pid": os.getpid()}, f)
         elif os.path.exists(p):
             os.remove(p)
     except OSError:

@@ -4,6 +4,7 @@ from __future__ import annotations
 import threading
 
 from ..clients.meterless import extract_json, provider_id
+from . import gate
 from .bus import Bus
 
 
@@ -29,6 +30,7 @@ class Ctx:
 def ask(ctx, lane, messages, who, ebudget=None, max_tokens=None, json_reply=False, temperature=None, lenient=False):
     """json_reply asks the runtime for one JSON object and parses it; a reply that still cannot be parsed is traced
     (first 300 characters) before the error propagates, so a failed run explains itself."""
+    gate.wait_turn(getattr(ctx, "trace", None), who, stop=getattr(ctx, "stop", None))   # Tinker after Warden after people: one CPU, one model server
     ctx.budget.charge_llm()
     est = sum(len(str(m.get("content") or "")) for m in messages) // 3        # a rough token count; the local model's window is 4096
     if provider_id() != "nightshift" and est + (max_tokens or 2500) > 4096:

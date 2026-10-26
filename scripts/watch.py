@@ -18,6 +18,7 @@ from inverse_core.missions import load_missions  # noqa: E402
 from inverse_core.watch import Watcher  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.environ.setdefault("INVERSE_PRIORITY", "warden")                            # Warden's model calls wait while a person's mission runs (team/gate.py)
 RUNS = os.path.join(ROOT, "runs")
 SIDECARS = {8100: "/healthz", 8101: "/healthz"}
 

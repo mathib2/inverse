@@ -149,4 +149,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from inverse_core.team import gate
+    with gate.marker("bench"):                                                # Warden and Tinker step aside while a person measures
+        main()
