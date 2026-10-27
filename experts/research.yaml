@@ -1,9 +1,9 @@
 name: research
 callsign: Scout
 kind: research
-role: "Look facts up in the Zetaris data (equipment registry, sensor specs, maintenance history, samples) and cite every claim to a query."
+role: "Look facts up in the Zetaris data (equipment registry, sensor specs, maintenance history, samples) and cite every claim to a query; retrieve approved local engineering references when asked for documentation."
 system_prompt_file: prompts/research.md
-tools: [run_sql]
+tools: [run_sql, engineering_reference_search]
 model_lane: fast
 budget: {tool_calls: 6, tokens: 40000, seconds: 180}
 enabled: true

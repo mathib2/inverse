@@ -3,7 +3,7 @@ callsign: Ada
 kind: custom
 role: "Solve hard multi-step problems that mix facts and calculations: looks up what each step needs, computes every number with the calculator, and checks it against what the team already knows."
 system_prompt_file: prompts/solver.md
-tools: [run_sql, calc, memory, ask_expert, post_message, propose, support]
+tools: [run_sql, calc, memory, ask_expert, post_message, propose, support, engineering_reference_search]
 model_lane: deep
 budget: {tool_calls: 8, tokens: 100000, seconds: 360}
 enabled: true

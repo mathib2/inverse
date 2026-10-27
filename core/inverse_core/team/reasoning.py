@@ -150,7 +150,9 @@ class ReasoningExpert(BaseExpert):
         by_code = self._days_by_code(task)
         if by_code:
             return by_code
-        msgs = [{"role": "system", "content": self.system()}, {"role": "user", "content": self._task_text(task)}]
+        from .references import NOTICE, context_of, inherited, retrieve
+        references = inherited(task) or retrieve(self, task, budget)
+        msgs = [{"role": "system", "content": self.system()}, {"role": "user", "content": self._task_text(task) + context_of(references)}]
         r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
         models, j = [r["model"]], r["json"]
         ev, bad = self._check(j.get("steps", []), task.context)
@@ -187,6 +189,10 @@ class ReasoningExpert(BaseExpert):
         if not bad:
             res.findings = [{"claim": answer, "evidence": ev[:2], "source": "fitter", "confidence": conf}]      # written on accept
         res.proposals = proposals_of(j)
+        if references:
+            res.evidence = references + res.evidence
+            res.not_checked.append(NOTICE)
+            res.findings = []  # retrieval is never promoted to validated experience
         return res
 
 

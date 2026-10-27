@@ -27,6 +27,7 @@ class Task:
     result: dict | None = None
     lessons: list = field(default_factory=list)   # reviewer reasons from earlier tasks of this expert (Reflexion), set by the Lead
     messages: list = field(default_factory=list)  # notes and results other experts addressed to this one, set by the Lead at delegation
+    references: list = field(default_factory=list)  # bounded source-linked reference evidence, untrusted even after a lookup is accepted
 
 
 PROPOSE_TAIL = ('To propose a change to the crew, add "propose":[{"k":"cfg|mission|note|code","t":"<agent id, mission name, shared or repo>","w":"<the change>",'

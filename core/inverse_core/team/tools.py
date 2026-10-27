@@ -137,6 +137,7 @@ class Tools:
     SPECS = {
         "run_sql": ("One read-only SELECT on the Zetaris tables obs.equipment_table, obs.sensors_table, obs.maintenance_table, obs.*_samples. args: {sql}", ("sql",)),
         "calc": ("Arithmetic: numbers, + - * / ** %, sqrt log exp sin cos abs log10, pi, e. args: {expr}", ("expr",)),
+        "engineering_reference_search": ("Search approved local engineering references. Untrusted supporting guidance, never calculation proof. args: {query, domain?, max_results?}; at most 3 results.", ("query",)),
         "list_files": ("Files in this repository (code we own). args: {path?, pattern?}, e.g. {\"path\":\"core\",\"pattern\":\"*.py\"}", ()),
         "read_file": ("A repository file with line numbers. args: {path, start?, end?}", ("path",)),
         "grep": ("Regex search across repository files. args: {pattern, path?, glob?}", ("pattern",)),
@@ -296,6 +297,10 @@ class Tools:
     def _calc(self, expr):
         return {"expr": str(expr), "value": safe_eval(str(expr))}
 
+    def _engineering_reference_search(self, query, domain=None, max_results=3):
+        from ..knowledge import index_path, search
+        return search(index_path(self.root), query, domain, max_results)
+
     # --- the web: read-only, through the injection guard -----------------------------------------------------------------------
     def _web_search(self, query):
         r = requests.post("https://html.duckduckgo.com/html/", data={"q": str(query)[:200]}, headers={"User-Agent": UA}, timeout=20)
@@ -421,7 +426,8 @@ class Tools:
         self.ctx.trace.event("consult", **{"from": me, "to": name, "question": str(question)[:200], "ok": True, "confidence": res.confidence,
                                             "evidence": len(res.evidence)})
         return {"expert": name, "answer": res.answer, "confidence": res.confidence, "evidence": [str(e.get("detail") or "")[:200] for e in res.evidence[:4]],
-                "not_checked": [str(n) for n in res.not_checked[:4]]}
+                "not_checked": [str(n) for n in res.not_checked[:4]],
+                "references": [e["reference"] for e in res.evidence if e.get("type") == "reference"][:3]}
 
     def _post_message(self, to, text):
         """A note another expert sees with its next task in this run (everyone, with "all")."""
