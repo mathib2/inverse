@@ -127,8 +127,8 @@ class CustomExpert(BaseExpert):
 
     def _memory_read(self, out):
         """The memory tool's output and, for the summary, what only code needs: the reason each claim was refuted and what the
-        findings' authors left unchecked. The model sees the tool's output; the evidence keeps this fuller read, so every word
-        of a summary written from it is in the evidence."""
+        findings' authors left unchecked. The model sees the tool's output; the evidence keeps this fuller read, the one the
+        summary is written from."""
         full = dict(out) if isinstance(out, dict) else {"findings": [], "refuted": []}
         for key, op in (("refutations", "refutations"), ("not_checked", "unchecked")):
             try:
@@ -200,7 +200,8 @@ class CustomExpert(BaseExpert):
             self.ctx.trace.event("memory_prefetched", expert=self.name, task=task.id, findings=len((out or {}).get("findings") or []), refuted=len((out or {}).get("refuted") or []))
             seen["memory({})"] = 1
         mem = next((e.get("result") for e in evidence if e.get("source") == "memory({})"), None)
-        if mem is not None and DIGEST_WORDS.search(task.goal):                  # a digest is read out of the memory by code: no model call, no long prompt (that call took 250 s)
+        summary = mem is not None and bool(DIGEST_WORDS.search(task.goal))     # a digest is read out of the memory by code: no model call, no long prompt (that call took 250 s)
+        if summary:
             configs = getattr(getattr(self.ctx, "registry", None), "configs", None)   # the agents' names as the page shows them
             answer, j, models = digest(mem, name=lambda ident: crew_name(ident, configs)), {"confidence": 0.8, "assumptions": [], "not_checked": []}, []
             self.ctx.trace.event("summary_by_code", expert=self.name, task=task.id, findings=len(mem.get("findings") or []), refuted=len(mem.get("refuted") or []), said="")
@@ -218,7 +219,7 @@ class CustomExpert(BaseExpert):
             evidence = [{"type": "step", "source": "no tool used", "detail": "the answer rests on the model alone"}]
             conf, not_checked = min(conf, 0.3), not_checked + ["no tool was called, so nothing was verified"]
         res = require_evidence(ExpertResult(answer, evidence, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))
-        if evidence[0]["type"] != "step" and not bad and not DIGEST_WORDS.search(task.goal):   # remembered by the Lead once the Critic accepts; a summary is read out of the memory, never written back into it
+        if evidence[0]["type"] != "step" and not bad and not summary:          # remembered by the Lead once the Critic accepts; a summary is read out of the memory, never written back into it
             res.findings = [{"claim": answer, "evidence": evidence[:2], "source": "fitter", "confidence": conf}]
         res.proposals = proposals_of(j)
         return res

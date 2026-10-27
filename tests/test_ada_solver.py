@@ -66,6 +66,16 @@ def test_a_summary_the_model_doubts_is_read_out_of_the_memory_by_code(tmp_path):
     assert res.findings == []                                                                                          # a summary is never written back into the memory
 
 
+def test_a_summary_goal_without_the_memory_tool_is_answered_by_the_model_and_filed(tmp_path):
+    """Only a summary read out of the memory by code stays out of the memory; an expert without that tool files what it answered."""
+    replies = iter([json.dumps({"tool": "calc", "args": {"expr": "12.5 * 9.81"}}),
+                    json.dumps({"answer": "P-104 weighs 122.625 N.", "confidence": 0.9, "assumptions": [], "not_checked": []})])
+    ctx = make_ctx(tmp_path / "runs", lambda m, msgs: next(replies), root=str(tmp_path))
+    res = CustomExpert(ctx, "solver", "r", "p", "deep", ["calc"]).run(Task("T1", "Summarize what the crew knows: what does P-104 weigh?", "solver"),
+                                                                       TeamMemory(InMemoryLedger()), ExpertBudget(tool_calls=4))
+    assert not events(ctx, "summary_by_code") and res.answer == "P-104 weighs 122.625 N." and [f["claim"] for f in res.findings] == ["P-104 weighs 122.625 N."]
+
+
 def test_the_summary_is_plain_sentences_and_never_a_digest_of_a_digest():
     from inverse_core.team.summary import digest, finding_sentence, refuted_sentence, rows_in_words
     maint = ('research: The maintenance records for P-104 are:\n[{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"}, '
