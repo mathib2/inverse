@@ -53,6 +53,7 @@ def _norm(s):
 
 
 CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|vulnerab\w*|exploit\w*)\b", re.I)
+PLANNED_PREFIX = re.compile(r"^Using the accepted results from the earlier tasks, answer this in plain words:\s*")   # a lesson keeps what the task was about
 DAY_WORDS = re.compile(r"\b(?:how\s+many|number\s+of)\s+(?:days|weeks)\b|\bdays?\s+(?:passed|elapsed|between|apart)\b", re.I)   # a date difference: Euler's days_between
 CALC_WORDS = re.compile(r"\b(compute|calculate|derive|deriv\w+|multipl\w+|times|divide\w*|convert\w*|weight|weigh\w*|force|torque|energy|frequency|damping|ratio|percent\w*|average|mean|formula|equation"
                         r"|(?:how\s+many|number\s+of)\s+(?:days|weeks)|days?\s+(?:passed|elapsed|between|apart)"
@@ -538,7 +539,7 @@ class Lead:
                 self.bus.post("critic", task.expert, reason, type="review", task=task.id, verdict=review["verdict"])
             kept = review.get("problems") or []
             if review.get("by") == "llm" and kept:                             # only an objection that checked out becomes a lesson, in its checkable words
-                self._mem("add_lesson", task.expert, (f"{task.goal[:80]}: " + "; ".join(f"\u00ab{str(k.get('quote'))[:80]}\u00bb {k.get('why') or k.get('check')}" for k in kept[:2]))[:240])
+                self._mem("add_lesson", task.expert, (f"{PLANNED_PREFIX.sub('', task.goal)[:80]}: " + "; ".join(f"\u00ab{str(k.get('quote'))[:80]}\u00bb {k.get('why') or k.get('check')}" for k in kept[:2]))[:240])
             if review["verdict"] == "reject" and review.get("by") == "llm" and attempt == 1 and self.max_attempts > 1:   # once: a second reject is final
                 self.ctx.trace.event("reject_retried", task=task.id, reason=reason[:200])   # a 4B reviewer's reject is a strong revise: one more try with the quote
                 rejected_once = reason

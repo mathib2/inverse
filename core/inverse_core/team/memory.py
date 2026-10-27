@@ -35,7 +35,7 @@ class TeamMemory:
         rows = [r["hypothesis"]["form"] for r in self.ledger.recall(f"team:lessons:{expert}") if r["hypothesis"].get("kind") == "lesson"]
         if goal is not None:
             want = _content_words(goal)
-            rows = [r for r in rows if len(_content_words(str(r).split("\u00ab", 1)[0][:82]) & want) >= 2]
+            rows = [r for r in rows if len(_content_words(str(r).split("\u00ab", 1)[0]) & want) >= 2]
         return rows[-n:]
 
     def reset(self):
