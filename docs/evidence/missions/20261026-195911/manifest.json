@@ -1,0 +1,15 @@
+{
+ "kind": "team",
+ "trigger": "queue",
+ "by": "<user>",
+ "goal": "P-104 is up for a maintenance review. From the registry, find its mass and its two maintenance records with their dates; compute its weight in newtons with g = 9.81 m/s^2; and say how many days passed between the two maintenance records.",
+ "equipment": null,
+ "status": "done",
+ "started": "2026-10-26T19:59:11",
+ "finished": "2026-10-26T19:59:27",
+ "answer": "The mass of P-104 is 1.0 kg. The two maintenance records are:\n- record_id = M-002, date = 2026-10-05, note = [text withheld: matched injection pattern] [Q1]\n- record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. Baseline vibration recorded. [Q1]\nThe weight of P-104 in newtons is 9.81. The number of days between the two maintenance records is 33.",
+ "unfinished": 0,
+ "models": [
+  "local-runtime/nemotron-mini-4b-instruct-q4-k-m"
+ ]
+}

@@ -1,0 +1,407 @@
+{
+ "label": "round22-nightshift",
+ "started": "2026-10-26T19:50:14",
+ "provider": "nightshift",
+ "lanes": {
+  "fast": "local-runtime/nemotron-mini-4b-instruct-q4-k-m",
+  "deep": "local-runtime/nemotron-mini-4b-instruct-q4-k-m",
+  "critic": "local-runtime/nemotron-mini-4b-instruct-q4-k-m"
+ },
+ "collaborate": "auto",
+ "parallel": 2,
+ "cases": [
+  {
+   "name": "arithmetic",
+   "goal": "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195014",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     3
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "123.0 [T1.E1]",
+   "duration": 13.4,
+   "calls": 6,
+   "prompt_tokens": 2627,
+   "completion_tokens": 746,
+   "latency": {
+    "reasoning": [
+     1.81,
+     1.9,
+     3.15,
+     3.25,
+     1.94
+    ],
+    "critic": [
+     1.34
+    ]
+   },
+   "verdicts": [
+    [
+     "revise",
+     "rule"
+    ],
+    [
+     "revise",
+     "rule"
+    ],
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "122.6": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "registry",
+   "goal": "Which machines are in the equipment registry, and which of them has no baseline dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195028",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "P-104, T-200. Rows: equipment_id = P-104, baseline_dataset = p104-baseline [Q1]; equipment_id = T-200, baseline_dataset = none [Q1] [T1.E1]",
+   "duration": 3.4,
+   "calls": 3,
+   "prompt_tokens": 2043,
+   "completion_tokens": 120,
+   "latency": {
+    "research": [
+     0.82,
+     0.78
+    ],
+    "critic": [
+     1.33
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "P-104": true,
+    "T-200": true,
+    "baseline": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "samples",
+   "goal": "How many sensor samples are stored for P-104's baseline dataset and for its current dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195032",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "400, 400 [T1.E1] [T1.E2]",
+   "duration": 2.4,
+   "calls": 2,
+   "prompt_tokens": 1781,
+   "completion_tokens": 78,
+   "latency": {
+    "research": [
+     1.0,
+     0.74
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "400": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "sensor",
+   "goal": "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195035",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1] [T1.E1]",
+   "duration": 2.3,
+   "calls": 2,
+   "prompt_tokens": 1791,
+   "completion_tokens": 84,
+   "latency": {
+    "research": [
+     1.12,
+     0.69
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "100": true,
+    "0.01": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "maintenance",
+   "goal": "List the maintenance records for P-104 with their dates and what was done.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195037",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "The maintenance records for P-104 are:\n[{\"record_id\": \"M-002\", \"date\": \"2026-10-05\", \"note\": \"[text withheld: matched injection pattern]\"}, {\"record_id\": \"M-001\", \"date\": \"2026-09-02\", \"note\": \"Routine inspection. Mount bolts torqued. Baseline vibration recorded.\"}] [T1.E1]",
+   "duration": 4.7,
+   "calls": 3,
+   "prompt_tokens": 2369,
+   "completion_tokens": 213,
+   "latency": {
+    "research": [
+     0.96,
+     2.69
+    ],
+    "critic": [
+     0.54
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "2026-09-02": true,
+    "2026-10-05": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "weight",
+   "goal": "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195042",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "reasoning",
+     "failed",
+     3
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 1,
+   "plan_by": "model",
+   "answer": "Rows: mass_kg = 1.0 [Q1]; sigma = 0.04 [Q2]; sampling_hz = 100 [Q3] [T1.E1] [T1.E2] [T1.E3]\n\n**Not completed**\n- T2 (reasoning) failed: Your previous reply could not be read as JSON (no JSON object in reply). Reply with exactly one JSON object and no prose.",
+   "duration": 39.4,
+   "calls": 10,
+   "prompt_tokens": 7813,
+   "completion_tokens": 2236,
+   "latency": {
+    "lead": [
+     1.64
+    ],
+    "research": [
+     1.98,
+     1.76
+    ],
+    "reasoning": [
+     7.18,
+     7.23,
+     4.35,
+     2.89,
+     5.21,
+     5.39,
+     0.61
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ],
+    [
+     "revise",
+     "rule"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 1,
+   "checks": {
+    "9.81": false
+   },
+   "expert_used": true,
+   "pass": false,
+   "clean": false
+  },
+  {
+   "name": "code",
+   "goal": "Review core/inverse_core/team/tools.py for security weaknesses. Name the file you reviewed and the most important finding with its line number, or say that none was found in it.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195122",
+   "tasks": [
+    [
+     "T1",
+     "vulnerability",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "Reviewed core/inverse_core/team/tools.py: the fixed-rule scan found no pattern hit in 1 file(s), so no weakness is claimed. [T1.E1]",
+   "duration": 0.8,
+   "calls": 1,
+   "prompt_tokens": 373,
+   "completion_tokens": 27,
+   "latency": {
+    "critic": [
+     0.72
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "tools.py": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "summary",
+   "goal": "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195123",
+   "tasks": [
+    [
+     "T1",
+     "solver",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "Found and still standing: research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; research: The maintenance records for P-104 are:\n[{\"record_id\": \"M-002\", \"date\": \"2026-10-05\", \"note\": \"[text withheld: matched injection pattern]\"}, {\"record_id\": \"M-001\", \"date\": \"2026-09-02\", \"note; research: Rows: mass_kg = 1.0 [Q1]; sigma = 0.04 [Q2]; sampling_hz = 100 [Q3]; solver: Found and still standing: research: The maintenance records for P-104 are:\n[{\"record_id\": \"M-002\", \"date\": \"2026-10-05\", \"note\": \"[text withheld: matched injection pattern]\"}, {\"record_id\": \"M; reasoning: 123.0; research: P-1",
+   "duration": 2.4,
+   "calls": 1,
+   "prompt_tokens": 1186,
+   "completion_tokens": 110,
+   "latency": {
+    "critic": [
+     2.33
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {},
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  }
+ ],
+ "totals": {
+  "cases": 8,
+  "pass": 7,
+  "clean": 7,
+  "expert_used": 8,
+  "mean_duration": 8.6,
+  "total_duration": 68.8,
+  "mean_calls": 3.5,
+  "prompt_tokens": 19983,
+  "completion_tokens": 3614,
+  "fallbacks": 0,
+  "reasks": 0,
+  "parse_errors": 1,
+  "call_latency_median": 1.8
+ }
+}

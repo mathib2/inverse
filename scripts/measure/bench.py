@@ -45,7 +45,7 @@ def run_case(case, collaborate, parallel, reset):
     if reset:
         lead.memory.reset()
     t0 = time.time()
-    rec = {"name": case["name"], "goal": case["goal"], "run_dir": ctx.trace.dir}
+    rec = {"name": case["name"], "goal": case["goal"], "run_dir": os.path.relpath(ctx.trace.dir, ROOT)}   # relative: no home folder or login name in the evidence
     try:
         plan = lead.plan(case["goal"], collaborate=False)
         if collaborate == "on" or (collaborate == "auto" and len(plan.tasks) >= 3):
