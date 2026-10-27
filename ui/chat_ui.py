@@ -308,6 +308,18 @@ def _choose(key):
         st.session_state.panel_pick = st.session_state[key]
 
 
+def _empty():
+    """The dashed box on the answer side of the panel while there is no answer to show."""
+    with st.container(key="inv-empty"):
+        st.markdown(":material/fact_check:")
+        if LIVE.get("run"):
+            st.caption("The crew is working; the answer's artifacts appear here when it is done.")
+        elif _turns():
+            st.caption("The artifacts of an answer appear here once the crew has answered.")
+        else:
+            st.caption(plain.PANEL_EMPTY)
+
+
 def _artifacts(ledger, sidecar, configs):
     ss = st.session_state
     panel = ss.get("panel_pick") or "Answer"                                  # the one chosen panel; render() applied panel_next already
@@ -317,7 +329,7 @@ def _artifacts(ledger, sidecar, configs):
             st.pills(label, names, key=key, selection_mode="single", on_change=_choose, args=(key,))
         t = _current()
         if panel in ANSWER_PANELS and not (t and t.get("out")):
-            st.caption("The artifacts of an answer appear here once the crew has answered." if not LIVE.get("run") else "The crew is working; the answer's artifacts appear here when it is done.")
+            _empty()
             return
         if panel == "Answer":
             st.markdown(t["out"]["answer"])
