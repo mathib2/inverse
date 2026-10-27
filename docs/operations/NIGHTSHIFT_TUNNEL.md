@@ -1,6 +1,6 @@
 # Keeping Nightshift reachable from the workstation
 
-Nightshift (the Meterless Runtime) has no Linux build, so it runs on a Windows laptop and the workstation reaches it at `127.0.0.1:8088` through an SSH **reverse** tunnel opened *from the laptop*. Nightshift is INVERSE's primary provider; when the laptop sleeps or the tunnel drops, the crew keeps working on the workstation's Ollama (the sidebar shows **AI online · fallback**) and returns to Nightshift by itself.
+Nightshift (the Meterless Runtime) has no Linux build, so it runs on a Windows laptop and the workstation reaches it at `127.0.0.1:8088` through an SSH **reverse** tunnel opened *from the laptop*. Nightshift is INVERSE's primary provider; when the laptop sleeps or the tunnel drops, the crew keeps working on the workstation's Ollama (the badge above the chat reads **AI online · fallback**, and **Connections** in the sidebar says **Online on the fallback**) and returns to Nightshift by itself.
 
 ## How it is set up (2026-10-26)
 
