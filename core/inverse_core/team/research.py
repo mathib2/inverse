@@ -225,11 +225,35 @@ def id_column(rows):
     return ids[0] if ids else None
 
 
+COUNT_WORDS = dict(enumerate("two three four five six seven eight nine ten eleven twelve".split(), 2))
+
+
+def _count(n):
+    """A row count in words (two rows); digits past twelve."""
+    return COUNT_WORDS.get(n, str(n))
+
+
+def _columns_statement(rows):
+    """Several rows with no id column, said by column in one sentence that admits there are several: "the noise level (sigma)
+    is 0.01 and 0.1 in two rows"; with several columns, "in two rows, the noise level (sigma) is 0.01 and 0.1, and the sampling
+    rate is 100 Hz and 200 Hz" (the values pair up by position). One sentence per row would read as the crew contradicting
+    itself about one unnamed thing: "the noise level (sigma) is 0.01. The noise level (sigma) is 0.1"."""
+    parts = [f"the {_cell(k, rows[0][k])[1]} is " + _join(_cell(k, r[k])[2] for r in rows) for k in rows[0]]
+    how_many = f"in {_count(len(rows))} rows"
+    if len(parts) == 1:
+        return f"{parts[0]} {how_many}"
+    return f"{how_many}, " + ", ".join(parts[:-1]) + ", and " + parts[-1]
+
+
 def row_sentences(rows, cite=""):
-    """One sentence per row, the id first, the citation before the full stop. See rows_in_words."""
+    """One sentence per row, the id first, the citation before the full stop; several rows with no id column are one sentence
+    that says how many there are. See rows_in_words."""
     rows = [r for r in rows or [] if isinstance(r, dict) and r]
     tail = (f" {cite}" if cite else "") + "."
     idc = id_column(rows)
+    if idc is None and len(rows) > 1 and all(list(r) == list(rows[0]) for r in rows):   # SELECT sigma on two sensors: one sentence, not two that contradict
+        body = _columns_statement(rows)
+        return [body[:1].upper() + body[1:] + tail]
     out = []
     for r in rows:
         subject = r.get(idc) if idc is not None else None
@@ -252,7 +276,8 @@ def row_sentences(rows, cite=""):
 def rows_in_words(rows, cite=""):
     """A small result set as sentences, by code, so what the rows say reads as an answer and every value in it is in the evidence:
     'P-104 has the baseline dataset p104-baseline [Q1]. T-200 has no baseline dataset (none) [Q1].'; one row with no id:
-    'The noise level (sigma) is 0.01 and the sampling rate is 100 Hz [Q1].'; a count: 'The count is 400 [Q1].' Values are written
+    'The noise level (sigma) is 0.01 and the sampling rate is 100 Hz [Q1].'; several: 'The noise level (sigma) is 0.01 and 0.1
+    in two rows [Q2].'; a count: 'The count is 400 [Q1].' Values are written
     as the rows hold them, none as the word none, a note in quotes. Every word of six letters or more comes from a column name,
     a value or the reviewer's plain list, so Vera's word rule has nothing to object to."""
     return " ".join(row_sentences(rows, cite))

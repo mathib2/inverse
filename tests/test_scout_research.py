@@ -98,7 +98,7 @@ def test_values_the_answer_leaves_out_ride_along_from_the_rows():
     many = [{"type": "sql", "source": "q", "detail": "9 rows", "rows": [{"t": str(i)} for i in range(9)]}]
     assert ResearchExpert._facts(many, "x") == ""                                                                 # not for big result sets
     two = [ran[0], {"type": "sql", "source": "q", "detail": "2 rows", "rows": [{"mass_kg": 1.0}, {"mass_kg": 5.0}]}]
-    assert ResearchExpert._facts(two, "") == "The noise level (sigma) is 0.01 and the sampling rate is 100 Hz [Q1]. The mass is 1.0 kg [Q2]. The mass is 5.0 kg [Q2]."
+    assert ResearchExpert._facts(two, "") == "The noise level (sigma) is 0.01 and the sampling rate is 100 Hz [Q1]. The mass is 1.0 kg and 5.0 kg in two rows [Q2]."
     note = "Routine inspection. Mount bolts torqued. Baseline vibration recorded. " * 2
     long = [{"type": "sql", "source": "q", "detail": "4 rows", "rows": [{"record_id": f"M-00{i}", "date": "2026-09-02", "note": note} for i in range(1, 5)]}]
     cut = ResearchExpert._facts(long, "")
@@ -171,6 +171,31 @@ def test_rows_are_said_in_sentences_the_id_first_every_value_kept_and_cited():
     assert text == "P-104 has a mass of 1.0 kg [Q1]." and rows_in_words([{"mass_kg": 1.0}], "[Q2]") == "The mass is 1.0 kg [Q2]."          # 1.0 stays 1.0
     _holds_every_value(text, weight)
     assert rows_in_words([], "[Q1]") == "" and rows_in_words([{"equipment_id": "P-104"}]) == "The equipment id is P-104."
+
+
+def test_several_rows_with_no_id_column_are_one_sentence_that_says_how_many():
+    """SELECT sigma on two sensors (the weight case's T1): one sentence that admits there are two rows, not two sentences that
+    read as the crew contradicting itself about one unnamed thing."""
+    from inverse_core.team.reasoning import ReasoningExpert
+    from inverse_core.team.research import ResearchExpert, rows_in_words
+    sigmas = [{"sigma": "0.01"}, {"sigma": "0.1"}]                                                                  # text, as the rows come back
+    text = rows_in_words(sigmas, "[Q2]")
+    assert text == "The noise level (sigma) is 0.01 and 0.1 in two rows [Q2]."
+    _holds_every_value(text, sigmas)
+    ran = [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"mass_kg": "1.0"}]}, {"type": "sql", "source": "q", "detail": "2 rows", "rows": sigmas}]
+    facts = ResearchExpert._facts(ran, "")
+    assert facts == "The mass is 1.0 kg [Q1]. The noise level (sigma) is 0.01 and 0.1 in two rows [Q2]."
+    assert ReasoningExpert.resolve("calc(mass_kg * 9.81)", "[T1] " + facts) == "1.0 * 9.81" and ReasoningExpert.resolve("sigma * 2", facts) == "0.01 * 2"
+    goal = "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2."
+    assert C.unsupported_words(goal, facts, ran) == [] and C.HEDGE.search(facts) is None                              # Vera's word and hedge rules stay quiet
+    both = [{"sigma": 0.01, "sampling_hz": 100}, {"sigma": 0.1, "sampling_hz": 200}]
+    text = rows_in_words(both, "[Q1]")
+    assert text == "In two rows, the noise level (sigma) is 0.01 and 0.1, and the sampling rate is 100 Hz and 200 Hz [Q1]."     # the values pair up by position
+    _holds_every_value(text, both)
+    assert rows_in_words([{"n": 400}, {"n": 400}, {"n": 2}]) == "The count is 400, 400 and 2 in three rows."
+    assert rows_in_words([{"baseline_dataset": "p104-baseline"}, {"baseline_dataset": None}], "[Q1]") == "The baseline dataset is p104-baseline and none in two rows [Q1]."
+    assert rows_in_words([{"t": i} for i in range(13)]).endswith(" 11 and 12 in 13 rows.")                             # the count in words up to twelve
+    assert rows_in_words([{"sigma": 0.01}, {"sampling_hz": 100}], "[Q1]") == "The noise level (sigma) is 0.01 [Q1]. The sampling rate is 100 Hz [Q1]."   # not one result set
 
 
 def test_the_mass_said_in_words_still_reaches_the_calculator():
