@@ -188,6 +188,16 @@ def test_a_count_column_is_a_count_and_a_unit_follows_only_a_number():
     assert row_in_words({"sampling_hz": "unknown"}) == "The sampling rate is unknown." and row_in_words({"mass_kg": "1e-3"}) == "The mass is 1e-3 kg."
 
 
+def test_an_aggregate_is_said_over_its_column_and_a_null_id_is_not_the_subject():
+    """min(date) and avg(mass_kg) are in the saved evidence: the function in a word, the column in the schema's words, its unit kept."""
+    assert answer_in_words("Rows: avg(mass_kg) = 1.0 [Q1]") == "The average mass is 1.0 kg [Q1]."
+    assert row_in_words({"min(date)": "2026-09-02", "max(date)": "2026-10-05"}) == "The earliest date is 2026-09-02 and the latest date is 2026-10-05."
+    assert row_in_words({"sum(n)": 5}) == "The total count is 5." and row_in_words({"max(sigma)": 0.1}) == "The largest noise level is 0.1."
+    assert row_in_words({"stddev(mass_kg)": 0.2}) == "The stddev of mass is 0.2 kg." and row_in_words({"count(1)": 3}) == "The count is 3."
+    assert row_in_words({"equipment_id": None, "mass_kg": 1.0}, "[Q1]") == "The equipment is none and the mass is 1.0 kg [Q1]."   # 'For none, ...' is not a subject
+    assert row_in_words({"equipment_id": None, "sensor_id": "S-1", "sigma": 0.1}) == "For S-1, the equipment is none and the noise level is 0.1."
+
+
 def test_a_pasted_array_keeps_its_numbers_as_written_and_what_follows_it():
     assert answer_in_words('Records: [{"record_id": "S-1", "sigma": 0.10, "note": "x0.10y"}]') == "Records: For S-1, the noise level is 0.10 and the note is x0.10y."
     assert answer_in_words('Records: [{"record_id": "S-1", "sigma": 1e-6, "n": 1000}]') == "Records: For S-1, the noise level is 1e-6 and the count is 1000."   # never 1e-06 or 1000.0

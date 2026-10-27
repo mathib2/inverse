@@ -38,7 +38,11 @@ def _phrase(col):
     m = re.fullmatch(r"(\w+)\((.*)\)", col)
     if m:
         fn, arg = m.group(1).lower(), m.group(2).strip()
-        return (fn if arg in ("", "*", "1") else f"{fn} of {arg}"), ""
+        if arg in ("", "*", "1"):
+            return fn, ""
+        name, unit = _phrase(arg)                                                        # avg(mass_kg): the average mass, in kg; min(date): the earliest date
+        word = {"avg": "average", "sum": "total", "min": "earliest" if name == "date" else "smallest", "max": "latest" if name == "date" else "largest"}.get(fn)
+        return (f"{word} {name}" if word else f"{fn} of {name}"), unit
     return col.replace("_", " "), ""
 
 
@@ -46,7 +50,7 @@ def row_in_words(row, cite=""):
     """One row as one sentence: 'For P-104, the baseline dataset is p104-baseline [Q1].' The first id column is the subject, a
     row that is only an id names it ('Equipment P-104.'), and a value is kept as it is ('none' for a missing one)."""
     items = [(str(k), "none" if v is None else str(v)) for k, v in dict(row).items()]
-    ids = [(k, v) for k, v in items if k.endswith("_id")]
+    ids = [(k, v) for k, v in items if k.endswith("_id") and v != "none"]                  # an id that is none is a value, not the subject
     rest = [(k, v) for k, v in items if not ids or k != ids[0][0]]
     clauses = [f"the {_phrase(k)[0]} is {v}{_phrase(k)[1] if _NUMBER.fullmatch(v) else ''}" for k, v in rest]   # a unit only after a number: 'none' or 'unknown' has none
     said = clauses[0] if len(clauses) == 1 else ", ".join(clauses[:-1]) + " and " + clauses[-1] if clauses else ""
