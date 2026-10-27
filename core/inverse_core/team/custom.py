@@ -45,9 +45,23 @@ _PART = re.compile(r"; (?=[\w-]+: )")                                           
 
 
 def _cut(text):
-    """`text` without a digest's closing words, or the start of them the memory tool's 200-character cut left, at its end."""
-    n = max(n for closing in (". Ruled out: nothing yet" + _CLOSE, _CLOSE) for n in range(len(closing) + 1) if text.endswith(closing[:n]))
+    """`text` without a digest's closing words, or the start of them the memory tool's 200-character cut left, at its end.
+    At least '. ' must be there: a bare full stop at the end is a finding's own, not the closing's (a finding that ends in one
+    must stay equal to its standalone copy, or it is said twice)."""
+    n = max(n for closing in (". Ruled out: nothing yet" + _CLOSE, _CLOSE) for n in range(len(closing) + 1) if n != 1 and text.endswith(closing[:n]))
     return text[:-n] if n else text
+
+
+def _same(part):
+    """What a part is compared by: a part inside an earlier digest lost its full stop to the digest's closing, its standalone
+    copy did not, and they are one part."""
+    return part.rstrip(".")
+
+
+def _said(parts):
+    """`parts` joined as one list, closed by one full stop: a last part that ends in its own is not given another ('..')."""
+    text = "; ".join(parts)
+    return text if text.endswith(".") else text + "."
 
 
 def _flat(finding, refuted):
@@ -63,7 +77,7 @@ def _flat(finding, refuted):
         h = heads[-1]
         end = text.find(_CLOSE, h.end())
         found, _, out = text[h.end():end if end >= 0 else len(text)].partition(". Ruled out: ")
-        refuted += [p for p in _PART.split(out) if p and p != "nothing yet" and p not in refuted]
+        refuted += [p for p in _PART.split(out) if p and p != "nothing yet" and _same(p) not in {_same(q) for q in refuted}]
         parts = [p for p in _PART.split(found) if p and p != "nothing yet"]
         text = text[:h.start()] + (("; " if h.group(0).startswith("; ") else "") + "; ".join(parts) if parts else "") + text[end + len(_CLOSE) if end >= 0 else len(text):]
         heads = list(_HEAD.finditer(text))
@@ -76,9 +90,9 @@ def digest(mem):
     earlier digest among the findings is split back into what it listed, said once, never nested."""
     refuted = [str(f) for f in (mem or {}).get("refuted") or []]
     found = [p for f in (mem or {}).get("findings") or [] for p in _flat(str(f), refuted)]
-    kept = [p for i, p in enumerate(found) if p not in refuted and p not in found[:i]]
-    return ("Found and still standing: " + ("; ".join(kept) + "." if kept else "nothing yet.")
-            + " Ruled out: " + ("; ".join(refuted) + "." if refuted else "nothing yet.")
+    kept = [p for i, p in enumerate(found) if _same(p) not in {_same(q) for q in refuted + found[:i]}]
+    return ("Found and still standing: " + (_said(kept) if kept else "nothing yet.")
+            + " Ruled out: " + (_said(refuted) if refuted else "nothing yet.")
             + " Still unchecked: nothing else is recorded in the shared memory.")
 
 class CustomExpert(BaseExpert):

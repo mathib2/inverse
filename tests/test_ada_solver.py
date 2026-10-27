@@ -85,6 +85,11 @@ def test_an_earlier_digest_among_the_findings_is_said_as_its_parts_not_nested():
     empty = "solver: Found and still standing: nothing yet. Ruled out: nothing yet. Still unchecked: nothing else is recorded in the shared memory."
     assert digest({"findings": [empty, "research: 7"], "refuted": []}).startswith("Found and still standing: research: 7. Ruled out: nothing yet.")
     assert digest({"findings": ["solver: Found and still standing: reasoning: 122.625. Rul"], "refuted": []}).startswith("Found and still standing: reasoning: 122.625. Ruled out: nothing yet.")
+    stop = "reasoning: The weight of P-104 is 9.81 newtons."                                                                     # the memory's cut can fall right after a part's own full stop
+    assert digest({"findings": ["solver: Found and still standing: " + stop, stop], "refuted": []}) == \
+        "Found and still standing: " + stop + " Ruled out: nothing yet. Still unchecked: nothing else is recorded in the shared memory."   # said once, one full stop
+    assert digest({"findings": ["research: 1.", "solver: Found and still standing: research: 1. Ruled out: reasoning: 3. Still unchecked: nothing else is recorded in the shared memory."],
+                   "refuted": ["reasoning: 3."]}) == "Found and still standing: research: 1. Ruled out: reasoning: 3. Still unchecked: nothing else is recorded in the shared memory."
 
 
 def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produced(tmp_path):
