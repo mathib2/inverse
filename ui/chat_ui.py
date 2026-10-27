@@ -13,6 +13,7 @@ import council_ui
 import live_ui
 import parts
 import plain
+import run_ui
 import warden_ui
 from inverse_core import notify
 from inverse_core.clients.world import WorldClient
@@ -32,8 +33,6 @@ EXAMPLES = [("What do we know about P-104?", "From the registry, the sensor spec
             ("What do we know so far?", "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.")]
 
 LIVE = {}                                                                     # the one mission running in this process, shared by every browser session
-
-ENDED = {"task_failed", "task_rejected", "task_skipped"}
 
 def _configs():
     try:
@@ -66,30 +65,6 @@ def _busy(on, goal=""):
     except OSError:
         pass
 
-def _clock(t0, t1=None):
-    secs = int((t1 or time.time()) - t0)
-    return f"{secs // 60} min {secs % 60:02d} s" if secs >= 60 else f"{secs} s"
-
-def _label(live, configs):
-    """What the crew is doing right now, read from the trace: who is on which task, how many finished, for how long."""
-    ev, clock = live["events"][:], _clock(live["t0"])
-    if live.get("stopping"):
-        return f"Stopping: the step in progress finishes, nothing new starts · {clock}"
-    if any(e["kind"] == "composing" for e in ev):
-        return f"{crew_name('lead')} is writing the answer · {clock}"
-    approved = next((e for e in ev if e["kind"] == "plan_approved"), None)
-    if not approved:
-        return f"{crew_name('lead')} is planning · {clock}"
-    total = len(approved.get("tasks") or [])
-    ended = {e.get("task") for e in ev if e["kind"] in ENDED or (e["kind"] == "critic" and e.get("verdict") in ("accept", "unreviewed"))}
-    working = {}
-    for e in ev:
-        if e["kind"] == "delegate":
-            working[e.get("task")] = e.get("expert")
-    busy = [(t, x) for t, x in working.items() if t not in ended]
-    who = ", ".join(f"{crew_name(x, configs)} on {t}" for t, x in busy[-2:]) or f"{crew_name('critic')} is checking"
-    return f"{who} · {len(ended)} of {total} tasks finished · {clock}"
-
 def _ended(live):
     """The mission is over: keep its answer for this browser session, remember how it ended, free the slot."""
     ss = st.session_state
@@ -102,7 +77,7 @@ def _ended(live):
         ss.crew_error = (box["err"], live["ctx"].equipment)
     elif live["holder"].get("plan") is not None:
         ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = box["v"], live["holder"]["plan"], live["ctx"].trace.dir, list(live["events"]), False
-    ss.crew_last = {"stopped": bool(live.get("stopping")), "took": _clock(live["t0"], live["t1"])}
+    ss.crew_last = {"stopped": bool(live.get("stopping")), "took": run_ui.clock(live["t0"], live["t1"])}
 
 
 
@@ -157,26 +132,29 @@ def _collect():
         ss.panel_turn = ss.crew_dir
         if ss.get("panel_pick") == "Live":
             ss.panel_next = "Answer"
+        if ss.crew_dir not in ss.setdefault("toasted", set()):                # once per run, whatever reruns follow
+            ss.toasted.add(ss.crew_dir)
+            st.toast(plain.run_ended(last.get("took", ""), bool(last.get("stopped"))), icon=":material/check_circle:")
     if ss.get("crew_error"):
         err, equipment = ss.pop("crew_error")
         title, what = plain.error(err, equipment)
         _turns().append({"goal": ss.pop("pending_goal", "") or "the last question", "error": f"**{title}** {what}", "dir": None})
+        st.toast(title, icon=":material/error:")
 
 
 def _running(live_run, configs):
-    """The assistant's bubble while the crew works: a status line that redraws itself, the plain lines so far, and Stop."""
+    """The assistant's bubble while the crew works: the run panel (the status line with Stop, the timeline, one card per task), redrawn every 2 s."""
     th = live_run["thread"]
 
+    def stop():
+        live_run["stopping"] = True
+        live_run["ctx"].stop.set()
+
     def body():
-        c1, c2 = st.columns([5, 1])
-        c1.caption(_label(live_run, configs) if th.is_alive() else "Mission over")
-        if c2.button("Stop", key="chat_stop", width="stretch", disabled=live_run.get("stopping", False), help="The step in progress finishes; nothing new starts."):
-            live_run["stopping"] = True
-            live_run["ctx"].stop.set()
-        lines = [s for s in (_say(e, configs) for e in live_run["events"][:]) if s]
-        if lines:
-            st.markdown("\n".join(f"- {s}" for s in lines[-8:]))
-        if not th.is_alive():
+        alive = th.is_alive()
+        run_ui.panel(live_run["events"][:], live_run["holder"].get("plan"), configs, live_run["t0"], None if alive else time.time(),
+                     live_run.get("stopping", False), stop=stop if alive else None)
+        if not alive:
             st.session_state.pending_goal = live_run["goal"]
             _ended(live_run)
             st.rerun(scope="app")
@@ -247,11 +225,14 @@ def _who(t, configs):
 
 
 def _steps(t, configs):
-    lines = [(e.get("t"), _say(e, configs)) for e in t.get("events") or []]
+    events = t.get("events") or []
+    lines = [(e.get("t"), _say(e, configs)) for e in events]
     lines = [(tt, s) for tt, s in lines if s]
     if not lines:
         st.caption("No steps were recorded for this answer.")
         return
+    took = max((e["t"] for e in events if isinstance(e.get("t"), (int, float))), default=0)
+    run_ui.panel(events, t.get("plan"), configs, 0, took, bool(t.get("stopped")))   # the finished run's panel, then every step in order
     st.markdown("\n".join(f"- `{tt:6.1f} s` {s}" if isinstance(tt, (int, float)) else f"- {s}" for tt, s in lines))
 
 
