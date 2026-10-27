@@ -9,6 +9,13 @@
 - The headline is honest: 8/8 with every number exact, 7/8 read strictly. The crew against one agent holding all of it, on 13 reverse-engineering tasks: 2 of 26 against 0 (`docs/BENCH.md`). The public repository is public (it was made so on 27 Oct).
 - Tests: 214; CI runs 208.
 
+## The page polished, the core tidied (2026-10-27, morning)
+- The chat page shows a run panel while a mission runs and under Steps afterwards (`ui/run_ui.py`): a status timeline (planned, working, reviewing, answered) and one card per task with its agent, attempts and tool calls, read from the trace the page already collects; the eight-line bullet list in the bubble goes. One toast when the mission ends, none when a saved run is opened. Stop stays where it was.
+- The nine artifact pills sit in two labelled groups, "This answer" (Answer, Evidence, Who did what, Steps) and "The crew" (Live, Crew, Warden, Council, Alerts), instead of three ragged rows; a fresh page shows a dashed empty state that points to the three example questions. The wording is in `ui/plain.py` and pinned by `tests/test_ui_plain.py`.
+- One header row: brand, tagline, the three status badges on one line on the right. Connections in the sidebar is a one-line status with the detail behind an expander, so Recent is visible without scrolling. The page's fade-in and the decorative blur are toned down. Under 820 px the artifact panel comes before the thread, so an answer is not lost below the fold.
+- In separate pull requests: lint (imports sorted, unused imports and stale `noqa` comments dropped, regex flags spelled out, no behaviour change; `ruff.toml` enables only what the code already passes and CI runs `ruff check` with a pinned version, so it cannot go red on the team); seven files opened without `with` now use a context manager; a root `AGENTS.md` that says where the code is, the branch and pull-request rule, how to run and test, the wording rule, and what never to push.
+- Tests: 208; CI runs 202 and skips the 6 that need live services.
+
 ## A reply cut short is read; a sentence asked for is taken (2026-10-27, morning)
 - A model reply that stops after a complete value but before its closing brackets is closed and read (`clients/meterless.py: extract_json`); one cut inside a string is not. Nemotron-Mini on Nightshift had stopped Scout's query reply one brace short three times in a row, and two fresh P-104 maintenance reviews on the live crew lost their mass lookup.
 - Euler: an empty answer re-asked as one sentence may come back as just the sentence, with no JSON around it; that sentence is the answer, and Vera still checks its number (`answer_in_prose`). Benchmark rounds 36 and 37: 8/8 in 30 s each.

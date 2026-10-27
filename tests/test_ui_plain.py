@@ -53,3 +53,14 @@ def test_team_steps_read_as_plain_sentences():
     assert plain.team_step({"kind": "council_decision", "id": "P-1", "decision": "adopt", "reason": "ok"}) == "The council adopted P-1: ok"
     assert plain.team_step({"kind": "proposal_filed", "by": "<user>", "what": "x"}, agents={"research"}) == "a person proposed to the council: x"
     assert plain.team_step({"kind": "proposal_filed", "by": "research", "what": "x"}, agents={"research"}) == "research proposed to the council: x"
+
+
+def test_the_empty_panel_points_to_the_examples():
+    assert "examples on the left" in plain.PANEL_EMPTY and "appear here" in plain.PANEL_EMPTY and "!" not in plain.PANEL_EMPTY
+
+
+def test_run_panel_words_cover_every_state():
+    assert plain.RUN_STEPS == ("planned", "working", "reviewing", "answered")
+    assert set(plain.TASK_WORDS) == {"pending", "running", "reviewing", "accepted", "sent_back", "rejected", "failed", "skipped"}
+    assert plain.TASK_WORDS["sent_back"] == "sent back" and plain.TASK_WORDS["reviewing"] == "in review"
+    assert plain.run_ended("16 s") == "The crew answered in 16 s" and plain.run_ended("1 min 02 s", stopped=True) == "Stopped after 1 min 02 s"
