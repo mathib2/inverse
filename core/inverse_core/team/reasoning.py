@@ -165,13 +165,17 @@ class ReasoningExpert(BaseExpert):
         if not answer or answer.lower() in ("none", "null", "error", "n/a"):      # a number or nothing where a sentence was due: once more, by code
             self.ctx.trace.event("bare_answer", agent=self.name, answer=answer[:60])
             msgs += [{"role": "assistant", "content": r["text"]}, {"role": "user", "content": 'Your "answer" was empty. Write the answer as one sentence with the number in it, in the same JSON shape.'}]
-            r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
+            r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS, lenient=True)
             models.append(r["model"])
-            j = r["json"]
-            ev2, bad2 = self._check(j.get("steps", []), task.context)
-            if ev2:
-                ev, bad = ev2, bad2
-            answer = str(j.get("answer") or "").strip()
+            if r["json"] is None:                                            # asked for one sentence, it wrote just the sentence: that is the answer
+                answer = str(r["text"] or "").strip().strip('"').strip()
+                self.ctx.trace.event("answer_in_prose", agent=self.name, task=task.id, answer=answer[:120])
+            else:
+                j = r["json"]
+                ev2, bad2 = self._check(j.get("steps", []), task.context)
+                if ev2:
+                    ev, bad = ev2, bad2
+                answer = str(j.get("answer") or "").strip()
         values = [float(e["detail"][2:].split()[0]) for e in ev if e.get("type") == "calc" and str(e.get("detail", "")).startswith("= ")
                   and re.fullmatch(r"-?[\d.]+(?:e[-+]?\d+)?", str(e["detail"][2:].split()[0]))]
         answer, fixed = reconcile_numbers(answer, values, [values, str(task.context or ""), task.goal])
