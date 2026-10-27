@@ -1,9 +1,10 @@
-# Demo script (4 minutes, with an optional 45 seconds)
+# Demo script (4 minutes)
 
 Everything below is live unless marked **replay** or a deck slide; the front page is the chat page. Press **New chat** in the sidebar
 before recording so the examples show. The replay is Warden's saved mission `docs/evidence/missions/20261026-195911` (P-104's
-maintenance review); get it ready as described under the table. The submission notes say the video runs 1 to 4 minutes: the main cut
-ends at 4:00, and the optional rows go in only if the submission form allows 5 minutes. A mission on Nightshift usually finishes in
+maintenance review); get it ready as described under the table. The official rules require a video of 1 to 4 minutes showing the main
+workflow, how the agent solves the challenge, its key features, and how Zetaris and Meterless are integrated. The main cut ends at
+4:00; the two spare rows at the end can replace a row of it, never be added to it. A mission on Nightshift usually finishes in
 under a minute: start it, talk over it, and cut the waiting.
 
 | Time | On screen | Say |
@@ -19,8 +20,8 @@ under a minute: start it, talk over it, and cut the waiting.
 | 3:25 | Deck slide 9, measured | "Eight checkable goals: all eight in 222 seconds on the workstation's CPU, in 40 on Nightshift, and in 32 after we fixed a flaw our own benchmark caught." |
 | 3:45 | **Chat** in the sidebar: the live mission from 0:55 has finished in the thread; then deck slide 11 | "Autonomous, checked, replayable. Zetaris is the only data path, Meterless serves the model and holds the memory, and NVIDIA Nemotron-Mini-4B answers every model call the eight agents make." |
 | 4:00 | | End of the main cut. |
-| +0:00 | Optional: **New chat**, the example **Check our own code**, then **Evidence** | "Sentinel reviews our own code. A fixed-rule scan finds the hot spots, every finding must quote a real file and line, and a finding the code contradicts is dropped. This file is clean, so no weakness is claimed." |
-| +0:25 | Optional: deck slide 10, sponsors | "Where each sponsor does real work: Zetaris for data; Meterless for the model, the shared memory, the long reviews and the council's record; and Nemotron for every agent." |
+| spare | **New chat**, the example **Check our own code**, then **Evidence** | "Sentinel reviews our own code. A fixed-rule scan finds the hot spots, every finding must quote a real file and line, and a finding the code contradicts is dropped. This file is clean, so no weakness is claimed." |
+| spare | Deck slide 10, sponsors | "Where each sponsor does real work: Zetaris for data; Meterless for the model, the shared memory, the long reviews and the council's record; and Nemotron for every agent." |
 
 Before recording:
 
