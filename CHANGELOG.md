@@ -7,6 +7,7 @@
 - Atlas plans and writes the final answer on his own lane, `plan` (`Lead(plan_lane="plan", compose_lane="plan")`). Left unset it follows `LANE_DEEP`, so the live crew plans on the model it always did.
 - A lane can have its own endpoint: `LANE_<NAME>_URL`, `_KEY`, `_TIMEOUT`, `_BACKUP` (`clients/meterless.py: LaneEndpoint`). A call the endpoint cannot answer goes to the crew's own provider with the backup model, and later calls go there directly for two minutes; the endpoint's failure never marks the laptop down. This is how Atlas and Vera can run on a hosted Nemotron-3-Ultra-550B while the workers stay on the laptop's Nemotron-Mini-4B.
 - On Nightshift the lane defaults are Lightning-30B for the workers and Ultra-550B for `plan` and `critic` (they were Lightning-30B, Ultra-550B and Super-120B). The live `.env` names every lane, so nothing changes until it names `LANE_PLAN_URL` or `LANE_CRITIC_URL`; not yet measured on the benchmark.
+- Worked examples in the agents' prompts were measured and not adopted: 7/8, 7/8, 6/8 and 6/8 against 8/8 without them (rounds 28 to 31, `docs/BENCH.md`). The 4B planner copied a phrase of his example into a real task, and Euler copied the shape of an example answer. They stay on the branch `crew/worked-examples` for a larger model.
 - Tests: 208.
 
 ## Exact numbers, every answer with its sources (2026-10-27, early morning)
