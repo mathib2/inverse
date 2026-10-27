@@ -17,7 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 sys.path.insert(0, os.path.join(ROOT, "core"))
 
-import tinker
+import tinker  # sets INVERSE_SANDBOX to this checkout and loads .env
 from inverse_core import injection_guard as guard
 from inverse_core.budget import Budget
 from inverse_core.ledger import SidecarLedger
