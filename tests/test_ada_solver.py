@@ -114,6 +114,9 @@ def test_the_summary_keeps_every_number_id_and_citation_a_finding_holds():
     from inverse_core.team.summary import finding_sentence, refuted_sentence, rows_in_words
     assert finding_sentence("research: 400") == "Scout answered 400." and finding_sentence("reasoning: 122.625") == "Euler answered 122.625."
     assert finding_sentence("research: P-104.") == "Scout answered P-104." and refuted_sentence("research: 2", "«2»: the rows hold 3") == "Scout said 2; it was refuted: the rows hold 3."
+    for value in ("122.625 N", "1200.25 newtons", "9.81 m/s^2", "-1.5 mm", "1e-3 kg"):                                   # a number with its unit is as bare as one without
+        assert finding_sentence(f"reasoning: {value}.") == f"Euler answered {value}."
+    assert finding_sentence("reasoning: 12.5 kg x 9.81 m/s^2 = 122.625 N") == "Euler found that 12.5 kg x 9.81 m/s^2 = 122.625 N."   # a worked line is not a bare value
     assert finding_sentence("research: P-104. Rows: equipment_id = P-104, baseline_dataset = p104-baseline [Q1]") == "Scout found that the machine P-104 has the baseline dataset p104-baseline [Q1]."
     assert finding_sentence("research: 42. Rows: n = 400 [Q1]") == "Scout answered 42; the rows say the count is 400 [Q1]."            # a value its rows do not say is kept
     # Scout's rows in words, every value and citation kept; any key, aliased or not; a last row cut by a limit keeps its pairs and says so.

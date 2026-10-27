@@ -38,6 +38,7 @@ _END = re.compile(r"(?:[.!?]|\[Q\d+\])(?=\s|$)")                              # 
 _RECORDS = re.compile(r"\[\s*(?=\{)")                                         # a JSON array of records pasted into a finding
 _FIELD = re.compile(r'"([^"\\]+)"\s*:\s*(?:"((?:[^"\\]|\\.)*)"|(-?[\w.+-]+))\s*(?=[,}])')   # one whole field of a record, string or bare
 _QUOTE = re.compile(r"«([^»]{0,200})»")                                       # how the reviewer quotes the answer in a reason
+_UNIT = re.compile(r"^[-+]?(?:\d[\d,]*(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?\s+[a-z][\w/^%°]*$", re.I)   # a number and its unit, no verb: "122.625 N", "9.81 m/s^2"
 
 
 def fold(text):
@@ -143,8 +144,8 @@ def _whole(text, cut):
 
 def _claim(form):
     """(agent id, the claim in words, whether it is a bare value) for a finding as the memory holds it; the claim is '' for an empty
-    text or for a digest of other findings (never summarised again). A bare value ("400") is kept as it is; one that its own rows
-    already say ("P-104. Rows: equipment_id = P-104 ...") is said once, by the rows."""
+    text or for a digest of other findings (never summarised again). A bare value ("400", "122.625 N") is kept as it is; one that
+    its own rows already say ("P-104. Rows: equipment_id = P-104 ...") is said once, by the rows."""
     form = str(form or "")
     m = _EXPERT.match(form.strip())
     ident, body = (m.group(1), m.group(2) or "") if m else ("", form)
@@ -156,7 +157,7 @@ def _claim(form):
     head, records, after = records_in_words(head) or (head, "", "")
     head = _whole(fold(head), len(form) >= FINDING_CAP and not rows and not records).strip(" .;:,")
     after = fold(after).strip(" .;:,")
-    bare = bool(head) and " " not in head
+    bare = bool(head) and (" " not in head or bool(_UNIT.match(head)))
     if bare and re.search(rf"(?<![\w.-]){re.escape(head)}(?![\w.-])", records + " " + rows, re.I):
         head, bare = "", False
     claim = head + (": " if head and records else "") + records
@@ -173,7 +174,8 @@ def claim_words(form):
 
 def finding_sentence(form, name=crew_name):
     """"Euler found that the weight of P-104 is 9.81 newtons.", "Scout found two maintenance records for P-104; the rows say ..." for a
-    claim that starts with what its author did, "Scout answered 400." for a bare value, or '' for an empty text or a digest."""
+    claim that starts with what its author did, "Scout answered 400." or "Euler answered 122.625 N." for a bare value, with its unit or
+    without, or '' for an empty text or a digest."""
     ident, claim, bare = _claim(form)
     who, end = name(ident) if ident else "The crew", "" if claim.endswith((".", "!", "?")) else "."   # a pasted note may end the claim with its own full stop
     if not claim:
