@@ -14,7 +14,7 @@ from .crew import name as crew_name
 FOUND, RULED_OUT, UNCHECKED, NOTHING_UNCHECKED = "What the crew found", "What was ruled out", "Still unchecked", "Nothing is marked unchecked."
 DIGEST_HEADS = ("Found and still standing", FOUND, RULED_OUT, UNCHECKED, NOTHING_UNCHECKED, "Tool results so far")   # code-made text about other findings: never a finding itself
 FINDING_CAP = 200                                                             # the memory tool's cap on a finding's text: a text that long was cut by it, not finished
-MAX_FINDINGS, MAX_REFUTED, MAX_UNCHECKED = 10, 5, 5
+MAX_FINDINGS, MAX_REFUTED, MAX_UNCHECKED = 10, 10, 5                      # findings and refuted claims: the memory tool's own caps, so none it holds is dropped
 CUT = "(cut off)"                                                             # said where a limit cut a text, so a half value is not read as a whole one
 
 # What the columns of data/zetaris/*.sql mean in words (the research prompt names sigma, sampling_hz and mass_kg), with a unit where the column name carries one.
@@ -217,7 +217,7 @@ def _unique(items):
 
 def digest(mem, name=None):
     """The summary, from the memory read: findings (newest first, each once, at most ten) under "What the crew found", refuted
-    claims with their reasons (at most five) under "What was ruled out", and the closing line on what is still unchecked.
+    claims with their reasons (at most ten) under "What was ruled out", and the closing line on what is still unchecked.
     `mem` is the memory tool's output, with the optional `refutations` ([{form, reason}]) and `not_checked` lists the solver adds
     by code; `name` maps an agent id to its name (the crew's helper by default)."""
     mem, name = mem if isinstance(mem, dict) else {}, name or crew_name

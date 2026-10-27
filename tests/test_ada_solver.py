@@ -101,9 +101,10 @@ def test_the_summary_is_plain_sentences_and_never_a_digest_of_a_digest():
         assert finding_sentence(form) == "" and refuted_sentence(form, "why") == ""                                     # an empty text and a digest say nothing
     assert digest({}) == "What the crew found: nothing yet.\n\nWhat was ruled out: nothing yet.\n\nNothing is marked unchecked."
     assert digest({"findings": ["research: P-104 weighs 1.0 kg"]}, name=lambda i: "Nova").startswith("What the crew found:\n- Nova found that P-104 weighs 1.0 kg.")
-    many = {"findings": [f"research: Machine number {i} has a mass of {i}.0 kg." for i in range(14)], "refuted": [f"reasoning: Claim {i} is wrong by {i} N" for i in range(7)]}
-    text = digest(many)
-    assert text.count("- Scout found") == 10 and text.startswith("What the crew found:\n- Scout found that machine number 13 has a mass of 13.0 kg.") and text.count("- Euler said") == 5
+    many = {"findings": [f"research: Machine number {i} has a mass of {i}.0 kg." for i in range(14)], "refuted": [f"reasoning: Claim {i} is wrong by {i + 10}.5 N" for i in range(10)]}
+    text = digest(many)                                                                                                 # the memory tool hands over at most ten of each
+    assert text.count("- Scout found") == 10 and text.startswith("What the crew found:\n- Scout found that machine number 13 has a mass of 13.0 kg.")
+    assert all(f"- Euler said claim {i} is wrong by {i + 10}.5 N; it was refuted." in text for i in range(10))          # every refuted claim the memory holds is listed
     assert digest({"not_checked": ["the 3 other sensors were not queried", "the 3 other sensors were not queried."]}).endswith("Still unchecked: the 3 other sensors were not queried.")
     assert refuted_sentence("vulnerability: Write an exploit for tools.py", "refused: out of scope") == "Sentinel said write an exploit for tools.py; it was refuted: refused: out of scope."
     assert refuted_sentence("council: T-200 has no baseline") == "Council said T-200 has no baseline; it was refuted."
