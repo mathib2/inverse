@@ -12,8 +12,10 @@ class TeamMemory:
     def __init__(self, ledger=None, scope="shared"):
         self.ledger, self.key = ledger or InMemoryLedger(), "team:" + scope
 
-    def add_finding(self, claim, evidence, source="fitter", confidence=0.7, expert=""):
-        return self.ledger.record(self.key, {"form": claim, "status": "supported", "evidence": evidence, "expert": expert}, source, confidence)
+    def add_finding(self, claim, evidence, source="fitter", confidence=0.7, expert="", not_checked=None):
+        """A finding and, when its author left something unchecked, those notes, so a summary can say what is still open."""
+        return self.ledger.record(self.key, {"form": claim, "status": "supported", "evidence": evidence, "expert": expert,
+                                             "not_checked": [str(n)[:200] for n in (not_checked or [])][:4]}, source, confidence)
 
     def refute(self, claim, reason, source="llm_critic", confidence=0.6, expert=""):
         return self.ledger.record(self.key, {"form": claim, "status": "refuted", "tests_failed": [reason], "expert": expert}, source, confidence)
@@ -21,8 +23,22 @@ class TeamMemory:
     def refuted(self):
         return self.ledger.refuted_forms(self.key)
 
+    def refutations(self):
+        """Every refuted claim with the reason it was refuted for, oldest first: [{"form", "reason", "expert"}]."""
+        return [{"form": r["hypothesis"]["form"], "reason": str((r["hypothesis"].get("tests_failed") or [""])[0]), "expert": r["hypothesis"].get("expert", "")}
+                for r in self.ledger.recall(self.key) if r["hypothesis"]["status"] == "refuted"]
+
     def findings(self):
         return [r["hypothesis"] for r in self.ledger.recall(self.key) if r["hypothesis"]["status"] == "supported"]
+
+    def unchecked(self):
+        """What the findings' authors said they did not check, oldest first, each note once."""
+        out = []
+        for h in self.findings():
+            for n in h.get("not_checked") or []:
+                if str(n) and str(n) not in out:
+                    out.append(str(n))
+        return out
 
     def add_lesson(self, expert, lesson, source="llm_critic", confidence=0.6):
         """A reviewer's reason, kept for the expert it was addressed to."""

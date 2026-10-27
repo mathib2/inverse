@@ -49,6 +49,7 @@ def test_rejected_task_is_written_to_team_memory(tmp_path):
     mem = TeamMemory(InMemoryLedger())
     Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), mem)._execute(Task("T1", "think", "reasoning"))
     assert any("bad idea" in f for f in mem.refuted())
+    assert [r["expert"] for r in mem.refutations()] == ["reasoning"] and mem.refutations()[0]["reason"].startswith("«bad idea»: approach cannot work")   # the reason rides with the claim
 
 
 def test_findings_reach_memory_only_after_the_critic_accepts(tmp_path):
@@ -63,6 +64,7 @@ def test_findings_reach_memory_only_after_the_critic_accepts(tmp_path):
     t = Task("T1", "weight of P-104", "reasoning")
     lead._execute(t)
     assert t.status == "done" and [h["form"] for h in mem.findings()] == ["reasoning: Weight is 122.6 N"] and events(ctx, "memory_write")
+    assert mem.unchecked() == ["steps without arithmetic are the model's reasoning, not machine-verified"]          # what Euler left unchecked rides with the finding
     rej = TeamMemory(InMemoryLedger())
     lead2 = Lead(ctx, Registry(ctx, os.path.join(ROOT, "experts"), ROOT), rej)
     lead2.critic.review = lambda task, result: {"verdict": "reject", "reason": "wrong g", "by": "llm"}
