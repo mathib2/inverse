@@ -10,6 +10,9 @@ TOOL_VERBS = {"run_sql": "ran a data query", "calc": "used the calculator", "mem
               "post_message": "left a note", "read_messages": "read its notes", "scan": "scanned the code", "read_file": "read a file", "grep": "searched the code",
               "list_files": "listed files", "list_experts": "looked at the crew", "design_expert": "designed an agent", "create_expert": "built an agent",
               "test_expert": "test-drove an agent", "propose": "filed a proposal", "support": "backed a proposal"}
+RUN_STEPS = ("planned", "working", "reviewing", "answered")                 # the run panel's timeline, in order
+TASK_WORDS = {"pending": "pending", "running": "running", "reviewing": "in review", "accepted": "accepted", "sent_back": "sent back",
+              "rejected": "rejected", "failed": "failed", "skipped": "skipped"}   # a task's state on its card in the run panel
 
 GLOSSARY = [
     ("Mission", "A goal given to the crew: Atlas plans it, the agents work, Vera checks, and the answer cites its evidence."),
@@ -51,6 +54,11 @@ def error(exc: Exception, known_equipment=()) -> tuple[str, str]:
     if name in ("ConnectionError", "ConnectTimeout", "ReadTimeout"):
         return "A service didn't respond", "Zetaris or the memory service didn't answer. Check the connections in the sidebar."
     return "Something went wrong", f"{name}: {str(exc)[:200]}"
+
+
+def run_ended(took: str, stopped=False) -> str:
+    """The one line (and the toast) when a mission is over."""
+    return f"Stopped after {took}" if stopped else f"The crew answered in {took}"
 
 
 def agent_word(agent) -> str:
