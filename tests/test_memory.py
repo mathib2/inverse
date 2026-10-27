@@ -69,3 +69,15 @@ def test_findings_reach_memory_only_after_the_critic_accepts(tmp_path):
     t2 = Task("T2", "weight of P-104", "reasoning")
     lead2._execute(t2)
     assert t2.status == "rejected" and rej.findings() == [] and "reasoning: Weight is 122.6 N" in rej.refuted()   # same key as a finding would use
+
+
+def test_a_lesson_reaches_an_expert_only_for_a_task_like_the_one_it_came_from():
+    from inverse_core.ledger import InMemoryLedger
+    from inverse_core.team.memory import TeamMemory
+    m = TeamMemory(InMemoryLedger())
+    m.add_lesson("reasoning", "Summarize the findings and rules out so far, and list what is still unchecked.: \u00abThe cube root of 27 is not 3, but 3.\u00bb no")
+    m.add_lesson("reasoning", "Using the accepted results from the earlier tasks, answer this in plain words: compute the weight of P-104 in newtons: \u00ab98.1 N\u00bb not in the evidence")
+    assert len(m.lessons("reasoning")) == 2                                                    # without a goal, as before
+    assert m.lessons("reasoning", goal="What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps.") == []
+    assert m.lessons("reasoning", goal="Using the accepted results from the earlier tasks, answer this in plain words: what does P-104 weigh in newtons?")[0].startswith("Using the accepted")
+    assert m.lessons("reasoning", goal="Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.")[0].startswith("Summarize")

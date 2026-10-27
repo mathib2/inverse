@@ -28,11 +28,27 @@ class TeamMemory:
         """A reviewer's reason, kept for the expert it was addressed to."""
         return self.ledger.record(f"team:lessons:{expert}", {"form": str(lesson)[:300], "status": "supported", "kind": "lesson", "expert": expert}, source, confidence)
 
-    def lessons(self, expert, n=3):
-        """The latest n lessons for an expert, oldest first."""
+    def lessons(self, expert, n=3, goal=None):
+        """The latest n lessons for an expert, oldest first. With a goal, only lessons from a task like it: a lesson starts with its
+        own task's goal, and at least two content words must match. Shown to every task, a review of a summary ("The cube root of
+        27 is not 3") primed a plain multiplication, and the benchmark's arithmetic case answered 3."""
         rows = [r["hypothesis"]["form"] for r in self.ledger.recall(f"team:lessons:{expert}") if r["hypothesis"].get("kind") == "lesson"]
+        if goal is not None:
+            want = _content_words(goal)
+            rows = [r for r in rows if len(_content_words(str(r).split("\u00ab", 1)[0]) & want) >= 2]
         return rows[-n:]
 
     def reset(self):
         reset = getattr(self.ledger, "reset", None)
         return reset(self.key) if reset else 0
+
+
+_BOILERPLATE = set(("using accepted results from earlier tasks answer this plain words with that this what which their there from into about "
+                    "find give show list tell compute count look values report exactly queries return another task whole goal").split())
+
+
+def _content_words(text):
+    """Lower-case words of four letters or more that say what a task is about (P-104, sensor, maintenance), without the phrases every
+    planned task shares ("Using the accepted results from the earlier tasks, answer this in plain words")."""
+    import re
+    return {w for w in re.findall(r"[a-z0-9][a-z0-9_-]{3,}", str(text or "").lower()) if w not in _BOILERPLATE}

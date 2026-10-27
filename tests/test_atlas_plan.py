@@ -223,3 +223,23 @@ def test_atlas_prompt_names_a_rule_per_goal_type_and_no_example_plan(tmp_path):
     s = lead.plan_system()
     assert "Routing rules" in s and "summary" in s and "reasoning alone" in s and "research first" in s
     assert s.count('"id":"T1"') == 1                                                                      # the schema only; no worked plans to copy
+
+
+def test_days_between_dates_go_to_euler_not_to_scouts_sql(tmp_path):
+    """A planner put 'the number of days between the two maintenance records' on Scout, whose SQL date functions the platform
+    refused three times; the final write-up then made the number up."""
+    ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
+    goal = ("P-104 is up for a maintenance review. From the registry, find its mass and its two maintenance records with their dates; "
+            "compute its weight in newtons with g = 9.81 m/s^2; and say how many days passed between the two maintenance records.")
+    p = lead._parse_plan(goal, {"tasks": [
+        {"id": "T1", "goal": "Find mass of P-104 from registry", "expert": "research", "depends_on": []},
+        {"id": "T2", "goal": "Find two maintenance records for P-104", "expert": "research", "depends_on": []},
+        {"id": "T3", "goal": "Compute weight of P-104 in newtons", "expert": "solver", "depends_on": ["T1", "T2"]},
+        {"id": "T4", "goal": "Find the number of days between the two maintenance records", "expert": "research", "depends_on": ["T2"]}]})
+    t4 = p.tasks[3]
+    assert t4.expert == "reasoning" and t4.depends_on == ["T2"] and t4.goal.startswith("Using the dates")
+    assert [t.expert for t in p.tasks[:2]] == ["research", "research"]
+    p = lead._parse_plan("How many days passed between the two maintenance records of P-104?", {"tasks": [
+        {"id": "T1", "goal": "List the maintenance records of P-104 with their dates", "expert": "research", "depends_on": []},
+        {"id": "T2", "goal": "How many days passed between the two records", "expert": "research", "depends_on": []}]})
+    assert p.tasks[1].expert == "reasoning" and p.tasks[1].depends_on == ["T1"]

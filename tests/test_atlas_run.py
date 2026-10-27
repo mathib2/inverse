@@ -251,3 +251,25 @@ def test_a_question_about_the_crew_is_answered_from_its_records(tmp_path):
     lead.run(plan)
     out = lead.compose(plan)
     assert not calls and plan.tasks[0].expert == "lead" and out["answer"].startswith("I am INVERSE, a crew of") and "Scout" in out["answer"] and "[T1.E1]" in out["answer"]
+
+
+def test_a_number_the_writer_adds_sends_the_answer_back_to_code(tmp_path):
+    """The writer once wrote '32 days' for a task that had failed; no accepted result held 32."""
+    ctx, lead = crew(tmp_path, lambda m, msgs: "P-104 weighs 9.81 N [T3.E1] and 32 days passed between its two maintenance records [T2.E1].")
+
+    def mk(i, expert, answer, detail):
+        t = Task(f"T{i}", "g", expert)
+        t.status = "done"
+        t.result = {"answer": answer, "confidence": 0.9, "assumptions": [], "not_checked": [], "evidence": [{"type": "sql", "source": "q", "detail": detail}]}
+        return t
+    long = " Rows: record_id = M-002, date = 2026-10-05; record_id = M-001, date = 2026-09-02." * 12
+    plan = Plan("Weight of P-104 and the days between its maintenance records", [
+        mk(1, "research", "The mass of P-104 is 1.0 kg.", "mass_kg = 1.0"),
+        mk(2, "research", "Two maintenance records." + long, "2 rows" + long),
+        mk(3, "solver", "Its weight is 9.81 N.", "calc 1.0 * 9.81 = 9.81")])
+    out = lead.compose(plan)
+    assert events(ctx, "compose_numbers_refused")[0]["numbers"] == ["32"] and "32" not in out["answer"].split("(")[0]
+    assert out["answer"].startswith("**T1 (research)**: The mass of P-104 is 1.0 kg. [T1.E1]") and "assembled by code" in out["answer"]
+    ctx2, lead2 = crew(tmp_path / "ok", lambda m, msgs: "P-104 weighs 9.81 N from its 1.0 kg mass [T3.E1] [T1.E1]; its records are dated 2026-09-02 and 2026-10-05 [T2.E1].")
+    out = lead2.compose(plan)
+    assert not events(ctx2, "compose_numbers_refused") and out["answer"].startswith("P-104 weighs 9.81 N")

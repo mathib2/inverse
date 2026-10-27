@@ -43,3 +43,30 @@ def test_euler_may_not_state_a_new_number_in_prose(tmp_path):
     assert bad and "without a calc" in bad[0] and not ev                                                 # 3 appears nowhere but the prose
     ev, bad = euler._check([{"claim": "The mass is 12.5 kg, as given."}, {"claim": "weight", "calc": "12.5 * 9.81", "expect": 122.625}], context="12.5 kg times 9.81")
     assert not bad and [e["type"] for e in ev] == ["step", "calc"]                                        # a given number may be restated
+
+
+def test_the_calculator_counts_the_days_between_two_dates_and_takes_text_nowhere_else():
+    import pytest
+    from inverse_core.team.reasoning import ReasoningExpert, safe_eval
+    assert safe_eval("days_between('2026-09-02', '2026-10-05')") == 33.0 == safe_eval("days_between('2026-10-05', '2026-09-02')")
+    assert safe_eval("days_between('2026-10-05T10:00:00Z', '2026-09-02') + 1") == 34.0
+    for bad in ("days_between('soon', '2026-10-05')", "'2026-10-05'", "sqrt('4')", "days_between('2026-10-05')", "days_between(1, 2)"):
+        with pytest.raises((ValueError, TypeError)):
+            safe_eval(bad)
+    assert ReasoningExpert.resolve("days_between(first, second)", "first = 3") == "days_between(first, second)".replace("first", "3")
+    assert ReasoningExpert.resolve("calc(days_between('2026-09-02', '2026-10-05'))") == "days_between('2026-09-02', '2026-10-05')"
+
+
+def test_euler_counts_the_days_between_two_dates_by_code(tmp_path):
+    from inverse_core.team.reasoning import ReasoningExpert
+    calls = []
+    ctx = make_ctx(tmp_path, lambda m, msgs: calls.append(1) or json.dumps({"steps": [{"claim": "d", "calc": "30 + 3", "expect": 33}], "answer": "33 days", "confidence": 0.9, "assumptions": []}))
+    euler = ReasoningExpert(ctx, "reasoning", "r", "p", "deep", ["calc"])
+    t = Task("T4", "Find the number of days between the two maintenance records", "reasoning", ["T2"])
+    t.context = "T2: Rows: record_id = M-002, date = 2026-10-05; record_id = M-001, date = 2026-09-02"
+    res = euler.run(t, None, ExpertBudget())
+    assert calls == [] and res.answer == "There are 33 days between 2026-09-02 and 2026-10-05." and res.evidence[0]["detail"].startswith("= 33:")
+    assert events(ctx, "days_by_code")[0]["days"] == 33
+    t.context += "; record_id = M-003, date = 2026-10-20"                                      # three dates: which two is the model's call
+    euler.run(t, None, ExpertBudget())
+    assert calls == [1]

@@ -19,7 +19,7 @@ from .expert import ExpertBudget, ExpertResult, Task
 from .llmcall import BadReply, ask
 from . import limits
 from .plan import PLACEHOLDER, Plan, PlanError
-from .verify import claim_numbers
+from .verify import claim_numbers, unverified_numbers
 from .registry import ConfigError
 from .tools import CODE_TOOLS, Tools
 
@@ -53,7 +53,10 @@ def _norm(s):
 
 
 CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|vulnerab\w*|exploit\w*)\b", re.I)
+PLANNED_PREFIX = re.compile(r"^Using the accepted results from the earlier tasks, answer this in plain words:\s*")   # a lesson keeps what the task was about
+DAY_WORDS = re.compile(r"\b(?:how\s+many|number\s+of)\s+(?:days|weeks)\b|\bdays?\s+(?:passed|elapsed|between|apart)\b", re.I)   # a date difference: Euler's days_between
 CALC_WORDS = re.compile(r"\b(compute|calculate|derive|deriv\w+|multipl\w+|times|divide\w*|convert\w*|weight|weigh\w*|force|torque|energy|frequency|damping|ratio|percent\w*|average|mean|formula|equation"
+                        r"|(?:how\s+many|number\s+of)\s+(?:days|weeks)|days?\s+(?:passed|elapsed|between|apart)"
                         r"|why|whether|should|needs?|compare\w*|explain|assess\w*|diagnos\w+|recommend\w*|judge)\b", re.I)   # a computation or a judgement: Euler after Scout
 DATA_WORDS = re.compile(r"\b(registry|maintenance|sensors?|samples?|datasets?|records?|tables?|rows|stored|specification\w*|history|sql|quer\w+)\b", re.I)
 LACK_WORDS = re.compile(r"\b(we have no|there is no|no (?:converter|expert|agent|tool|one) (?:for|that|who)|nobody (?:can|knows)|the crew (?:lacks|cannot)|none of (?:you|the agents) can)\b", re.I)
@@ -244,6 +247,13 @@ class Lead:
             deps = [t.id for t in plan.tasks]
             plan.tasks.append(Task(f"T{len(plan.tasks) + 1}", f"Using the accepted results from the earlier tasks, answer this in plain words: {plan.goal}", "reasoning", deps))
             changes.append(f"{plan.tasks[-1].id}: reasoning added (the goal asks for a computation)")
+        for t in plan.tasks:                                                      # days between two dates: Euler counts them with days_between; Scout's SQL date functions were refused three times
+            if t.expert == "research" and DAY_WORDS.search(t.goal) and "reasoning" in names:
+                looks = [o.id for o in plan.tasks if o is not t and o.expert == "research" and t.id not in o.depends_on]
+                if t.depends_on or looks:
+                    t.expert, t.depends_on = "reasoning", list(t.depends_on) or looks
+                    t.goal = f"Using the dates in the accepted results from the earlier tasks, count the days: {t.goal}"
+                    changes.append(f"{t.id}: research -> reasoning (days between dates are computed, not queried)")
         for t in plan.tasks:                                                      # a computation in Scout's own task tempts the model to compute, and the numbers it makes up are refused three times
             if t.expert == "research" and CALC_WORDS.search(t.goal) and any(o.expert in ("reasoning", "solver") for o in plan.tasks if o is not t):
                 t.goal = f"Look up the values this needs and report them exactly as the queries return them; the computation is another task's: {goal}"
@@ -446,7 +456,7 @@ class Lead:
                 self._mem("refute", f"{task.expert}: {task.goal[:160]}", "refused: " + why, source="validator", confidence=1.0, expert=task.expert)
                 self.ctx.trace.event("task_rejected", task=task.id, reason=task.feedback)
                 return
-        task.lessons = self._mem("lessons", task.expert) or []               # what reviewers told this expert before (Reflexion)
+        task.lessons = self._mem("lessons", task.expert, goal=task.goal) or []   # what reviewers told this expert before, on a task like this one (Reflexion)
         if task.lessons:
             self.ctx.trace.event("lessons", task=task.id, expert=task.expert, count=len(task.lessons))
         last, repeats, rejected_once, last_rule = None, 0, "", ""
@@ -529,7 +539,7 @@ class Lead:
                 self.bus.post("critic", task.expert, reason, type="review", task=task.id, verdict=review["verdict"])
             kept = review.get("problems") or []
             if review.get("by") == "llm" and kept:                             # only an objection that checked out becomes a lesson, in its checkable words
-                self._mem("add_lesson", task.expert, (f"{task.goal[:80]}: " + "; ".join(f"\u00ab{str(k.get('quote'))[:80]}\u00bb {k.get('why') or k.get('check')}" for k in kept[:2]))[:240])
+                self._mem("add_lesson", task.expert, (f"{PLANNED_PREFIX.sub('', task.goal)[:80]}: " + "; ".join(f"\u00ab{str(k.get('quote'))[:80]}\u00bb {k.get('why') or k.get('check')}" for k in kept[:2]))[:240])
             if review["verdict"] == "reject" and review.get("by") == "llm" and attempt == 1 and self.max_attempts > 1:   # once: a second reject is final
                 self.ctx.trace.event("reject_retried", task=task.id, reason=reason[:200])   # a 4B reviewer's reject is a strong revise: one more try with the quote
                 rejected_once = reason
@@ -570,6 +580,10 @@ class Lead:
                     "evidence": {f"{t.id}.E{i}": str(e.get("detail") or "")[:160] for i, e in enumerate(t.result["evidence"], 1)}} for t in ok]
         problems = [{"task": t.id, "expert": t.expert, "status": t.status, "why": t.feedback} for t in plan.tasks if t.status != "done"]
         self.ctx.trace.event("composing", accepted=len(ok), unfinished=len(problems))
+
+        def by_code():                                                        # every accepted result, each with its citations: no model involved
+            return "\n\n".join(f"**{t.id} ({t.expert})**: {t.result['answer']} " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1)) for t in ok) \
+                or "No task produced an accepted result."
         if not ok:                                                            # nothing survived review: the answer is written by code, never by a model
             text, model, fallback = "No task produced an accepted result.", None, True
         elif len(ok) == 1 or (len(ok) == 2 and sum(len(str(t.result["answer"])) for t in ok) < 900):   # short results ARE the answer: cited by code, no writer call
@@ -581,10 +595,15 @@ class Lead:
             out = ask(self.ctx, self.compose_lane, [{"role": "system", "content": COMPOSE_SYSTEM},
                       {"role": "user", "content": json.dumps({"goal": plan.goal, "results": payload, "unfinished": problems}, default=str)}], "lead_compose", max_tokens=COMPOSE_MAX_TOKENS)
             text, model, fallback = out["text"].strip(), out["model"], False
+            facts = [e for t in ok for e in t.result["evidence"]] + [{"detail": str(t.result["answer"])} for t in ok] + [{"detail": plan.goal}]
+            invented = unverified_numbers(text, facts)
+            if invented:                                                      # the writer added a number no accepted result holds (it once wrote "32 days" for a task that had failed)
+                self.ctx.trace.event("compose_numbers_refused", numbers=invented[:8], model=model)
+                text = by_code() + (f"\n\n*(The writer added {'a number' if len(invented) == 1 else 'numbers'} no accepted result holds "
+                                    f"({', '.join(invented[:4])}); this answer was assembled by code from the accepted results.)*")
+                fallback = True
           except Exception as e:                                              # the writer is down: assemble the answer by code, nothing is lost
-            text = "\n\n".join(f"**{t.id} ({t.expert})**: {t.result['answer']} " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1)) for t in ok) \
-                or "No task produced an accepted result."
-            text += f"\n\n*(The writer model was unavailable, {type(e).__name__}; this summary was assembled by code from the accepted results.)*"
+            text = by_code() + f"\n\n*(The writer model was unavailable, {type(e).__name__}; this summary was assembled by code from the accepted results.)*"
             model, fallback = None, True
         cited = set(re.findall(r"\[(T\d+\.E\d+)\]", text))
         bad = sorted(cited - set(index))
