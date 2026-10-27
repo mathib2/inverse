@@ -155,15 +155,14 @@ def test_a_memory_digest_is_a_list_of_findings_in_words(tmp_path):
     words = answer_in_words(text)
     assert words == ("Found and still standing:\n"
                      "- The weight of P-104 is 9.81 newtons (reasoning).\n"
-                     "- The noise level is 0.01 and the sampling rate is 100 Hz [Q1] (research).\n"
-                     '- The maintenance records for P-104 are: [{"record_id": "M-002" (research).\n'                             # cut by the memory tool: said as it came, on one line
+                     "- The noise level is 0.01 and the sampling rate is 100 Hz [Q1] (research).\n"                            # the earlier digest's shorter cut of the records is not a finding of its own
                      "- 2 (research).\n"
                      "- 122.625 (reasoning).\n"
                      "- For P-104, the baseline dataset is p104-baseline [Q1]. For T-200, the baseline dataset is none [Q1] (research).\n"
                      "- 400 (research).\n"
                      "- The sampling rate is 100 Hz and the noise level is 0.01 [Q1] (research).\n"
                      '- The maintenance records for P-104 are: [{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"}, '
-                     '{"record_id": "M-001", "date": "2026-09-02", "note (research).\n\n'
+                     '{"record_id": "M-001", "date": "2026-09-02", "note (research).\n\n'                                          # cut by the memory tool: said as it came, on one line, once
                      "Ruled out: nothing yet.\n\n"
                      "Still unchecked: nothing else is recorded in the shared memory.")
     assert keeps_values(text, words) and sorted(re.findall(r"\[Q\d+\]", text)) == sorted(re.findall(r"\[Q\d+\]", words))

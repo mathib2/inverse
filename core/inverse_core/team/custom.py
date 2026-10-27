@@ -87,10 +87,13 @@ def _flat(finding, refuted):
 def digest(mem):
     """A plain-words digest of the memory tool's output, made by code: what stands, what was ruled out. Every word of it is in
     the tool result, so the reviewer has nothing to refuse; used when the model doubts its own summary or writes none. An
-    earlier digest among the findings is split back into what it listed, said once, never nested."""
+    earlier digest among the findings is split back into what it listed, said once, never nested; a part the memory's
+    200-character cut left as the start of another part is said once too, as the longer one."""
     refuted = [str(f) for f in (mem or {}).get("refuted") or []]
     found = [p for f in (mem or {}).get("findings") or [] for p in _flat(str(f), refuted)]
-    kept = [p for i, p in enumerate(found) if _same(p) not in {_same(q) for q in refuted + found[:i]}]
+    same = [_same(p) for p in found]
+    kept = [found[i] for i, s in enumerate(same) if s not in {_same(q) for q in refuted}                # a part is left out for an equal part said earlier,
+            and not any(t.startswith(s) and (t != s or j < i) for j, t in enumerate(same) if j != i)]   # or for a longer part anywhere that starts with it
     return ("Found and still standing: " + (_said(kept) if kept else "nothing yet.")
             + " Ruled out: " + (_said(refuted) if refuted else "nothing yet.")
             + " Still unchecked: nothing else is recorded in the shared memory.")

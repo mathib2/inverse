@@ -76,6 +76,14 @@ def test_an_earlier_digest_among_the_findings_is_said_as_its_parts_not_nested():
     assert digest(mem) == ("Found and still standing: reasoning: The weight of P-104 is 9.81 newtons.; research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; "
                            'research: The maintenance records for P-104 are:\n[{"record_id": "M-002", "date": "2026-10-05", "note": "[t; research: 2; reasoning: 122.625.'
                            " Ruled out: nothing yet. Still unchecked: nothing else is recorded in the shared memory.")
+    record = ("research: The maintenance records for P-104 are:\n"                                                              # the same finding on its own, cut at 200 (round 27's last)
+              '[{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"}, {"record_id": "M-001", "date": "2026-09-02", "note')
+    assert len(record) == 200 and record.startswith(earlier.split("; ")[-1])
+    assert digest({"findings": mem["findings"] + [record], "refuted": []}) == (                                                 # the earlier digest's cut of it is a prefix: said once, the longer
+        "Found and still standing: reasoning: The weight of P-104 is 9.81 newtons.; research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; research: 2; reasoning: 122.625; "
+        + record + ". Ruled out: nothing yet. Still unchecked: nothing else is recorded in the shared memory.")
+    assert digest({"findings": ["research: 12.5 kg [Q1]", "research: 2", "research: 12.5", "research: 2."], "refuted": []}).startswith(
+        "Found and still standing: research: 12.5 kg [Q1]; research: 2. Ruled out")                                            # the longer keeps its place; an equal part is said once
     whole = "solver: Found and still standing: research: 2; reasoning: 3. Ruled out: research: 4. Still unchecked: nothing else is recorded in the shared memory."
     assert digest({"findings": [whole, "research: 2", "solver: 5"], "refuted": []}) == \
         "Found and still standing: research: 2; reasoning: 3; solver: 5. Ruled out: research: 4. Still unchecked: nothing else is recorded in the shared memory."
