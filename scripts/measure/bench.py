@@ -34,7 +34,7 @@ def found(item, text):
         want = float(item)
     except ValueError:
         return str(item).lower() in str(text).lower()
-    return any(rounds_to(tok.lstrip("-"), abs(want)) for tok in NUMBER.findall(str(text)))
+    return any(rounds_to(tok, want) for tok in NUMBER.findall(str(text)))
 
 
 def run_case(case, collaborate, parallel, reset):

@@ -163,18 +163,20 @@ text remains explicitly untrusted. Source approval, bounded context and existing
 tool authorization are required boundaries. A trusted administrator controls the
 manifest and database; this is not a hostile multi-user database service.
 
-The existing verifier still discards numeric signs, does not bind units to values,
-and can retain an answer after reviewer failure. Three strict expected-failure
-tests record those limitations without silently rewriting the subsystem. A model
-review of references is not independent physics verification. Do not use this
-feature to claim verified numerical correctness. Reference-derived findings are
-not persisted until a separate reliability/typed-calculation change establishes
-that guarantee.
+The calculator now preserves signs, supports Pint unit conversion and binds named
+physical inputs to quantities supplied by the task or accepted context. Reference
+examples, source metadata and failed expressions cannot prove a numerical answer.
+Failed computations and unreadable or unresolved negative reviews prevent task
+completion. The former expected-failure tests are passing regression tests.
 
-No executable Pint, SymPy or SciPy operation is shipped. A future operation needs
-typed inputs, units, finite results, bounded expression grammar, process deadlines,
-library/version metadata and independent checks. Avoid arbitrary `eval`, unrestricted
-symbolic parsing and solver callables supplied by retrieved documents.
+Pint 0.25 is pinned in `requirements.txt`. No executable SymPy or SciPy operation
+is shipped. Arithmetic uses a bounded AST allowlist, without Python `eval` or
+arbitrary code execution. See [calculation reliability](CALCULATION_RELIABILITY.md)
+for the input/output contract and limits. Unit consistency does not establish
+that the model selected the correct equation, parameter meanings or physical
+assumptions. Physical calculations and reference-derived findings are not promoted
+to persistent validated experience. A model review is not independent physics
+verification, and these checks do not guarantee correctness for every prompt.
 
 ## Testing and measurements
 
@@ -183,6 +185,7 @@ symbolic parsing and solver callables supplied by retrieved documents.
 .\.venv\Scripts\python.exe -m pytest -q tests --ignore=tests/test_integration.py --ignore=tests/test_markovian.py
 .\.venv\Scripts\python.exe -m pytest -q tests/test_markovian.py -k "not reference_engine"
 .\.venv\Scripts\python.exe scripts/measure/knowledge_smoke.py
+.\.venv\Scripts\python.exe scripts/measure/calculation_eval.py
 ```
 
 The offline smoke creates a temporary database, builds via the public CLI, searches
@@ -198,4 +201,9 @@ from these notes, and score named quantities, units, assumptions and citations.
 Run isolated identical memory snapshots and identical model routes with retrieval
 disabled/enabled. Keep accuracy, calls, tokens and end-to-end latency separate.
 Do not use the existing magnitude-only benchmark grader as engineering validation.
-No inference speedup or answer-accuracy improvement is claimed by this feature.
+No inference speedup is claimed. The bounded calculation evaluation includes a
+changed-input beam regression (45 MPa, distinct from the note's 75 MPa example),
+algebra, signed force, heat, pressure drop and missing-input rejection. Its default
+mode tests the calculator, not model quality. `--live` explicitly opts into real
+model planning, execution, review and composition with temporary state; record
+those results separately from scripted smoke evidence.

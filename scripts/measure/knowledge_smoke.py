@@ -48,14 +48,14 @@ def missions(database, temporary):
             if system.startswith("Write the final answer"):
                 payload = json.loads(messages[-1]["content"])
                 citations = " ".join(f"[{key}]" for result in payload["results"] for key in result["evidence"])
-                text = "The nominal bending stress is 75 MPa under the stated cantilever assumptions. " + citations
+                text = "The nominal bending stress is 45 MPa under the stated cantilever assumptions. " + citations
             elif system.startswith("You are an adversarial reviewer"):
                 payload = json.loads(messages[-1]["content"])
                 assert any(e.get("reference", {}).get("source_url") for e in payload["evidence"])
                 text = {"verdict": "accept", "problems": []}
             elif system.startswith("You are the Reasoning expert"):
                 assert "UNTRUSTED DATA" in messages[1]["content"]
-                text = {"steps": [{"claim": "nominal rectangular beam stress in MPa", "calc": "6*1000*0.2/(0.04*0.02**2)/1000000", "expect": 75}],
+                text = {"steps": [{"claim": "nominal rectangular beam stress in MPa", "calc": "6*500*0.3/(0.05*0.02**2)", "unit":"MPa", "expect": 45}],
                         "answer": "The nominal bending stress is 75 MPa under the stated cantilever assumptions.", "confidence": 0.8,
                         "assumptions": ["Linear elasticity, slender beam and ideal fixed support"]}
             elif len(messages) == 2:
@@ -67,7 +67,7 @@ def missions(database, temporary):
 
     results = []
     for name, tasks in (("scout-euler-vera-atlas", [Task("T1", "Find reference documentation for cantilever beam bending stress", "research"),
-                                                   Task("T2", "Calculate nominal bending stress for a rectangular cantilever: F=1000 N, L=0.2 m, b=0.04 m, h=0.02 m. Use linear elasticity and an ideal fixed support.", "reasoning", ["T1"])]),
+                                                   Task("T2", "Calculate nominal bending stress for a rectangular cantilever: F=500 N, L=0.3 m, b=0.05 m, h=0.02 m. Use linear elasticity and an ideal fixed support.", "reasoning", ["T1"])]),
                         ("ada-vera-atlas", [Task("T1", "Retrieve cantilever beam bending guidance", "solver")])):
         start = time.perf_counter()
         lanes = Lanes(factory=lambda _: ScriptedModel())
@@ -81,10 +81,10 @@ def missions(database, temporary):
         assert answer["references"] and "https://github.com/mathib2/inverse" in answer["answer"]
         assert lead.memory.findings() == [], "reference guidance must not become validated experience"
         if name.startswith("scout"):
-            assert tasks[1].references and "75 MPa" in tasks[1].result["answer"]
+            assert tasks[1].references and "45 MPa" in tasks[1].result["answer"]
             calculated = [e for e in tasks[1].result["evidence"] if e["type"] == "calc"]
-            assert len(calculated) == 1 and float(calculated[0]["detail"][2:].split()[0]) == 75.0
-            assert "75 MPa" in answer["answer"] and any(key.startswith("T2.E") for key in answer["citations"])
+            assert len(calculated) == 1 and float(calculated[0]["detail"][2:].split()[0]) == 45.0
+            assert "45 MPa" in answer["answer"] and any(key.startswith("T2.E") for key in answer["citations"])
         results.append({"mission": name, "status": "pass", "model": "scripted, no inference",
                         "model_calls": sum(e["kind"] == "llm" for e in ctx.trace.events),
                         "elapsed_ms": round((time.perf_counter() - start) * 1000, 3)})

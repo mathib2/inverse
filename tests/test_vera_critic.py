@@ -41,11 +41,11 @@ def test_norm_verdict_reads_a_small_models_words():
 
 
 @pytest.mark.usefixtures("model_reviews")
-def test_a_rejection_without_a_checkable_objection_does_not_stand(tmp_path):
+def test_a_rejection_without_a_checkable_objection_is_not_an_approval(tmp_path):
     ctx, _ = crew(tmp_path, lambda m, msgs: json.dumps({"verdict": "reject", "problems": [], "reason": "the model's reasoning is not machine-verified"}))
     res = fresh()
     r = C.Critic(ctx).review(Task("T1", "g", "research"), res)
-    assert r["verdict"] == "accept" and r["by"] == "code" and "not machine-verified" in r["reason"]
+    assert r["verdict"] == "revise" and r["by"] == "review_unresolved" and "not machine-verified" in r["reason"]
     assert res["not_checked"] and "no objection checked out" in res["not_checked"][0]
     assert events(ctx, "critic")[0]["asked"] == "reject" and len(events(ctx, "llm")) == 1
 
@@ -70,11 +70,11 @@ def test_an_unreadable_verdict_is_asked_once_more(tmp_path):
     ctx, _ = crew(tmp_path / "b", lambda m, msgs: json.dumps({"verdict": "maybe"}))                       # unreadable twice: two calls, kept, marked
     res = fresh()
     r = C.Critic(ctx).review(Task("T1", "g", "research"), res)
-    assert r["verdict"] == "accept" and r["by"] == "error" and len(events(ctx, "llm")) == 2 and "could not be read twice" in res["not_checked"][0]
+    assert r["verdict"] == "reject" and r["by"] == "error" and len(events(ctx, "llm")) == 2 and "could not be read twice" in res["not_checked"][0]
 
 
 @pytest.mark.usefixtures("model_reviews")
-def test_a_correct_arithmetic_answer_is_no_longer_rejected_on_a_made_up_reason(tmp_path):
+def test_an_unresolved_negative_review_cannot_complete_a_task(tmp_path):
     def script(model, messages):
         system = messages[0]["content"]
         if system.startswith("You are the Reasoning expert"):
@@ -85,9 +85,9 @@ def test_a_correct_arithmetic_answer_is_no_longer_rejected_on_a_made_up_reason(t
     ctx, lead = crew(tmp_path, script)
     t = Task("T1", "what is 2*3", "reasoning")
     lead._execute(t)
-    assert t.status == "done" and t.attempts == 1                                                        # accepted, not sent back
-    assert any("no objection checked out" in n for n in t.result["not_checked"])
-    assert events(ctx, "critic")[0]["by"] == "code" and events(ctx, "critic")[0]["dropped"] == ["the evidence covers its numbers"]
+    assert t.status == "failed" and t.attempts > 1
+    assert "no objection checked out" in events(ctx, "critic")[0]['reason']
+    assert events(ctx, "critic")[0]["by"] == "review_unresolved" and events(ctx, "critic")[0]["dropped"] == ["the evidence covers its numbers"]
 
 
 @pytest.mark.usefixtures("model_reviews")
@@ -143,10 +143,10 @@ def test_a_null_reviewer_reason_is_handled(tmp_path):
     lead = lead_for(ctx)
     lead.max_attempts = 2
     lead._execute(t)
-    assert t.status == "done" and any("no reason given" in n for n in t.result["not_checked"])   # no quote and no reason: the work is not sent back
+    assert t.status == "failed" and "no reason given" in events(ctx, "critic")[0]['reason']
     r = C.Critic(ctx).review(Task("T2", "g", "reasoning"), {"answer": "a", "confidence": 0.9, "assumptions": [], "not_checked": [],
                                                            "evidence": [{"type": "step", "source": "s", "detail": None}]})
-    assert r["verdict"] == "accept" and r["by"] == "code" and isinstance(r["reason"], str)
+    assert r["verdict"] == "revise" and r["by"] == "review_unresolved" and isinstance(r["reason"], str)
 
 
 def test_a_quote_is_judged_against_evidence_values_not_the_query_text():
@@ -196,12 +196,12 @@ def test_critic_rules_run_before_the_model(tmp_path):
     assert r["verdict"] == "revise"
 
 
-def test_critic_asks_once_more_on_a_garbage_reply_then_keeps_the_result_marked(tmp_path):
+def test_critic_asks_once_more_on_a_garbage_reply_then_fails_closed(tmp_path):
     calls = []
     ctx = make_ctx(tmp_path, lambda m, msgs: calls.append(1) or "lgtm!")
     res = {"answer": "a", "confidence": 0.9, "assumptions": [], "not_checked": [], "evidence": [{"type": "step", "source": "s", "detail": "d"}]}
     r = C.Critic(ctx).review(Task("T1", "g", "reasoning"), res)
-    assert r["verdict"] == "accept" and r["by"] == "error" and len(calls) == 2            # one re-ask, then kept with a visible note, never sent back
+    assert r["verdict"] == "reject" and r["by"] == "error" and len(calls) == 2
     assert "could not be read twice" in res["not_checked"][0]
 
 

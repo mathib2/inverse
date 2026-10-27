@@ -158,6 +158,24 @@ class Lead:
     def plan(self, goal, collaborate=False, votes=1):
         """votes > 1 samples that many plans at temperature 0.7 and keeps the most common task/expert structure
         (self-consistency, Wang et al. 2022): a majority over samples is more reliable than one greedy decode."""
+        from .calculation import linear_solution
+        solution = linear_solution(goal)
+        from .deterministic import initial_value_solution, overview_requested
+        calculus = initial_value_solution(goal)
+        if calculus:
+            task=Task('T1',goal,'lead',status='done',result=calculus.to_dict())
+            self.ctx.trace.event('plan',goal=goal,tasks=[task.__dict__ | {'result':None}],model=None,by='code',reason='supported initial-value equation checked by differentiation')
+            return Plan(goal,[task])
+        if overview_requested(goal) and 'research' in self.registry.names():
+            return Plan(goal,[Task('T1',goal,'research')])
+        if solution:
+            evidence = [{'type':'calc','status':'ok','source':'bounded linear solver with substitution check',
+                         'detail':f"= {solution['value']:.12g}",'result':solution}]
+            t = Task('T1',goal,'lead',status='done',result=ExpertResult(
+                f"{solution['variable']} = {solution['value']:.12g}. Calculation: {solution['expr']} = {solution['value']:.12g}.",
+                evidence,1.0,[],[],[]).to_dict())
+            self.ctx.trace.event('plan',goal=goal,tasks=[t.__dict__ | {'result':None}],model=None,by='code',reason='bounded linear equation, checked by substitution')
+            return Plan(goal,[t])
         if ABOUT_US.search(goal or "") and len(str(goal)) < 160:             # a question about the crew: answered from its records, no model call
             t = Task("T1", goal, "lead", [])
             t.status, t.result = "done", about_us(goal, self.registry.configs)
@@ -419,7 +437,9 @@ class Lead:
                     task.status, task.feedback = "failed", f"no expert named {task.expert!r} exists: the architect task did not create it"
                     self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
                 else:
-                    task.context = "\n".join(f"[{d}] {done[d].result['answer']}" for d in task.depends_on)
+                    task.context = "\n".join(f"[{d}] " + ("Supporting references are supplied separately; their example values are not task inputs."
+                        if done[d].result.get('reference_only') else "The expert was prepared; sample test values are not task inputs."
+                        if done[d].expert in self.creators() else done[d].result['answer']) for d in task.depends_on)
                     from .references import inherited
                     task.references = inherited(Task(task.id, task.goal, task.expert, references=[
                         e for d in task.depends_on for e in done[d].result.get("evidence", []) if e.get("type") == "reference"]))
@@ -512,7 +532,7 @@ class Lead:
                 repeats += 1
                 self.ctx.trace.event("stuck", task=task.id, repeats=repeats)
                 if repeats >= 2:
-                    task.status, task.feedback = "failed", "escalated: the expert kept repeating the same answer"
+                    task.status, task.feedback = "failed", "escalated: the expert kept repeating the same answer; last feedback: " + task.feedback
                     self.ctx.trace.event("escalate", task=task.id)
                     return
                 task.feedback = "You repeated your previous answer. CHANGE STRATEGY: use a different approach or different queries. " + task.feedback
@@ -525,13 +545,19 @@ class Lead:
                 task.status, task.feedback = "failed", f"budget during review: {e}"
                 self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
                 return
-            except Exception as e:                                            # the reviewer is down: keep the result, say it was not checked
+            except Exception as e:                                            # unavailable review is a failed task, never accepted experience
                 note = f"the Critic could not review this result ({type(e).__name__}: {str(e)[:120]})"
                 task.result["not_checked"] = list(task.result.get("not_checked") or []) + [note]
                 self.ctx.trace.event("critic", task=task.id, verdict="unreviewed", reason=note, by="error")
-                task.status, task.feedback = "done", ""
+                task.status, task.feedback = "failed", note
+                task.result["review"] = {"verdict": "unreviewed", "by": "error", "reason": note}
                 return
             reason = str(review.get("reason") or "")
+            task.result["review"] = dict(review)
+            if review.get("by") == "error":
+                task.status, task.feedback = "failed", reason or "review failed"
+                self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
+                return
             if review["verdict"] == "accept":
                 task.status, task.feedback = "done", ""
                 self.bus.post(task.expert, "all", res.answer, type="result", task=task.id, confidence=res.confidence)
@@ -580,7 +606,15 @@ class Lead:
                 self.ctx.trace.event("council_error", op="file", error=f"{type(e).__name__}: {str(e)[:200]}")
 
     def compose(self, plan, run_dir=None):
-        ok = [t for t in plan.tasks if t.status == "done"]
+        calculation_failed = any(t.status != 'done' and (re.search(r'\b(calculate|compute|solve|convert)\b',t.goal,re.IGNORECASE) or
+            (t.result or {}).get('validation_errors') or any(e.get('type')=='calc' for e in (t.result or {}).get('evidence',[]))) for t in plan.tasks)
+        # An accepted lookup or expert test is not a substitute answer for a failed calculation.
+        typed_calculation = any(t.status == 'done' and any(
+            isinstance(e.get('result'),dict) and e['result'].get('units_checked') and 'expr' in e['result']
+            for e in t.result.get('evidence',[])) for t in plan.tasks)
+        ok = [t for t in plan.tasks if t.status == "done" and not (
+              (calculation_failed and (t.result.get('reference_only') or t.expert in self.creators())) or
+              (typed_calculation and t.result.get('reference_only')))]
         index = {f"{t.id}.E{i}": e for t in ok for i, e in enumerate(t.result["evidence"], 1)}
         payload = [{"task": t.id, "expert": t.expert, "goal": t.goal, "answer": t.result["answer"], "confidence": t.result["confidence"],
                     "assumptions": t.result["assumptions"], "not_checked": t.result["not_checked"],
@@ -590,6 +624,8 @@ class Lead:
         by_code = True                                                        # the accepted results in plain paragraphs, each with its citations: no model involved (words.py)
         if not ok:                                                            # nothing survived review: the answer is written by code, never by a model
             text, model, fallback = results_in_words(ok), None, True
+        elif typed_calculation:                                               # preserve computed quantities; source examples cannot rewrite them
+            text, model, fallback = results_in_words(ok), None, False
         elif len(ok) == 1 or (len(ok) == 2 and sum(len(str(t.result["answer"])) for t in ok) < 900):   # short results ARE the answer: cited by code, no writer call
             text, model, fallback = results_in_words(ok), None, False
         else:
@@ -612,6 +648,12 @@ class Lead:
             text += "\n\nSources: " + "; ".join(f"{t.id} ({t.expert}) " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1)) for t in ok)
             cited = set(re.findall(r"\[(T\d+\.E\d+)\]", text))
         bad = sorted(cited - set(index))
+        if bad and ok:                                                        # a citation the evidence does not hold: the answer is assembled by code
+            self.ctx.trace.event('compose_citations_refused', citations=bad)
+            text = results_in_words(ok)
+            cited = set(re.findall(r"\[(T\d+\.E\d+)\]", text))
+            bad = []
+            fallback, by_code = True, True
         self.ctx.trace.event("compose", cited=len(cited), unknown_citations=bad, unfinished=len(problems), model=model, fallback=fallback, by_code=by_code)
         answer = text
         if problems:                                                          # written by code, verbatim: the model never paraphrases a failure

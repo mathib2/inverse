@@ -2,11 +2,13 @@
 evidence it was supposed to come from, so an agent cannot invent a figure: the Lead lowers the confidence and says so."""
 from __future__ import annotations
 
+import math
 import re
 from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal, InvalidOperation
 
-_NOT_CLAIMS = re.compile(r"\b[A-Z]{1,4}-\d+\b|\b\d{4}-\d{2}-\d{2}\b|\bT\d+(?:\.E\d+)?\b|\bQ\d+\b")   # IDs, ISO dates, task and query labels
-_NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")                                   # no trailing '.', no digits inside words
+_NOT_CLAIMS = re.compile(r"\b[A-Z]{1,4}-\d+\b|\b\d{4}-\d{2}-\d{2}\b|\bT\d+(?:\.E\d+)?\b|\bQ\d+\b")
+_UNIT_POWER = re.compile(r"\b[A-Za-z][A-Za-z_]*\s*(?:\*\*|\^)\s*[+-]?\d+")
+_NUMBER = re.compile(r"(?<![\w.])[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?")
 
 
 def _numbers(obj):
@@ -14,13 +16,27 @@ def _numbers(obj):
 
     def walk(o):
         if isinstance(o, dict):
-            [walk(v) for v in o.values()]
+            if o.get("type") == "reference" or o.get("status") == "error" or o.get("error"):
+                return
+            if o.get("type") == "calc":
+                if isinstance(o.get("result"), dict):
+                    walk(o["result"].get("value"))
+                    walk(o["result"].get("inputs", {}))
+                    walk(o["result"].get("input_quantities", []))
+                    walk(o["result"].get("expr", ""))  # only expressions the calculator actually evaluated
+                else:
+                    match = re.match(r"=\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?)", str(o.get("detail") or ""))
+                    if match and "MISMATCH" not in str(o.get("detail")):
+                        walk(float(match[1]))
+                return
+            [walk(v) for k, v in o.items() if k not in ("source", "sql", "expr", "reference", "content_hash", "document_hash", "sha256", "indexed_at", "version", "source_url", "library", "library_version", "confidence", "latency_ms", "estimated_tokens", "usage")]
         elif isinstance(o, (list, tuple)):
             [walk(v) for v in o]
         elif isinstance(o, (int, float)) and not isinstance(o, bool):
-            out.append(abs(float(o)))                                        # the claim side carries no sign, so neither does the evidence side
+            if math.isfinite(float(o)):
+                out.append(float(o))
         elif isinstance(o, str):                                               # a hyphen after a digit separates (2026-09, M-001), it is not a minus sign
-            out.extend(abs(float(x)) for x in re.findall(r"(?<!\d)-?\d+\.?\d*(?:e-?\d+)?", o))
+            out.extend(float(m[0]) for m in _NUMBER.finditer(o) if math.isfinite(float(m[0])))
     walk(obj)
     return out
 
@@ -47,10 +63,24 @@ def unverified_numbers(text, evidence):
     """Numbers in `text` that are no number of `evidence` rounded to the precision they are written with (or, next to a % sign,
     its percentage). IDs, dates and labels do not count."""
     known = _numbers(evidence)
-    pct = bool(re.search(r"%|\bper ?cent", str(text or ""), re.IGNORECASE))        # 0.4 in the evidence covers "40 percent"; 9.81 never covers 981.0
+    from .calculation import evidence_quantities, quantities, quantity_rounds_to
+    unit_evidence = evidence_quantities(evidence)
+    unit_claims = {offset: q for offset, _, q in quantities(_NOT_CLAIMS.sub(" ", str(text or "")))} if unit_evidence else {}
     bad = []
-    for tok in claim_numbers(text):
-        if not any(rounds_to(tok, k) or (pct and rounds_to(tok, abs(k) * 100)) for k in known):
+    masked = _NOT_CLAIMS.sub(" ", str(text or ""))
+    # Unit and symbolic-variable exponents are syntax, not separate scalar claims.
+    power_spans = [m.span() for m in _UNIT_POWER.finditer(masked)]
+    for match in _NUMBER.finditer(masked):
+        tok = match[0]
+        if any(start <= match.start() < end for start, end in power_spans):
+            continue
+        if match.start() in unit_claims:
+            if any(quantity_rounds_to(tok, unit_claims[match.start()], q) for q in unit_evidence):
+                continue
+            bad.append(tok)
+            continue
+        pct = bool(re.match(r"\s*(?:%|per\s?cent\b)", masked[match.end():], re.IGNORECASE))
+        if not any(rounds_to(tok, k) or (pct and rounds_to(tok, k * 100)) for k in known):
             bad.append(tok)
     return bad
 
@@ -59,7 +89,7 @@ def reconcile_numbers(text, values, evidence=None):
     """The answer carries the tool's number, not the model's: a number in `text` that no evidence number covers (rounds_to) but
     that lies within 1 % of one of `values` (calculator results) is replaced by that value. Returns (text, [(said, value)])."""
     known = _numbers(evidence if evidence is not None else values)
-    vals = [abs(float(v)) for v in values if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    vals = [float(v) for v in values if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(float(v))]
     if not vals or not text:
         return text, []
     masked = _NOT_CLAIMS.sub(lambda m: " " * len(m.group(0)), str(text))
@@ -68,7 +98,7 @@ def reconcile_numbers(text, values, evidence=None):
         tok = m.group(0)
         if any(rounds_to(tok, k) for k in known):
             continue
-        near = [v for v in vals if abs(float(tok) - v) <= 0.01 * max(v, 1e-9)]
+        near = [v for v in vals if abs(float(tok) - v) <= 0.01 * max(abs(v), 1e-9)]
         if not near:
             continue
         best = min(near, key=lambda v: abs(float(tok) - v))
