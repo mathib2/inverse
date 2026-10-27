@@ -81,8 +81,8 @@ def test_two_short_results_are_composed_by_code(tmp_path):
     ctx, lead = crew(tmp_path, lambda m, msgs: (_ for _ in ()).throw(AssertionError("no writer call expected")))
     mk = lambda i, exp, ans: Task(f"T{i}", "g", exp, status="done", result={"answer": ans, "evidence": [{"type": "sql", "source": "q", "detail": "1 rows"}], "confidence": 0.9, "assumptions": [], "not_checked": []})
     out = lead.compose(Plan("g", [mk(1, "research", "P-104 and T-200 are in the registry."), mk(2, "research", "T-200 has no baseline dataset.")]))
-    assert out["answer"] == "**T1 (research)**: P-104 and T-200 are in the registry. [T1.E1]\n\n**T2 (research)**: T-200 has no baseline dataset. [T2.E1]"
-    assert set(out["citations"]) == {"T1.E1", "T2.E1"} and events(ctx, "compose")[0]["model"] is None
+    assert out["answer"] == "P-104 and T-200 are in the registry. [T1.E1]\n\nT-200 has no baseline dataset. [T2.E1]"   # paragraphs, no task labels
+    assert set(out["citations"]) == {"T1.E1", "T2.E1"} and events(ctx, "compose")[0]["model"] is None and events(ctx, "compose")[0]["by_code"]
 
 
 def test_stop_before_the_run_starts_nothing_and_the_answer_says_so(tmp_path):
@@ -269,7 +269,7 @@ def test_a_number_the_writer_adds_sends_the_answer_back_to_code(tmp_path):
         mk(3, "solver", "Its weight is 9.81 N.", "calc 1.0 * 9.81 = 9.81")])
     out = lead.compose(plan)
     assert events(ctx, "compose_numbers_refused")[0]["numbers"] == ["32"] and "32" not in out["answer"].split("(")[0]
-    assert out["answer"].startswith("**T1 (research)**: The mass of P-104 is 1.0 kg. [T1.E1]") and "assembled by code" in out["answer"]
+    assert out["answer"].startswith("The mass of P-104 is 1.0 kg. [T1.E1]\n\n") and "assembled by code" in out["answer"] and "**T1" not in out["answer"]
     ctx2, lead2 = crew(tmp_path / "ok", lambda m, msgs: "P-104 weighs 9.81 N from its 1.0 kg mass [T3.E1] [T1.E1]; its records are dated 2026-09-02 and 2026-10-05 [T2.E1].")
     out = lead2.compose(plan)
     assert not events(ctx2, "compose_numbers_refused") and out["answer"].startswith("P-104 weighs 9.81 N")

@@ -83,8 +83,10 @@ class ReasoningExpert(BaseExpert):
 
     @classmethod
     def resolve(cls, calc, context=""):
-        """'calc(mass_kg * 9.81)' with 'mass_kg = 1.0' in the accepted results becomes '1.0 * 9.81': a 4B model writes the
-        quantity's name where the calculator needs its value. Function names and constants are left alone."""
+        """'calc(mass_kg * 9.81)' with 'mass_kg = 1.0' or 'P-104 has a mass of 1.0 kg' (Scout's rows in words) in the accepted
+        results becomes '1.0 * 9.81': a 4B model writes the quantity's name where the calculator needs its value. Function
+        names and constants are left alone."""
+        from .research import column_words
         expr = str(calc or "").strip()
         m = re.fullmatch(r"calc\((.*)\)", expr, re.DOTALL)
         if m:
@@ -93,6 +95,8 @@ class ReasoningExpert(BaseExpert):
             if name in _FUNCS or name in _DATE_FUNCS or name in ("e", "pi"):
                 continue
             found = re.search(r"(?<![\w.])" + re.escape(name) + r"\s*[=:]\s*(-?\d+(?:\.\d+)?)", str(context or ""))
+            if not found:                                                     # the column's plain name, then "of" or "is": "a mass of 1.0 kg", "the mass is 1.0 kg"
+                found = re.search(r"(?<![\w.])" + re.escape(column_words(name)[0]) + r"\s+(?:of|is)\s+(-?\d+(?:\.\d+)?)", str(context or ""), re.IGNORECASE)
             if found:
                 expr = re.sub(r"\b" + re.escape(name) + r"\b", found.group(1), expr)
         return expr.strip()

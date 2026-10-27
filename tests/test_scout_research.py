@@ -7,7 +7,7 @@ from inverse_core.team import critic as C
 from inverse_core.team.expert import ExpertBudget, Task
 from inverse_core.team.research import unfilter_quantity
 
-from fakes import crew, events
+from fakes import ROOT, crew, events
 
 
 def test_a_task_that_asks_for_the_records_gets_every_row():
@@ -93,10 +93,18 @@ def test_a_query_that_forgets_a_column_the_task_asks_for_gets_it_added():
 def test_values_the_answer_leaves_out_ride_along_from_the_rows():
     from inverse_core.team.research import ResearchExpert
     ran = [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"sigma": "0.01", "sampling_hz": "100"}]}]
-    assert ResearchExpert._facts(ran, "0.01") == "Rows: sigma = 0.01, sampling_hz = 100 [Q1]"
+    assert ResearchExpert._facts(ran, "0.01") == "The noise level (sigma) is 0.01 and the sampling rate is 100 Hz [Q1]."
     assert ResearchExpert._facts(ran, "The noise level is 0.01 and the rate is 100 Hz.") == ""                     # nothing left out
     many = [{"type": "sql", "source": "q", "detail": "9 rows", "rows": [{"t": str(i)} for i in range(9)]}]
     assert ResearchExpert._facts(many, "x") == ""                                                                 # not for big result sets
+    two = [ran[0], {"type": "sql", "source": "q", "detail": "2 rows", "rows": [{"mass_kg": 1.0}, {"mass_kg": 5.0}]}]
+    assert ResearchExpert._facts(two, "") == "The noise level (sigma) is 0.01 and the sampling rate is 100 Hz [Q1]. The mass is 1.0 kg and 5.0 kg in two rows [Q2]."
+    note = "Routine inspection. Mount bolts torqued. Baseline vibration recorded. " * 2
+    long = [{"type": "sql", "source": "q", "detail": "4 rows", "rows": [{"record_id": f"M-00{i}", "date": "2026-09-02", "note": note} for i in range(1, 5)]}]
+    cut = ResearchExpert._facts(long, "")
+    assert cut.startswith("M-001 is dated 2026-09-02") and cut.endswith(" [Q1].") and cut.count("[Q1]") == 1                 # whole sentences up to the cap, never half a value
+    short = [{"type": "sql", "source": "q", "detail": "4 rows", "rows": [{"record_id": f"M-00{i}", "date": "2026-09-02"} for i in range(1, 5)]}]
+    assert ResearchExpert._facts(short, "").count(" [Q1].") == 4
 
 
 def test_scout_looks_up_only_and_the_rows_speak_when_its_numbers_are_not_in_them(tmp_path):
@@ -110,8 +118,205 @@ def test_scout_looks_up_only_and_the_rows_speak_when_its_numbers_are_not_in_them
     p = lead._parse_plan(goal, {"tasks": [{"id": "T1", "goal": "compute the weight of P-104 in newtons", "expert": "research", "depends_on": []}]})
     assert [t.expert for t in p.tasks] == ["research", "reasoning"] and p.tasks[0].goal.startswith("Look up the values") and goal in p.tasks[0].goal
     res = ctx.registry.experts["research"].run(p.tasks[0], lead.memory, ExpertBudget())
-    assert "10.0" not in res.answer and "mass_kg = 12.5" in res.answer and events(ctx, "scout_numbers_dropped")[0]["numbers"] == ["10.0"]
-    assert C.deterministic(res.to_dict()) is None                                                                     # Scout and Vera now agree by construction
+    assert res.answer == "P-104 has a mass of 12.5 kg [Q1]." and events(ctx, "scout_numbers_dropped")[0]["numbers"] == ["10.0"]   # the rows, in words
+    assert C.deterministic(res.to_dict() | {"task_goal": p.tasks[0].goal}) is None                                  # Scout and Vera now agree by construction
+
+
+def _expected(case):
+    """The expected items of one benchmark case, read from scripts/measure/bench_cases.yaml."""
+    import os
+
+    import yaml
+    with open(os.path.join(ROOT, "scripts", "measure", "bench_cases.yaml")) as f:
+        return next(c["expect"] for c in yaml.safe_load(f) if c["name"] == case)
+
+
+def _holds_every_value(text, rows):
+    """Every value of every row is in the text as the row holds it (none as the word none, or as "no baseline dataset" after an
+    id), and no number was altered or added."""
+    from inverse_core.team.research import column_words
+    from inverse_core.team.verify import unverified_numbers
+    assert unverified_numbers(text, rows) == [], (text, rows)
+    for r in rows:
+        for k, v in r.items():
+            said = "none" if v is None else str(v)
+            assert said in text or (said == "none" and f"no {column_words(k)[0]}" in text), (v, text)
+
+
+MAINTENANCE = [{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"},
+               {"record_id": "M-001", "date": "2026-09-02", "note": "Routine inspection. Mount bolts torqued. Baseline vibration recorded."}]
+MAINTENANCE_SAID = ('M-002 is dated 2026-10-05 and has the note "[text withheld: matched injection pattern]" [Q1]. '
+                    'M-001 is dated 2026-09-02 and has the note "Routine inspection. Mount bolts torqued. Baseline vibration recorded." [Q1].')
+
+
+def test_rows_are_said_in_sentences_the_id_first_every_value_kept_and_cited():
+    """The benchmark's shapes: the registry, the sensor, the sample count, the maintenance history and the mass for the weight."""
+    from inverse_core.team.research import rows_in_words
+    registry = [{"equipment_id": "P-104", "baseline_dataset": "p104-baseline"}, {"equipment_id": "T-200", "baseline_dataset": "none"}]
+    text = rows_in_words(registry, "[Q1]")
+    assert text == "P-104 has the baseline dataset p104-baseline [Q1]. T-200 has no baseline dataset [Q1]."
+    _holds_every_value(text, registry)
+    assert all(item.lower() in text.lower() for item in _expected("registry"))
+    sensor = [{"sampling_hz": 100, "sigma": 0.01}]
+    text = rows_in_words(sensor, "[Q1]")
+    assert text == "The sampling rate is 100 Hz and the noise level (sigma) is 0.01 [Q1]."
+    _holds_every_value(text, sensor)
+    assert all(item in text for item in _expected("sensor"))
+    assert rows_in_words([{"sensor_id": "P104-DISP-1", "sigma": 0.01, "sampling_hz": 100}], "[Q1]") == "P104-DISP-1 has a noise level (sigma) of 0.01 and a sampling rate of 100 Hz [Q1]."
+    text = rows_in_words([{"n": 400}], "[Q1]")
+    assert text == "The count is 400 [Q1]." == rows_in_words([{"COUNT(*)": 400}], "[Q1]") and all(item in text for item in _expected("samples"))
+    assert rows_in_words([{"dataset_id": "p104-baseline", "n": 400}, {"dataset_id": "p104-current", "n": 400}], "[Q2]") == "p104-baseline has a count of 400 [Q2]. p104-current has a count of 400 [Q2]."
+    text = rows_in_words(MAINTENANCE, "[Q1]")
+    assert text == MAINTENANCE_SAID
+    _holds_every_value(text, MAINTENANCE)
+    assert all(item in text for item in _expected("maintenance"))
+    weight = [{"equipment_id": "P-104", "mass_kg": 1.0}]
+    text = rows_in_words(weight, "[Q1]")
+    assert text == "P-104 has a mass of 1.0 kg [Q1]." and rows_in_words([{"mass_kg": 1.0}], "[Q2]") == "The mass is 1.0 kg [Q2]."          # 1.0 stays 1.0
+    _holds_every_value(text, weight)
+    assert rows_in_words([], "[Q1]") == "" and rows_in_words([{"equipment_id": "P-104"}]) == "The equipment id is P-104."
+
+
+def test_several_rows_with_no_id_column_are_one_sentence_that_says_how_many():
+    """SELECT sigma on two sensors (the weight case's T1): one sentence that admits there are two rows, not two sentences that
+    read as the crew contradicting itself about one unnamed thing."""
+    from inverse_core.team.reasoning import ReasoningExpert
+    from inverse_core.team.research import ResearchExpert, rows_in_words
+    sigmas = [{"sigma": "0.01"}, {"sigma": "0.1"}]                                                                  # text, as the rows come back
+    text = rows_in_words(sigmas, "[Q2]")
+    assert text == "The noise level (sigma) is 0.01 and 0.1 in two rows [Q2]."
+    _holds_every_value(text, sigmas)
+    ran = [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"mass_kg": "1.0"}]}, {"type": "sql", "source": "q", "detail": "2 rows", "rows": sigmas}]
+    facts = ResearchExpert._facts(ran, "")
+    assert facts == "The mass is 1.0 kg [Q1]. The noise level (sigma) is 0.01 and 0.1 in two rows [Q2]."
+    assert ReasoningExpert.resolve("calc(mass_kg * 9.81)", "[T1] " + facts) == "1.0 * 9.81" and ReasoningExpert.resolve("sigma * 2", facts) == "0.01 * 2"
+    goal = "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2."
+    assert C.unsupported_words(goal, facts, ran) == [] and C.HEDGE.search(facts) is None                              # Vera's word and hedge rules stay quiet
+    both = [{"sigma": 0.01, "sampling_hz": 100}, {"sigma": 0.1, "sampling_hz": 200}]
+    text = rows_in_words(both, "[Q1]")
+    assert text == "In two rows, the noise level (sigma) is 0.01 and 0.1, and the sampling rate is 100 Hz and 200 Hz [Q1]."     # the values pair up by position
+    _holds_every_value(text, both)
+    assert rows_in_words([{"n": 400}, {"n": 400}, {"n": 2}]) == "The count is 400, 400 and 2 in three rows."
+    assert rows_in_words([{"baseline_dataset": "p104-baseline"}, {"baseline_dataset": None}], "[Q1]") == "The baseline dataset is p104-baseline and none in two rows [Q1]."
+    assert rows_in_words([{"t": i} for i in range(13)]).endswith(" 11 and 12 in 13 rows.")                             # the count in words up to twelve
+    assert rows_in_words([{"sigma": 0.01}, {"sampling_hz": 100}], "[Q1]") == "The noise level (sigma) is 0.01 [Q1]. The sampling rate is 100 Hz [Q1]."   # not one result set
+
+
+def test_several_rows_told_apart_by_nothing_or_sharing_one_id_are_one_sentence():
+    """SELECT equipment_id on two machines (widen_count's query for 'which machines') and SELECT equipment_id, sigma on one
+    machine's two sensors: one sentence each, not one per row that reads as the crew contradicting itself about P-104."""
+    from inverse_core.team.reasoning import ReasoningExpert
+    from inverse_core.team.research import ResearchExpert, rows_in_words, widen_count
+    machines = [{"equipment_id": "P-104"}, {"equipment_id": "T-200"}]
+    text = rows_in_words(machines, "[Q1]")
+    assert text == "The equipment id is P-104 and T-200 in two rows [Q1]."
+    _holds_every_value(text, machines)
+    goal = "How many machines are in the registry, and what are their ids?"
+    ran = [{"type": "sql", "source": widen_count("SELECT COUNT(*) AS n FROM obs.equipment_table", goal), "detail": "2 rows", "rows": machines}]
+    assert ResearchExpert._facts(ran, "There are 2 machines.") == text and C.unsupported_words(goal, text, ran) == []
+    sensors = [{"equipment_id": "P-104", "sigma": "0.01"}, {"equipment_id": "P-104", "sigma": "0.1"}]
+    text = rows_in_words(sensors, "[Q2]")
+    assert text == "P-104 has a noise level (sigma) of 0.01 and 0.1 in two rows [Q2]."                                # one machine, two sensors
+    _holds_every_value(text, sensors)
+    assert ReasoningExpert.resolve("sigma * 2", text) == "0.01 * 2"
+    both = [{"equipment_id": "P-104", "sigma": 0.01, "sampling_hz": 100}, {"equipment_id": "P-104", "sigma": 0.1, "sampling_hz": 200}]
+    text = rows_in_words(both, "[Q1]")
+    assert text == "In two rows, P-104 has a noise level (sigma) of 0.01 and 0.1, and a sampling rate of 100 Hz and 200 Hz [Q1]."   # the values pair up by position
+    _holds_every_value(text, both)
+    dated = [{"equipment_id": "P-104", "date": "2026-10-05", "note": "a"}, {"equipment_id": "P-104", "date": "2026-09-02", "note": "b"}]
+    assert rows_in_words(dated) == 'In two rows, P-104 is dated 2026-10-05 and 2026-09-02, and has the note "a" and "b".'
+    assert rows_in_words([{"equipment_id": "P-104", "baseline_dataset": "p104-baseline"}, {"equipment_id": "P-104", "baseline_dataset": None}]) == "P-104 has the baseline dataset p104-baseline and none in two rows."
+    assert rows_in_words([{"equipment_id": None, "sigma": 0.01}, {"equipment_id": None, "sigma": 0.1}]) == "In two rows, the equipment id is none and none, and the noise level (sigma) is 0.01 and 0.1."
+    assert rows_in_words([{"equipment_id": "P-104", "sigma": 0.01}, {"equipment_id": "T-200", "sigma": 0.1}], "[Q1]") == "P-104 has a noise level (sigma) of 0.01 [Q1]. T-200 has a noise level (sigma) of 0.1 [Q1]."   # two machines: one each
+
+
+def test_the_mass_said_in_words_still_reaches_the_calculator():
+    """The weight case: Euler writes calc(mass_kg * 9.81) and the value is read out of Scout's sentence, as it was out of 'mass_kg = 1.0'."""
+    from inverse_core.team.reasoning import ReasoningExpert, safe_eval
+    from inverse_core.team.research import rows_in_words
+    context = "[T1] " + rows_in_words([{"equipment_id": "P-104", "mass_kg": 1.0}], "[Q1]")
+    calc = ReasoningExpert.resolve("calc(mass_kg * 9.81)", context)
+    assert calc == "1.0 * 9.81" and f"{safe_eval(calc):g}" in _expected("weight")
+
+
+def test_the_id_column_tells_the_rows_apart_and_no_word_in_the_sentences_comes_from_nowhere():
+    from inverse_core.team.research import id_column, rows_in_words
+    rows = [{"equipment_id": "P-104", "record_id": "M-002", "date": "2026-10-05"}, {"equipment_id": "P-104", "record_id": "M-001", "date": "2026-09-02"}]
+    assert id_column(rows) == "record_id"                                                                            # equipment_id is the same on both rows
+    assert rows_in_words(rows, "[Q1]") == "M-002 has the equipment id P-104 and is dated 2026-10-05 [Q1]. M-001 has the equipment id P-104 and is dated 2026-09-02 [Q1]."
+    mixed = {"record_id": "M-002", "equipment_id": "P-104", "date": "2026-10-05", "note": "x"}
+    assert rows_in_words([mixed], "[Q1]") == 'M-002 has the equipment id P-104, is dated 2026-10-05 and has the note "x" [Q1].'     # the columns in their order
+    mixed = {"record_id": "M-002", "equipment_id": "P-104", "note": "x", "date": "2026-10-05"}
+    assert rows_in_words([mixed], "[Q1]") == 'M-002 has the equipment id P-104 and the note "x", and is dated 2026-10-05 [Q1].'     # no "and ... and"
+    full = [{"equipment_id": "P-104", "name": "Process pump mount", "mass_kg": 1.0, "baseline_dataset": "p104-baseline", "current_dataset": "p104-current"},
+            {"equipment_id": "T-200", "name": "Test rig", "mass_kg": 5.0, "baseline_dataset": None, "current_dataset": "trap-current"}]
+    text = rows_in_words(full, "[Q1]")
+    assert text.endswith("T-200 has the name Test rig, a mass of 5.0 kg, no baseline dataset and the current dataset trap-current [Q1].")
+    _holds_every_value(text, full)
+    goal = "Which machines are in the equipment registry, and which of them has no baseline dataset?"
+    assert C.unsupported_words(goal, text, [{"type": "sql", "source": "q", "detail": "2 rows", "rows": full}]) == []   # Vera's word rule stays quiet
+    text = rows_in_words([{"sensor_id": "S-1", "value": None}], "[Q1]")
+    assert text == "S-1 has the value none [Q1]." and C.HEDGE.search(text) is None                                   # "no value" would read as a hedge
+    assert rows_in_words([{"min(t)": 0.0, "max(t)": 3.99, "offset_mm": 2.5}]) == "The min t is 0.0, the max t is 3.99 and the offset is 2.5 mm."
+
+
+def test_a_json_array_of_records_pasted_into_the_answer_is_said_in_sentences(tmp_path):
+    from inverse_core.team.research import reword_rows
+    pasted = "The maintenance records for P-104 are:\n" + json.dumps(MAINTENANCE)
+    said = "The maintenance records for P-104 are: " + MAINTENANCE_SAID
+    ran = [{"type": "sql", "source": "q", "detail": "2 rows", "rows": MAINTENANCE}]
+    assert reword_rows(pasted + " [Q1].", ran) == (said, 1)                                                          # the citation that followed the array is kept
+    assert reword_rows(pasted, ran) == (said, 1)                                                                     # none followed: the query whose rows hold the records
+    assert reword_rows(pasted, []) == (said.replace(" [Q1].", "."), 1)
+    assert reword_rows('Records: [{"record_id": "M-1", "date": "2026-09-02"}]. [Q1]', ran) == ("Records: M-1 is dated 2026-09-02 [Q1].", 1)   # a citation after the full stop is not left behind it
+    for left in ('Nested [[1, 2], {"a": 1}] stays', 'Deep [{"a": {"b": 1}}] stays', 'Inside {"rows": [{"a": 1}]} stays', "Nothing here [Q1] [T1.E1] [text withheld: x]"):
+        assert reword_rows(left, ran) == (left, 0)
+    assert reword_rows('[{"sigma": 0.010, "sampling_hz": 1e2, "n": -5}]') == ("The noise level (sigma) is 0.010, the sampling rate is 1e2 Hz and the count is -5.", 1)   # numbers as written
+    mass = [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"mass_kg": "1.0", "sigma": 0.01}]}]
+    assert reword_rows('[{"mass_kg": 1, "sigma": 0.010}]', mass) == ("The mass is 1 kg and the noise level (sigma) is 0.010 [Q1].", 1)   # 1 is the row's 1.0: cited
+    assert reword_rows('[{"mass_kg": 1.5}]', mass) == ("The mass is 1.5 kg.", 1)                                       # not the row's value: no citation
+
+    def script(model, messages):
+        if messages[-1]["content"].startswith("These are the rows your queries returned"):
+            return json.dumps({"answer": pasted, "confidence": 0.9, "assumptions": []})
+        return json.dumps({"queries": ["SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date DESC"]})
+
+    ctx, lead = crew(tmp_path, script)
+    ctx.zetaris.sql = lambda statement, limit=2000: [dict(r) for r in MAINTENANCE]
+    goal = "List the maintenance records for P-104 with their dates and what was done."
+    res = ctx.registry.experts["research"].run(Task("T1", goal, "research"), lead.memory, ExpertBudget())
+    assert res.answer == said and "[{" not in res.answer and events(ctx, "rows_reworded")[0]["arrays"] == 1
+    assert all(item in res.answer for item in _expected("maintenance")) and not events(ctx, "answer_facts")
+    assert C.deterministic(res.to_dict() | {"task_goal": goal}) is None
+
+
+def test_a_pasted_registry_array_with_an_absent_cell_is_not_said_twice(tmp_path):
+    """The registry's 'none' (or a JSON null) is said as "T-200 has no baseline dataset" with no "none" in it: _facts counts that
+    cell as said, so the sentences reword_rows made are not appended a second time."""
+    from inverse_core.team.research import ResearchExpert, reword_rows
+    registry = [{"equipment_id": "P-104", "baseline_dataset": "p104-baseline"}, {"equipment_id": "T-200", "baseline_dataset": "none"}]
+    full = [{"equipment_id": "P-104", "name": "Process pump mount", "mass_kg": 1.0, "baseline_dataset": "p104-baseline", "current_dataset": "p104-current"},
+            {"equipment_id": "T-200", "name": "Test rig", "mass_kg": 5.0, "baseline_dataset": None, "current_dataset": "trap-current"}]
+    for rows in (registry, full):
+        ran = [{"type": "sql", "source": "q", "detail": "2 rows", "rows": rows}]
+        text, n = reword_rows("The machines are: " + json.dumps(rows) + " [Q1].", ran)                               # None is pasted as null
+        assert n == 1 and "T-200 has " in text and "no baseline dataset" in text and "none" not in text.lower()
+        assert ResearchExpert._facts(ran, text) == ""
+    assert ResearchExpert._facts(ran, "P-104 and T-200 are in the registry.").startswith("P-104 has the name")     # a value left out: the rows still ride along
+    pasted = "The machines are: " + json.dumps(registry) + " [Q1]."
+
+    def script(model, messages):
+        if messages[-1]["content"].startswith("These are the rows your queries returned"):
+            return json.dumps({"answer": pasted, "confidence": 0.9, "assumptions": []})
+        return json.dumps({"queries": ["SELECT equipment_id, baseline_dataset FROM obs.equipment_table"]})
+
+    ctx, lead = crew(tmp_path, script)
+    ctx.zetaris.sql = lambda statement, limit=2000: [dict(r) for r in registry]
+    goal = "Which machines are in the equipment registry, and which of them has no baseline dataset?"
+    res = ctx.registry.experts["research"].run(Task("T1", goal, "research"), lead.memory, ExpertBudget())
+    assert res.answer == "The machines are: P-104 has the baseline dataset p104-baseline [Q1]. T-200 has no baseline dataset [Q1]."
+    assert res.answer.count("T-200") == 1 and not events(ctx, "answer_facts") and events(ctx, "rows_reworded")[0]["arrays"] == 1
+    assert all(item.lower() in res.answer.lower() for item in _expected("registry"))
 
 
 def test_a_sensor_named_in_the_task_is_selected_by_its_id():
@@ -131,3 +336,17 @@ def test_scout_drops_a_quantity_filter_the_task_did_not_ask_for():
     assert unfilter_quantity("SELECT sigma FROM obs.sensors_table WHERE quantity = 'x'", goal) == ("SELECT sigma FROM obs.sensors_table", True)
     assert unfilter_quantity(sql, "the displacement sensor on P-104")[1] is False and unfilter_quantity(sql, "sensor T200-DISP-1")[1] is False
     assert unfilter_quantity("SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'", goal)[1] is False
+
+
+def test_the_models_bare_number_is_not_said_before_the_sentences_that_hold_it(tmp_path):
+    def script(model, messages):
+        if messages[-1]["content"].startswith("These are the rows your queries returned"):
+            return json.dumps({"answer": "100", "confidence": 0.9, "assumptions": []})                    # the 4B model's whole answer, as in benchmark round 27
+        return json.dumps({"queries": ["SELECT sampling_hz, sigma FROM obs.sensors_table WHERE sensor_id = 'P104-DISP-1'"]})
+
+    ctx, lead = crew(tmp_path, script)
+    ctx.zetaris.sql = lambda statement, limit=2000: [{"sampling_hz": 100, "sigma": 0.01}]
+    goal = "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?"
+    res = ctx.registry.experts["research"].run(Task("T1", goal, "research"), lead.memory, ExpertBudget())
+    assert res.answer == "The sampling rate is 100 Hz and the noise level (sigma) is 0.01 [Q1]."          # not "100. The sampling rate is 100 Hz ..."
+    assert events(ctx, "answer_facts")[0]["bare"] == "100" and all(item in res.answer for item in ("100", "0.01"))

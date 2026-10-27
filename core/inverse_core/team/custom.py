@@ -7,8 +7,10 @@ import json
 import re
 
 from ..budget import BudgetExceeded
+from .crew import name as crew_name
 from .expert import PROPOSE_TAIL, BaseExpert, ExpertResult, proposals_of, require_evidence
 from .llmcall import ask
+from .summary import digest  # the summary read out of the memory, in words
 from .tools import Tools
 from .verify import claim_numbers, reconcile_numbers, unverified_numbers
 
@@ -39,14 +41,6 @@ MEMORY_WORDS = re.compile(r"\b(memory|summari[sz]e|digest|found so far|ruled out
 
 DIGEST_WORDS = re.compile(r"\b(summari[sz]e|digest|found so far|ruled out|still unchecked|what (do|does) (we|the crew|the team) know)\b", re.IGNORECASE)
 
-def digest(mem):
-    """A plain-words digest of the memory tool's output, made by code: what stands, what was ruled out. Every word of it is in
-    the tool result, so the reviewer has nothing to refuse; used when the model doubts its own summary or writes none."""
-    refuted = [str(f) for f in (mem or {}).get("refuted") or []]
-    kept = [str(f) for f in (mem or {}).get("findings") or [] if str(f) not in refuted]
-    return ("Found and still standing: " + ("; ".join(kept) + "." if kept else "nothing yet.")
-            + " Ruled out: " + ("; ".join(refuted) + "." if refuted else "nothing yet.")
-            + " Still unchecked: nothing else is recorded in the shared memory.")
 
 class CustomExpert(BaseExpert):
     """Prompt + tools + lane + budget from config. One tool call per reply until the model answers or the budget ends."""
@@ -141,6 +135,19 @@ class CustomExpert(BaseExpert):
         for i in idx[:-keep] if len(idx) > keep else []:
             msgs[i]["content"] = f"[earlier tool result, {len(msgs[i]['content'])} chars, already recorded as evidence]"
 
+    def _memory_read(self, out):
+        """The memory tool's output and, for the summary, what only code needs: the reason each claim was refuted and what the
+        findings' authors left unchecked. The model sees the tool's output; the evidence keeps this fuller read, the one the
+        summary is written from."""
+        full = dict(out) if isinstance(out, dict) else {"findings": [], "refuted": []}
+        for key, op in (("refutations", "refutations"), ("not_checked", "unchecked")):
+            try:
+                full[key] = list(getattr(self.toolbox.memory, op)())[-10:] if self.toolbox.memory is not None else []
+            except Exception as e:                                            # memory is advisory: an H-MEM hiccup is traced, never fatal
+                self.ctx.trace.event("memory_error", op=op, error=f"{type(e).__name__}: {str(e)[:200]}")
+                full[key] = []
+        return full
+
     def _previous(self, task):
         """What the last attempt produced, so a retry builds on it instead of starting over (the Critic's reason is in task.feedback)."""
         prev = task.result if task.attempts > 1 and isinstance(task.result, dict) else None
@@ -198,14 +205,16 @@ class CustomExpert(BaseExpert):
             self.ctx.trace.event("consult_prefetched", expert=self.name, task=task.id, to=m_ask.group(1).lower(), question=question[:120])
         if "memory" in self.toolbox.allowed and MEMORY_WORDS.search(task.goal):   # a summary starts from what the crew knows: that lookup is done by code, not left to the model
             out = self.toolbox.call("memory", {}, budget, who=self.name)
-            evidence.append({"type": "tool", "source": "memory({})", "detail": json.dumps(out, default=str)[:300], "result": out})
+            evidence.append({"type": "tool", "source": "memory({})", "detail": json.dumps(out, default=str)[:300], "result": self._memory_read(out)})
             msgs += [{"role": "assistant", "content": json.dumps({"tool": "memory", "args": {}, "why": "what the crew already found or ruled out"})},
                      {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:1800]}]
             self.ctx.trace.event("memory_prefetched", expert=self.name, task=task.id, findings=len((out or {}).get("findings") or []), refuted=len((out or {}).get("refuted") or []))
             seen["memory({})"] = 1
         mem = next((e.get("result") for e in evidence if e.get("source") == "memory({})"), None)
-        if mem is not None and DIGEST_WORDS.search(task.goal):                  # a digest is read out of the memory by code: no model call, no long prompt (that call took 250 s)
-            answer, j, models = digest(mem), {"confidence": 0.8, "assumptions": [], "not_checked": []}, []
+        summary = mem is not None and bool(DIGEST_WORDS.search(task.goal))     # a digest is read out of the memory by code: no model call, no long prompt (that call took 250 s)
+        if summary:
+            configs = getattr(getattr(self.ctx, "registry", None), "configs", None)   # the agents' names as the page shows them
+            answer, j, models = digest(mem, name=lambda ident: crew_name(ident, configs)), {"confidence": 0.8, "assumptions": [], "not_checked": []}, []
             self.ctx.trace.event("summary_by_code", expert=self.name, task=task.id, findings=len(mem.get("findings") or []), refuted=len(mem.get("refuted") or []), said="")
         else:
             j, models = self._loop(msgs, budget, evidence, seen, task.goal)
@@ -221,7 +230,7 @@ class CustomExpert(BaseExpert):
             evidence = [{"type": "step", "source": "no tool used", "detail": "the answer rests on the model alone"}]
             conf, not_checked = min(conf, 0.3), not_checked + ["no tool was called, so nothing was verified"]
         res = require_evidence(ExpertResult(answer, evidence, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))
-        if evidence[0]["type"] != "step" and not bad:                          # remembered by the Lead once the Critic accepts
+        if evidence[0]["type"] != "step" and not bad and not summary:          # remembered by the Lead once the Critic accepts; a summary is read out of the memory, never written back into it
             res.findings = [{"claim": answer, "evidence": evidence[:2], "source": "fitter", "confidence": conf}]
         res.proposals = proposals_of(j)
         if any(e.get("type") == "reference" for e in evidence):
