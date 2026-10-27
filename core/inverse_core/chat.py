@@ -11,8 +11,8 @@ MAX_TEXT = 600
 _lock = threading.Lock()
 NAMES = {"lead": "Atlas", "critic": "Vera", "watch": "Warden", "research": "Scout", "reasoning": "Euler", "solver": "Ada",
          "vulnerability": "Sentinel", "architect": "Forge", "tinker": "Tinker"}
-QUIET = ("summary_by_code", "scout_numbers_dropped", "forge_by_rule", "sql_completed", "sql_pinned", "calc_nudge", "bare_answer", "critic_reask",
-         "stuck", "escalate", "tool_repeat")
+QUIET = ("summary_by_code", "scout_numbers_dropped", "rows_reworded", "forge_by_rule", "sql_completed", "sql_pinned", "calc_nudge", "bare_answer",
+         "critic_reask", "stuck", "escalate", "tool_repeat")
 
 
 def _n(x):
