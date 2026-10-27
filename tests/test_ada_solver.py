@@ -64,6 +64,29 @@ def test_a_summary_the_model_doubts_is_read_out_of_the_memory_by_code(tmp_path):
     assert events(ctx, "summary_by_code") and res.confidence == 0.8 and res.answer.startswith("Found and still standing") and C.deterministic(res.to_dict()) is None
 
 
+def test_an_earlier_digest_among_the_findings_is_said_as_its_parts_not_nested():
+    """A summary's answer is written to memory like any finding, so round 27's digest said 'solver: Found and still standing: ...'
+    inside itself. The earlier digest is split back into what it listed (the memory tool keeps 200 characters of a finding, so it
+    may be cut anywhere), each part said once, every value kept."""
+    from inverse_core.team.custom import digest
+    earlier = ("solver: Found and still standing: research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; research: The maintenance records for P-104 are:\n"
+               '[{"record_id": "M-002", "date": "2026-10-05", "note": "[t')                                                      # round 27, as the memory tool returned it
+    assert len(earlier) == 200
+    mem = {"findings": ["reasoning: The weight of P-104 is 9.81 newtons.", earlier, "research: 2", "reasoning: 122.625", "research: 2"], "refuted": []}
+    assert digest(mem) == ("Found and still standing: reasoning: The weight of P-104 is 9.81 newtons.; research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; "
+                           'research: The maintenance records for P-104 are:\n[{"record_id": "M-002", "date": "2026-10-05", "note": "[t; research: 2; reasoning: 122.625.'
+                           " Ruled out: nothing yet. Still unchecked: nothing else is recorded in the shared memory.")
+    whole = "solver: Found and still standing: research: 2; reasoning: 3. Ruled out: research: 4. Still unchecked: nothing else is recorded in the shared memory."
+    assert digest({"findings": [whole, "research: 2", "solver: 5"], "refuted": []}) == \
+        "Found and still standing: research: 2; reasoning: 3; solver: 5. Ruled out: research: 4. Still unchecked: nothing else is recorded in the shared memory."
+    twice = "solver: Found and still standing: reasoning: 1; " + whole + "; research: 6. Ruled out: noth"                          # a digest inside a digest, the outer one cut
+    assert digest({"findings": [twice], "refuted": []}) == \
+        "Found and still standing: reasoning: 1; research: 2; reasoning: 3; research: 6. Ruled out: research: 4. Still unchecked: nothing else is recorded in the shared memory."
+    empty = "solver: Found and still standing: nothing yet. Ruled out: nothing yet. Still unchecked: nothing else is recorded in the shared memory."
+    assert digest({"findings": [empty, "research: 7"], "refuted": []}).startswith("Found and still standing: research: 7. Ruled out: nothing yet.")
+    assert digest({"findings": ["solver: Found and still standing: reasoning: 122.625. Rul"], "refuted": []}).startswith("Found and still standing: reasoning: 122.625. Ruled out: nothing yet.")
+
+
 def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produced(tmp_path):
     replies = iter([json.dumps({"tool": "run_sql", "args": {"sql": "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'"}}),
                     json.dumps({"tool": "calc", "args": {"expr": "12.5 * 9.81"}}),
