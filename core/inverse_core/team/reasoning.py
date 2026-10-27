@@ -7,6 +7,7 @@ import ast
 import math
 import operator
 import re
+from datetime import date
 
 from .expert import PROPOSE_TAIL, BaseExpert, ExpertResult, proposals_of, require_evidence
 from .llmcall import ask
@@ -28,8 +29,27 @@ _FUNCS = {"sqrt": math.sqrt, "log": math.log, "exp": math.exp, "sin": math.sin, 
 
 _CONST = {"pi": math.pi, "e": math.e}
 
+_ISO_DAY = re.compile(r"^\s*(\d{4})-(\d{2})-(\d{2})(?:[T ][0-9:.]+Z?)?\s*$")
+
+
+def _day(s):
+    m = _ISO_DAY.match(str(s))
+    if not m:
+        raise ValueError(f"not a date (YYYY-MM-DD): {str(s)[:40]!r}")
+    return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+
+
+def days_between(a, b):
+    """Whole days from one ISO date to the other, never negative: days_between('2026-09-02', '2026-10-05') is 33. A model asked
+    to count them wrote 32; SQL date functions the data platform does not have were refused three times."""
+    return float(abs((_day(a) - _day(b)).days))
+
+
+_DATE_FUNCS = {"days_between": days_between}                                 # the only calls that take text: two dates
+
 def safe_eval(expr):
-    """Arithmetic only: numbers, + - * / ** %, a few math functions. No names, attributes or calls beyond the list."""
+    """Arithmetic only: numbers, + - * / ** %, a few math functions, and days_between('YYYY-MM-DD', 'YYYY-MM-DD'). No names,
+    attributes or calls beyond the list; text only as a date inside days_between."""
     def ev(n):
         if isinstance(n, ast.Expression):
             return ev(n.body)
@@ -46,6 +66,9 @@ def safe_eval(expr):
             return _CONST[n.id]
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in _FUNCS and not n.keywords:
             return _FUNCS[n.func.id](*[ev(a) for a in n.args])
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in _DATE_FUNCS and not n.keywords and len(n.args) == 2 \
+                and all(isinstance(a, ast.Constant) and isinstance(a.value, str) for a in n.args):
+            return _DATE_FUNCS[n.func.id](*[a.value for a in n.args])
         raise ValueError("unsupported expression")
     return float(ev(ast.parse(expr.strip(), mode="eval")))
 
@@ -67,7 +90,7 @@ class ReasoningExpert(BaseExpert):
         if m:
             expr = m.group(1).strip()
         for name in sorted(set(cls._NAME.findall(expr)), key=len, reverse=True):
-            if name in _FUNCS or name in ("e", "pi"):
+            if name in _FUNCS or name in _DATE_FUNCS or name in ("e", "pi"):
                 continue
             found = re.search(r"(?<![\w.])" + re.escape(name) + r"\s*[=:]\s*(-?\d+(?:\.\d+)?)", str(context or ""))
             if found:
