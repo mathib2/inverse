@@ -15,6 +15,6 @@ jobs:
           python-version: "3.14"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: pip install ruff && ruff check .
+      - run: pip install ruff==0.16.9 && ruff check .
       # The live Zetaris and sidecar tests skip on their own when those services are not reachable.
       - run: PYTHONPATH=core python -m pytest -q tests
