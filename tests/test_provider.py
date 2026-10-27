@@ -195,6 +195,23 @@ def test_the_write_up_follows_the_planner_unless_lane_compose_sends_it_elsewhere
     assert set(lanes.endpoints) == {"compose"} and isinstance(lanes.client("compose"), M.LaneEndpoint) and not isinstance(lanes.client("plan"), M.LaneEndpoint)
 
 
+def test_the_write_up_shares_the_planners_endpoint_when_it_has_none_of_its_own(monkeypatch):
+    for n in ("FAST", "DEEP", "PLAN", "COMPOSE", "CRITIC"):
+        monkeypatch.delenv("LANE_" + n, raising=False)
+        monkeypatch.delenv(f"LANE_{n}_URL", raising=False)
+    monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
+    monkeypatch.setenv("MODEL_BASE_URL", "http://laptop/v1")
+    monkeypatch.setenv("NEMOTRON_MODEL", "local-runtime/nemotron-mini")
+    monkeypatch.setenv("LANE_PLAN", "nvidia/nemotron-3-ultra-550b-a55b")                                # the .env.example block: the planning on a hosted Nightshift
+    monkeypatch.setenv("LANE_PLAN_URL", "http://hosted/v1")
+    lanes = Lanes()
+    assert lanes.endpoints["compose"] is lanes.endpoints["plan"]                                         # the write-up goes where the planning goes
+    assert lanes.client("compose") is lanes.client("plan") and isinstance(lanes.client("plan"), M.LaneEndpoint)
+    monkeypatch.setenv("LANE_COMPOSE", "local-runtime/nemotron-mini")                                   # the write-up named: its own client, on the crew's provider
+    lanes = Lanes()
+    assert "compose" not in lanes.endpoints and lanes.client("compose") is not lanes.client("plan") and not isinstance(lanes.client("compose"), M.LaneEndpoint)
+
+
 def test_atlas_writes_the_final_answer_on_the_compose_lane(tmp_path):
     ctx, lead = crew(tmp_path, lambda model, messages: "")
     assert lead.plan_lane == "plan" and lead.compose_lane == "compose"                                  # planning and the write-up on lanes of their own
@@ -221,7 +238,7 @@ def test_a_lane_with_its_own_endpoint_falls_back_to_the_crews_provider_without_m
         return _ok(json["model"])
     monkeypatch.setattr(M.requests, "post", post)
     lanes = Lanes()
-    assert set(lanes.endpoints) == {"plan"} and isinstance(lanes.client("plan"), M.LaneEndpoint) and not isinstance(lanes.client("fast"), M.LaneEndpoint)
+    assert set(lanes.endpoints) == {"plan", "compose"} and isinstance(lanes.client("plan"), M.LaneEndpoint) and not isinstance(lanes.client("fast"), M.LaneEndpoint)   # the write-up follows the planner's endpoint
     r = lanes.client("plan").chat([{"role": "user", "content": "x"}])
     assert r["provider"] == "lane endpoint" and calls[-1] == ("hosted", "nvidia/nemotron-3-ultra-550b-a55b")
     hosted_up[0] = False

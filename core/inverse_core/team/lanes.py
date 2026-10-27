@@ -56,10 +56,16 @@ class Lanes:
         self.mapping = {n: os.environ.get("LANE_" + n.upper(), d) for n, d in default_mapping().items()}
         if not os.environ.get("LANE_PLAN") and os.environ.get("LANE_DEEP"):
             self.mapping["plan"] = self.mapping["deep"]                       # a .env from before the plan lane plans where it always did
+        self.follows = {}                                                     # lane -> the lane whose client it shares
         if not os.environ.get("LANE_COMPOSE"):
             self.mapping["compose"] = self.mapping["plan"]                    # the write-up follows the planning unless sent elsewhere
+            if not os.environ.get("LANE_COMPOSE_URL"):
+                self.follows["compose"] = "plan"                              # the planner's endpoint and backup too, so a hosted planner writes up where it plans
         self.mapping.update(mapping or {})
         self.endpoints = {n: ep for n in self.mapping if (ep := endpoint(n))}
+        for lane, src in self.follows.items():
+            if src in self.endpoints:
+                self.endpoints[lane] = self.endpoints[src]
         self._factory = factory or _client
         self._clients = {}
 
@@ -69,6 +75,8 @@ class Lanes:
         return self.mapping[lane]
 
     def client(self, lane):
+        if lane in self.follows and lane not in self._clients:
+            self._clients[lane] = self.client(self.follows[lane])             # one client, so the write-up shares the planner's endpoint and its fallback state
         if lane not in self._clients:
             ep = self.endpoints.get(lane)
             self._clients[lane] = self._factory(self.model(lane), ep) if ep else self._factory(self.model(lane))
