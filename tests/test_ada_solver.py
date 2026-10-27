@@ -122,8 +122,15 @@ def test_the_summary_keeps_every_number_id_and_citation_a_finding_holds():
     assert finding_sentence("research: 42. Rows: n = 400 [Q1]") == "Scout answered 42; the rows say the count is 400 [Q1]."            # a value its rows do not say is kept
     # Scout's rows in words, every value and citation kept; any key, aliased or not; a last row cut by a limit keeps its pairs and says so.
     assert rows_in_words("Rows: mass_kg = 1.0 [Q1]; sigma = 0.01 [Q2]; sigma = 0.1 [Q2]") == "the mass is 1.0 kg [Q1]; the noise level is 0.01 [Q2]; the noise level is 0.1 [Q2]"
-    assert rows_in_words("Rows: record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. [Q1]; record_id = M-002, date = 2026-10-05, note = [text") \
+    assert rows_in_words("Rows: record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. [Q1]; record_id = M-002, date = 2026-10-05, note = [text", cut=True) \
         == "the record M-001 has the date 2026-09-02 and the note Routine inspection. Mount bolts torqued. [Q1]; the record M-002 has the date 2026-10-05 and the note [text (cut off)"
+    assert rows_in_words("Rows: sigma = 0.01, sampling_hz = 100") == "the noise level is 0.01 and the sampling rate is 100 Hz"           # uncited, not cut: said plainly
+    assert finding_sentence("research: Rows: sigma = 0.01, sampling_hz = 100") == "Scout found that the noise level is 0.01 and the sampling rate is 100 Hz."
+    rows = "research: Rows: " + "; ".join(f"equipment_id = {m}, baseline_dataset = {d} [Q1]" for m, d in (("P-104", "p104-baseline"), ("T-200", "t200-baseline"), ("C-300", "c300-baseline-2026")))
+    assert len(rows) == 202 and rows[:200].endswith("2026 [Q")                                                             # the memory's cap landed inside the last citation
+    assert finding_sentence(rows[:200]) == ("Scout found that the machine P-104 has the baseline dataset p104-baseline [Q1]; the machine T-200 has the baseline dataset t200-baseline [Q1]; "
+                                            "the machine C-300 has the baseline dataset c300-baseline-2026 (cut off).")
+    assert finding_sentence("research: Rows: sigma = 0.01, sampling_hz = 100 [Q1".ljust(200)) == "Scout found that the noise level is 0.01 and the sampling rate is 100 Hz (cut off)."
     assert rows_in_words("Rows: max(mass_kg) = 12.5, COUNT(*) = 2 [Q1]; count(1) = 400 [Q2]; avg(sigma) = 0.055, min(x) = -1.5 [Q3]") \
         == "the largest mass is 12.5 kg and the count is 2 [Q1]; the count is 400 [Q2]; the average noise level is 0.055 and the smallest displacement is -1.5 [Q3]"
     assert finding_sentence("solver: P-104 has 800 samples across both datasets. Rows: n = 400 [Q1]; n = 400 [Q2]") \

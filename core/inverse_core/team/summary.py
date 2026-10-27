@@ -33,6 +33,7 @@ _EXPERT = re.compile(r"^([a-z][\w-]*):(?:\s+(.*))?$", re.DOTALL)                
 _ROWS = re.compile(r"\bRows:\s*")
 _ROW = re.compile(r"(.*?)\s*\[Q(\d+)\]\s*(?:;\s*|$)", re.DOTALL)                  # Scout's rows: "k = v, k = v [Q1]; k = v [Q2]"
 _PAIR = re.compile(r"(\S+) = (.*?)(?=, \S+ = |$)", re.DOTALL)                   # any key, aliased or not: "sigma = 0.01", "max(mass_kg) = 12.5", "count(1) = 400"
+_CITE_CUT = re.compile(r"\s*\[(?:Q\d*\]?)?$")                                  # what is left of a citation a limit cut into: " [", " [Q", " [Q1"
 _AGGREGATE = re.compile(r"^(\w+)\((.*)\)$")
 _END = re.compile(r"(?:[.!?]|\[Q\d+\])(?=\s|$)")                              # where a sentence ends: a full stop or a query citation
 _RECORDS = re.compile(r"\[\s*(?=\{)")                                         # a JSON array of records pasted into a finding
@@ -89,19 +90,20 @@ def _pairs(text):
     return [(k, v.strip()) for k, v in _PAIR.findall(fold(text)) if v.strip()]
 
 
-def rows_in_words(text):
+def rows_in_words(text, cut=False):
     """Scout's cited rows in words, keeping every value and its citation: "Rows: sigma = 0.01, sampling_hz = 100 [Q1]" becomes
-    "the noise level is 0.01 and the sampling rate is 100 Hz [Q1]". A last row with no citation was cut by a limit: its pairs are
-    kept as far as they go and the cut is said in place of the citation."""
+    "the noise level is 0.01 and the sampling rate is 100 Hz [Q1]". A last row with no citation keeps its pairs as far as they go;
+    when a limit cut the text (`cut`), the cut is said in place of the citation, and a citation the cut landed in ("[Q") is dropped."""
     text, rows, end = _ROWS.sub("", str(text or ""), count=1).strip(), [], 0
     for m in _ROW.finditer(text):
         pairs = _pairs(m.group(1))
         if pairs:
             rows.append(_row_words(pairs) + f" [Q{m.group(2)}]")
         end = m.end()
-    pairs = _pairs(text[end:].strip(" ;"))
+    tail = text[end:].strip(" ;")
+    pairs = _pairs(_CITE_CUT.sub("", tail) if cut else tail)
     if pairs:
-        rows.append(_row_words(pairs) + " " + CUT)
+        rows.append(_row_words(pairs) + (" " + CUT if cut else ""))
     return "; ".join(rows)
 
 
@@ -153,10 +155,11 @@ def _claim(form):
     body = fold(body)
     if not body or body.startswith(DIGEST_HEADS):
         return ident, "", False
+    cut = len(form) >= FINDING_CAP
     head, rows = (_ROWS.split(body, 1) + [""])[:2] if _ROWS.search(body) else (body, "")
-    rows = rows_in_words(rows)
+    rows = rows_in_words(rows, cut)
     head, records, after = records_in_words(head) or (head, "", "")
-    head = _whole(fold(head), len(form) >= FINDING_CAP and not rows and not records).strip(" .;:,")
+    head = _whole(fold(head), cut and not rows and not records).strip(" .;:,")
     after = fold(after).strip(" .;:,")
     bare = bool(head) and (" " not in head or bool(_UNIT.match(head)))
     if bare and re.search(rf"(?<![\w.-]){re.escape(head)}(?![\w.-])", records + " " + rows, re.I):
