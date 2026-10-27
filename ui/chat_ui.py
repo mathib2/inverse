@@ -130,6 +130,9 @@ def _collect():
     ss = st.session_state
     if ss.get("crew_out") is not None and ss.get("crew_dir") and all(t.get("dir") != ss.crew_dir for t in _turns()):
         last = ss.get("crew_last") or {}
+        if ss.get("crew_replay"):                                             # a saved run opened from Warden or Recent: its own time, never the last live mission's
+            secs = int(max([float(e.get("t") or 0) for e in (ss.get("crew_events") or [])] or [0]))
+            last = {"took": (f"{secs // 60} min {secs % 60:02d} s" if secs >= 60 else f"{secs} s") if secs else "", "stopped": False}
         _turns().append({"goal": ss.crew_plan.goal, "out": ss.crew_out, "plan": ss.crew_plan, "events": list(ss.get("crew_events") or []),
                          "dir": ss.crew_dir, "took": last.get("took", ""), "stopped": bool(last.get("stopped"))})
         ss.panel_turn = ss.crew_dir
@@ -187,13 +190,22 @@ def _turn(t, configs):
                     st.rerun()
 
 
+def _take_example():
+    """The pill's own callback: Streamlit allows clearing a widget's key here, and refuses it after the widget is drawn in a run
+    (clicking an example raised StreamlitWidgetAlreadyInstantiatedError and started nothing; the pill then stuck)."""
+    ss = st.session_state
+    if ss.get("example_pick"):
+        ss.example_goal = dict(EXAMPLES)[ss.example_pick]
+    ss.example_pick = None
+
+
 def _welcome(ledger, sidecar, enabled):
     st.markdown("#### What would you like the crew to find out?")
     st.caption("Eight agents on local models plan the work, look things up, compute, check each other and answer with evidence. Try one of these, or ask your own question below.")
-    pick = st.pills("Try one", [label for label, _ in EXAMPLES], key="example_pick", label_visibility="collapsed", selection_mode="single", disabled=not enabled)
-    if pick:
-        text = dict(EXAMPLES)[pick]
-        st.session_state.example_pick = None
+    st.pills("Try one", [label for label, _ in EXAMPLES], key="example_pick", label_visibility="collapsed", selection_mode="single", disabled=not enabled,
+             on_change=_take_example)
+    text = st.session_state.pop("example_goal", None)
+    if text:
         st.session_state.pending_goal = text
         _begin(text, ledger, sidecar)
 
@@ -256,7 +268,8 @@ def _alerts():
     st.caption("What the crew sent to your phone, newest first. Channels come from the workstation's .env: " + (", ".join(chans) if chans else "none configured") + ".")
     topic = os.environ.get("NTFY_TOPIC", "").strip()
     if topic:
-        st.markdown(f"**Phone setup:** install the ntfy app, add a subscription to the topic `{topic}` (server ntfy.sh), and allow its notifications. "
+        st.markdown("**Phone setup:** install the ntfy app, add a subscription to the topic named by `NTFY_TOPIC` in the workstation's `.env` (server ntfy.sh), "
+                    "and allow its notifications. The topic is not shown here: anyone who knows it can read every alert. "
                     "An approval request arrives with the highest priority, which rings like a call on Android.")
     if st.button("Send a test alert now", icon=":material/send:", disabled=not chans):
         sent = notify.notify("Test from the INVERSE crew: alerts reach this phone.", urgent=True)

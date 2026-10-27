@@ -3,6 +3,12 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## The audit before the recording (2026-10-27, afternoon)
+- The example questions on the chat page start a mission again: clicking one had raised StreamlitWidgetAlreadyInstantiatedError, started nothing and left the pill stuck (`ui/chat_ui.py: _take_example`). The live app shows an error's type only, never a traceback with file paths.
+- A goal with "<" and ">" in it (t < 1 ... t >= 3) is no longer refused as a copied placeholder. The SQL guard refuses backtick-quoted and try_ JVM built-ins; the web tools never read the tailnet's addresses (<tailnet-ip>/10). A replay opened from Warden or Recent shows its own duration. The Alerts panel no longer prints the ntfy topic. The publish script refuses to run after the deadline.
+- The headline is honest: 8/8 with every number exact, 7/8 read strictly. The crew against one agent holding all of it, on 13 reverse-engineering tasks: 2 of 26 against 0 (`docs/BENCH.md`). The public repository is public (it was made so on 27 Oct).
+- Tests: 214; CI runs 208.
+
 ## The page polished, the core tidied (2026-10-27, morning)
 - The chat page shows a run panel while a mission runs and under Steps afterwards (`ui/run_ui.py`): a status timeline (planned, working, reviewing, answered) and one card per task with its agent, attempts and tool calls, read from the trace the page already collects; the eight-line bullet list in the bubble goes. One toast when the mission ends, none when a saved run is opened. Stop stays where it was.
 - The nine artifact pills sit in two labelled groups, "This answer" (Answer, Evidence, Who did what, Steps) and "The crew" (Live, Crew, Warden, Council, Alerts), instead of three ragged rows; a fresh page shows a dashed empty state that points to the three example questions. The wording is in `ui/plain.py` and pinned by `tests/test_ui_plain.py`.

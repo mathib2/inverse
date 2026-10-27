@@ -51,7 +51,7 @@ Open Agent Hackathon 2026 · Track 03 (Reasoning Architecture) · Zetaris + Mete
 | `experts/`, `prompts/` | Each expert's record and its instructions; the registry reads them. |
 | `missions.yaml` | Warden's standing missions: `data_check` every 12 hours, `code_review` every 6, `memory_digest` every 24. `missions.local.yaml` (not in git) holds the council's and people's changes and overrides it. |
 | `scripts/` | What runs all the time (`watch.py`, `tinker.py`, `public_link.py` and their control scripts), `measure/` (benchmark, probes) and `admin/` (password, alerts, council, data setup, publishing the public copy). See `scripts/README.md`. |
-| `tests/` | 208 tests in 26 files; none needs a model or the internet. The six that need live services (`test_integration.py`, the real-engine test in `test_markovian.py`) skip when Zetaris or the Meterless engines are not there, so CI runs 202. |
+| `tests/` | 214 tests in 28 files; none needs a model or the internet. The six that need live services (`test_integration.py`, the real-engine test in `test_markovian.py`) skip when Zetaris or the Meterless engines are not there, so CI runs 208. |
 | `backlog_tests/` | Where a test that defines done for one of Tinker's backlog items goes (`backlog_tests/README.md`). None is written yet, so a change merges on its own only when the agent's probe rises. |
 | `docs/` | How it works, how to run it, the submission and the records. See `docs/README.md`. |
 | `services/`, `data/` | The Meterless sidecar and the synthetic data service; the data platform's SQL in `data/zetaris/`. |
@@ -103,7 +103,7 @@ Shared findings, refuted claims and reviewer lessons live in Meterless H-MEM acr
 
 You need Linux (with tmux for the scripts that run all the time), Python 3.14 (requirements.txt pins versions tested on 3.14.4), Node.js with `npm`/`npx`, a checkout of the Meterless open core (https://github.com/Meterless/Meterless) for `npm run setup`, Docker running the organizers' Zetaris starter (`zetaris-platform`, from the event's resources at https://hackathon.genai.works/event/open-agent-hackathon-2026; it serves `ZETARIS_REST_URL` and issues the `ZETARIS_API_KEY` that goes into `.env`) and the obs-service, and a model server: Ollama with `nemotron-mini` (`docs/operations/LOCAL_MODELS.md`) or, for the primary provider, Meterless Nightshift on a Windows laptop (`docs/operations/NIGHTSHIFT_TUNNEL.md`).
 
-Without Zetaris, the Meterless engines or a model server, the saved missions in `docs/evidence/missions/` still replay in the Advanced view with no model.
+Without Zetaris, the Meterless engines or a model server, a saved mission still replays with no model: copy a folder of `docs/evidence/missions/` into `runs/` (the Advanced view and Recent read `runs/`), then open it under **Replay a saved run**.
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
@@ -132,6 +132,8 @@ The UI listens on loopback only. To reach it from another machine, use an SSH tu
 
 ## Honest limitations
 
+- The headline benchmark result, 8/8 in 30 s on Nightshift, has every number exact; read strictly it is 7/8, because the registry answer names the wrong machine while the rows it quotes are right (`docs/BENCH.md`).
+- On 13 harder reverse-engineering tasks (recover a sampling rate, a period or a damping ratio from raw samples, read our own code, find a sequence's rule) the crew answered 2 of 26 runs right and one agent holding every tool answered none, on the same Nemotron-Mini-4B: narrow agents with fixed rules keep a small model on track, and a bigger model is the next step (`docs/BENCH.md`).
 - The data platform federates one synthetic service (`data/README.md`); no real plant data was used.
 - The crew runs a 4B model, Nemotron-Mini: answers are short and sometimes thin even when the evidence is right; the deterministic layer keeps them honest, not eloquent.
 - Nightshift has no Linux build, so it runs on a Windows laptop that must be on and awake; while it is not, the crew runs on the workstation's CPU, several times slower.

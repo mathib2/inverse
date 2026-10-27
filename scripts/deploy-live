@@ -18,7 +18,7 @@ git pull --ff-only -q origin m4-sindyc
 if ! git diff --quiet "$before" HEAD -- requirements.txt; then
   .venv/bin/python -m pip install -q --disable-pip-version-check -r requirements.txt
 fi
-tmux respawn-pane -k -t 3:1 "cd ~/inverse-live && PYTHONPATH=core .venv/bin/streamlit run ui/app.py --server.port 8501 --server.address 127.0.0.1 --server.headless true > ~/streamlit.log 2>&1"
+tmux respawn-pane -k -t 3:1 "cd ~/inverse-live && PYTHONPATH=core .venv/bin/streamlit run ui/app.py --server.port 8501 --server.address 127.0.0.1 --server.headless true --client.showErrorDetails type > ~/streamlit.log 2>&1"
 # This checkout's own sidecars (H-MEM/World Model and Markovian, on the ports SIDECAR_URL and MARKOVIAN_URL name in .env), restarted
 # so they run the code just deployed. Only a process serving from this checkout's sidecar folder is stopped, never another folder's.
 tmux kill-session -t inverse-markovian 2>/dev/null || true          # the old fixed-port (8101) Markovian session, retired

@@ -87,6 +87,10 @@ The failures that remained longest, and what decided them:
   contain, the code-made row values become the answer (`scout_numbers_dropped`): Scout and Vera agree by construction instead of
   after three refusals.
 
+## The crew against one agent that holds all of it (27 October)
+
+A separate test, outside the repository, ran 13 reverse-engineering tasks twice on three setups with the same model, tools and data: the crew; one agent with every tool the workers use and one prompt made of their instructions, behind Vera's review; and that agent with no review. The tasks: recover P-104's sampling rate, starting displacement, decay, period and damping ratio from its raw samples, compare its two recordings, measure T-200's recording, flag the planted maintenance note, explain three places in our own code, and find two sequences' rules; every expected value was computed from the data or the code. Graded on the answers' own claims, and checked by two independent judges: the crew 2 of 26 (the sampling rate, both rounds), the single agent 0, the unreviewed agent 0. With every tool in one prompt the 4B lost focus (a 900-token runaway number, "1 day, 1 Hz" for a 100 Hz recording, a calculator call where a file read was asked for); the crew's routing sent the number puzzle to Scout and the code questions to agents without file tools. Both are weak at open-ended reverse engineering on Nemotron-Mini-4B; the crew is the better of the two, and a bigger model is the next step.
+
 ## Where the time went, and where it does not go any more
 
 Round 15, read from its traces: the planner's call cost 6 to 12 s on every goal, Vera's review 5 to 10 s on every task, and
