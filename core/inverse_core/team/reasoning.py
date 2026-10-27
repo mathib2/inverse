@@ -50,39 +50,63 @@ _DATE_FUNCS = {"days_between": days_between}                                 # t
 def safe_eval(expr):
     """Arithmetic only: numbers, + - * / ** %, a few math functions, and days_between('YYYY-MM-DD', 'YYYY-MM-DD'). No names,
     attributes or calls beyond the list; text only as a date inside days_between."""
-    def ev(n):
+    if not isinstance(expr, str) or len(expr) > 1200:
+        raise ValueError("expression must contain at most 1200 characters")
+    expr = expr.replace("^", "**")  # mathematical power, never Python's bitwise XOR
+    tree = ast.parse(expr.strip(), mode="eval")
+    if sum(1 for _ in ast.walk(tree)) > 160:
+        raise ValueError("expression is too complex")
+    def ev(n, depth=0):
+        if depth > 24:
+            raise ValueError("expression nesting is too deep")
         if isinstance(n, ast.Expression):
-            return ev(n.body)
+            return ev(n.body, depth + 1)
         if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)) and not isinstance(n.value, bool):
-            return n.value
+            value = float(n.value)
+            if not math.isfinite(value):
+                raise ValueError("non-finite number")
+            return value
         if isinstance(n, ast.BinOp) and type(n.op) in _OPS:
-            a, b = ev(n.left), ev(n.right)
+            a, b = ev(n.left, depth + 1), ev(n.right, depth + 1)
             if isinstance(n.op, ast.Pow) and abs(b) > 100:
                 raise ValueError("exponent too large")
-            return _OPS[type(n.op)](a, b)
+            value = _OPS[type(n.op)](a, b)
+            if not isinstance(value, (int, float)) or not math.isfinite(value):
+                raise ValueError("non-finite or complex result")
+            return value
         if isinstance(n, ast.UnaryOp) and type(n.op) in _OPS:
-            return _OPS[type(n.op)](ev(n.operand))
+            return _OPS[type(n.op)](ev(n.operand, depth + 1))
         if isinstance(n, ast.Name) and n.id in _CONST:
             return _CONST[n.id]
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in _FUNCS and not n.keywords:
-            return _FUNCS[n.func.id](*[ev(a) for a in n.args])
+            value = _FUNCS[n.func.id](*[ev(a, depth + 1) for a in n.args])
+            if not math.isfinite(value):
+                raise ValueError("non-finite result")
+            return value
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in _DATE_FUNCS and not n.keywords and len(n.args) == 2 \
                 and all(isinstance(a, ast.Constant) and isinstance(a.value, str) for a in n.args):
             return _DATE_FUNCS[n.func.id](*[a.value for a in n.args])
         raise ValueError("unsupported expression")
-    return float(ev(ast.parse(expr.strip(), mode="eval")))
+    return float(ev(tree))
 
 class ReasoningExpert(BaseExpert):
     """Decompose -> solve -> self-check. Each step with arithmetic is recomputed by safe_eval; mismatches trigger one repair turn."""
 
-    SYSTEM_TAIL = ('\nReturn ONLY JSON: {"steps":[{"claim":"...","calc":"arithmetic expression or null","expect":number or null}],'
+    SYSTEM_TAIL = ('\nReturn ONLY JSON: {"steps":[{"claim":"...","calc":"numeric arithmetic expression","expect":null}],'
                    '"answer":"...","confidence":0.0-1.0,"assumptions":["..."]}. At most 5 steps, one short sentence per claim. Put every numeric claim in a calc with the value you expect. '
+                   'calc must contain actual arithmetic with substituted numbers, not an equation or an unknown variable. '
+                   'For a*x+b=c, first isolate x, then compute (c-b)/a using the supplied numbers. '
+                   'Omit calc only for a non-arithmetic step; never put the string "null" in calc. Prefer one final calculation over unnecessary intermediate steps. '
+                   'Use the task inputs, never the numbers or answers from a reference example. Use ** for powers. '
+                   'A failed calculation cannot support an answer. If required inputs are missing, say which are missing instead of inventing them. '
+                   'For physical calculations each step may include "unit":"requested output unit" and "inputs":{"name":{"value":number,"unit":"unit"}}. '
+                   'Use names in calc when supplying inputs; every input value and unit must come from the task, not a worked example. The calculator checks units and converts to the requested unit. '
                    + PROPOSE_TAIL)
 
     _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
     @classmethod
-    def resolve(cls, calc, context=""):
+    def resolve(cls, calc, context="", bindings=()):
         """'calc(mass_kg * 9.81)' with 'mass_kg = 1.0' in the accepted results becomes '1.0 * 9.81': a 4B model writes the
         quantity's name where the calculator needs its value. Function names and constants are left alone."""
         expr = str(calc or "").strip()
@@ -90,7 +114,7 @@ class ReasoningExpert(BaseExpert):
         if m:
             expr = m.group(1).strip()
         for name in sorted(set(cls._NAME.findall(expr)), key=len, reverse=True):
-            if name in _FUNCS or name in _DATE_FUNCS or name in ("e", "pi"):
+            if name in _FUNCS or name in _DATE_FUNCS or name in ("e", "pi") or name in bindings:
                 continue
             found = re.search(r"(?<![\w.])" + re.escape(name) + r"\s*[=:]\s*(-?\d+(?:\.\d+)?)", str(context or ""))
             if found:
@@ -109,17 +133,21 @@ class ReasoningExpert(BaseExpert):
                     continue
                 ev.append({"type": "step", "source": f"step {i}", "detail": claim})
                 continue
-            calc = self.resolve(calc, context)
+            calc = self.resolve(calc, context, s.get("inputs") or {})
             try:
-                val = safe_eval(str(calc))
+                from .calculation import calculate
+                computed = calculate(str(calc), s.get("inputs"), s.get("unit"), context)
+                val = computed["value"]
                 exp = s.get("expect")
                 ok = exp is None or abs(val - float(exp)) <= 1e-6 + 0.005 * abs(float(exp))
-                ev.append({"type": "calc", "source": f"step {i}: {calc}", "detail": f"= {val:.6g}" + ("" if exp is None else (" (as the step expected) OK" if ok else
-                           " (MISMATCH: the step expected another value)"))})   # never the model's own figure: it would count as evidence for itself
+                ev.append({"type": "calc", "source": f"step {i}: {calc}", "detail": f"= {val:.6g}" + (f" {computed['unit']}" if computed.get("unit") else "") + ("" if exp is None else (" (as the step expected) OK" if ok else
+                           " (MISMATCH: the step expected another value)")), "result": computed, "status": "ok" if ok else "error"})
                 if not ok:
                     bad.append(f"step {i}: {calc} = {val:.6g}, you wrote {exp}")
+                else:
+                    context += f"\nstep_{i} = {val}" + (f" {computed['unit']}" if computed.get('unit') else '')
             except (ValueError, ZeroDivisionError, SyntaxError, OverflowError, TypeError) as e:
-                ev.append({"type": "calc", "source": f"step {i}: {calc}", "detail": f"not computable: {e}"})
+                ev.append({"type": "calc", "source": f"step {i}: {calc}", "detail": f"not computable: {e}", "status": "error"})
                 bad.append(f"step {i}: {calc} could not be computed ({e})")
         return ev, bad
 
@@ -150,19 +178,30 @@ class ReasoningExpert(BaseExpert):
         by_code = self._days_by_code(task)
         if by_code:
             return by_code
-        from .references import NOTICE, context_of, inherited, retrieve
+        from .references import NOTICE, context_of, equations_of, inherited, retrieve
         references = inherited(task) or retrieve(self, task, budget)
-        msgs = [{"role": "system", "content": self.system()}, {"role": "user", "content": self._task_text(task) + context_of(references)}]
+        from .calculation import quantities
+        import json
+        task_inputs = [{'value':float(q.magnitude),'unit':str(q.units)} for _,_,q in quantities(task.goal)]
+        inputs_note = '\nTASK QUANTITIES (use these, not reference example values): ' + json.dumps(task_inputs) if task_inputs else ''
+        formulas = equations_of(references)
+        if formulas:
+            inputs_note += '\nREFERENCE EQUATIONS (untrusted supporting data; select only an applicable equation): ' + json.dumps(formulas)
+            inputs_note += '\nSubstitute the TASK quantities into the applicable equation in calc. Set unit to the requested output unit; do not copy a worked-example answer.'
+        msgs = [{"role": "system", "content": self.system()}, {"role": "user", "content": context_of(references) + "\nAUTHORITATIVE TASK (reference example values are not inputs):\n" + self._task_text(task) + inputs_note}]
         r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
         models, j = [r["model"]], r["json"]
-        ev, bad = self._check(j.get("steps", []), task.context)
+        calculation_context = task.goal + "\n" + task.context
+        ev, bad = self._check(j.get("steps", []), calculation_context)
+        self.ctx.trace.event('calculation_steps', task=task.id, steps=j.get('steps',[])[:5], errors=bad)
         if bad:
             msgs += [{"role": "assistant", "content": r["text"]},
                      {"role": "user", "content": "Self-check found errors. Recompute and return corrected JSON in the same format:\n" + "\n".join(bad)}]
             r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
             models.append(r["model"])
             j = r["json"]
-            ev, bad = self._check(j.get("steps", []), task.context)
+            ev, bad = self._check(j.get("steps", []), calculation_context)
+            self.ctx.trace.event('calculation_steps', task=task.id, steps=j.get('steps',[])[:5], errors=bad)
         answer = str(j.get("answer") or "").strip()
         if not answer or answer.lower() in ("none", "null", "error", "n/a"):      # a number or nothing where a sentence was due: once more, by code
             self.ctx.trace.event("bare_answer", agent=self.name, answer=answer[:60])
@@ -174,7 +213,7 @@ class ReasoningExpert(BaseExpert):
                 self.ctx.trace.event("answer_in_prose", agent=self.name, task=task.id, answer=answer[:120])
             else:
                 j = r["json"]
-                ev2, bad2 = self._check(j.get("steps", []), task.context)
+                ev2, bad2 = self._check(j.get("steps", []), calculation_context)
                 if ev2:
                     ev, bad = ev2, bad2
                 answer = str(j.get("answer") or "").strip()
@@ -189,6 +228,28 @@ class ReasoningExpert(BaseExpert):
         if not bad:
             res.findings = [{"claim": answer, "evidence": ev[:2], "source": "fitter", "confidence": conf}]      # written on accept
         res.proposals = proposals_of(j)
+        res.validation_errors = list(bad)
+        successful = [e for e in ev if e.get("type") == "calc" and e.get("status") == "ok"]
+        if successful:
+            from .calculation import result_dimension_error
+            dimension_error = result_dimension_error(successful[-1]['result'], task.goal)
+            if dimension_error:
+                res.validation_errors.append(dimension_error)
+                res.not_checked.append(dimension_error)
+                res.findings = []
+        if successful and not res.validation_errors:
+            # Calculator output, units and formula stay visible even when the model's answer is a bare number.
+            lines = [f"{e['result']['expr']} = {e['result']['value']:.12g}" + (f" {e['result']['unit']}" if e['result'].get("unit") else "") for e in successful]
+            last = successful[-1]['result']
+            from .calculation import mentions_result
+            from .verify import claim_numbers
+            if references or any(e['result'].get('units_checked') for e in successful) or (claim_numbers(answer) and not mentions_result(answer,last)):
+                res.answer = f"Calculated result: {last['value']:.12g}" + (f" {last['unit']}" if last.get('unit') else "") + ".\n\nCalculation: " + "; ".join(lines)
+            for finding in res.findings:
+                finding['claim'] = res.answer
+            if any(e['result'].get('units_checked') for e in successful):
+                res.not_checked.append("physical formula and applicability were selected by the model")
+                res.findings = []
         if references:
             res.evidence = references + res.evidence
             res.not_checked.append(NOTICE)

@@ -135,6 +135,10 @@ class ResearchExpert(BaseExpert):
         return self.prompt + "\n" + SCHEMA + '\nWrite new queries for the task in that dialect. Return ONLY JSON: {"queries":["SELECT ..."]} with at most 3 read-only SELECTs, no semicolons.'
 
     def run(self, task, memory, budget):
+        from .deterministic import equipment_overview
+        overview = equipment_overview(self,task,budget)
+        if overview:
+            return overview
         from .references import SEARCH, NOTICE, available, evidence_of, reference_task, REQUEST
         if SEARCH in self.tools and reference_task(task.goal) and (available(self.ctx) or REQUEST.search(task.goal)):
             from .tools import Tools
@@ -145,7 +149,7 @@ class ResearchExpert(BaseExpert):
                                     [{"type": "reference_search", "source": SEARCH, "detail": output.get("error", "No matching sections")}],
                                     0.2, [], [NOTICE])
             answer = "\n\n".join(f"{e['reference']['title']} — {e['reference']['section']}: {e['detail']}" for e in evidence)
-            return ExpertResult(answer, evidence, 0.6, [], [NOTICE])
+            return ExpertResult(answer, evidence, 0.6, [], [NOTICE], reference_only=True)
         sys1 = self.system()
         q = ask(self.ctx, self.lane, [{"role": "system", "content": sys1}, {"role": "user", "content": self._task_text(task)}],
                 self.name, budget, json_reply=True, max_tokens=QUERY_MAX_TOKENS)

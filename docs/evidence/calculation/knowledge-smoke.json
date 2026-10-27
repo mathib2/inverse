@@ -1,0 +1,58 @@
+{
+  "status": "pass",
+  "index": {
+    "documents": 5,
+    "chunks": 24,
+    "duplicates": 0,
+    "source_bytes": 20639
+  },
+  "index_bytes": 126976,
+  "retrieval_cases": [
+    {
+      "case": "mechanics",
+      "top_section": "Newtonian force and acceleration",
+      "estimated_tokens": 998
+    },
+    {
+      "case": "beam",
+      "top_section": "Cantilever beam bending stress",
+      "estimated_tokens": 986
+    },
+    {
+      "case": "thermal",
+      "top_section": "Sensible thermal energy",
+      "estimated_tokens": 998
+    },
+    {
+      "case": "fluids",
+      "top_section": "Laminar pipe pressure drop",
+      "estimated_tokens": 998
+    },
+    {
+      "case": "inverse",
+      "top_section": "Damped oscillator parameter identification",
+      "estimated_tokens": 983
+    }
+  ],
+  "top1_retrieval": "5/5",
+  "cold_median_ms": 4.017,
+  "warm_median_ms": 0.453,
+  "python_retrieval_allocation_peak_bytes": 89501,
+  "missions": [
+    {
+      "mission": "scout-euler-vera-atlas",
+      "status": "pass",
+      "model": "scripted, no inference",
+      "model_calls": 3,
+      "elapsed_ms": 540.245
+    },
+    {
+      "mission": "ada-vera-atlas",
+      "status": "pass",
+      "model": "scripted, no inference",
+      "model_calls": 3,
+      "elapsed_ms": 30.931
+    }
+  ],
+  "limitations": "Scripted-model smoke, not live-model answer accuracy or inference speed. tracemalloc excludes native SQLite allocations."
+}

@@ -65,13 +65,13 @@ def test_lead_runs_the_architect_then_the_expert_it_created(tmp_path):
         sys, user = messages[0]["content"], messages[-1]["content"]
         if sys.startswith("You are the lead"):
             return json.dumps({"tasks": [{"id": "T1", "goal": "Create and test an expert that converts masses to weights", "expert": "architect", "depends_on": []},
-                                          {"id": "T2", "goal": "What does a 12.5 kg mass weigh?", "expert": "weight_converter", "depends_on": ["T1"]}]})
+                                          {"id": "T2", "goal": "What does a 12.5 kg mass weigh with g = 9.81 m/s^2?", "expert": "weight_converter", "depends_on": ["T1"]}]})
         if sys.startswith("You are the Architect"):
             if "tool_result" not in user:
                 return json.dumps({"tool": "create_expert", "args": {"name": "weight_converter", "role": "Converts a mass to a weight", "system_prompt": "You convert masses to weights with g = 9.81.",
                                                                      "tools": ["calc"], "model_lane": "fast"}, "why": "the team has no converter"})
             if '"created"' in user:
-                return json.dumps({"tool": "test_expert", "args": {"name": "weight_converter", "task": "1 kg in newtons"}, "why": "check it"})
+                return json.dumps({"tool": "test_expert", "args": {"name": "weight_converter", "task": "1 kg with g = 9.81 m/s^2 in newtons"}, "why": "check it"})
             return json.dumps({"answer": "Use weight_converter; its test returned 9.81 N with calc evidence.", "created": ["weight_converter"], "confidence": 0.9, "assumptions": [], "not_checked": []})
         if sys.startswith("You convert masses to weights"):
             mass = "12.5" if "12.5" in user else "1"
@@ -153,9 +153,9 @@ def test_a_computation_without_the_calculator_is_told_once_and_the_rule_builds_t
         if system.startswith("You are the Solver"):
             turns["solver"] += 1
             if "Every number in the answer must come from the calc tool" in user:
-                return json.dumps({"tool": "calc", "args": {"expr": "1.0 * 9.81"}, "why": "the weight"})
+                return json.dumps({"tool": "calc", "args": {"expr": "12.5 * 9.81"}, "why": "the weight"})
             if '"tool_result": {"expr"' in user:
-                return json.dumps({"answer": "P-104 weighs 9.81 N.", "confidence": 0.9, "assumptions": [], "not_checked": []})
+                return json.dumps({"answer": "P-104 weighs 122.625 N.", "confidence": 0.9, "assumptions": [], "not_checked": []})
             return json.dumps({"answer": "P-104 weighs 1000.0 N.", "confidence": 0.9, "assumptions": [], "not_checked": []})
         if system.startswith("You are the lead"):
             return json.dumps({"tasks": [{"id": "T1", "goal": "Build a Moon weight expert", "expert": "architect", "depends_on": []},
@@ -170,8 +170,8 @@ def test_a_computation_without_the_calculator_is_told_once_and_the_rule_builds_t
         return "ok [T2.E1]"
 
     ctx, lead = crew(tmp_path, script)
-    res = ctx.registry.experts["solver"].run(Task("T1", "Using the registry mass of P-104, compute its weight in newtons with g = 9.81.", "solver"), lead.memory, ExpertBudget())
-    assert events(ctx, "calc_nudge") and res.answer == "P-104 weighs 9.81 N." and any(x["source"].startswith("calc(") for x in res.evidence)
+    res = ctx.registry.experts["solver"].run(Task("T1", "Using the registry mass of P-104, compute its weight in newtons with g = 9.81 m/s^2.", "solver"), lead.memory, ExpertBudget())
+    assert events(ctx, "calc_nudge") and res.answer == "P-104 weighs 122.625 N." and any(x["source"].startswith("calc(") for x in res.evidence)
     plan = lead.plan("What does 12.5 kg weigh on the Moon at 1.62 m/s^2? We have no converter for that.")
     lead.run(plan, ctx.trace.dir, parallel=1)
     assert [t.expert for t in plan.tasks] == ["architect", "moon_weight_expert"] and events(ctx, "forge_by_rule")[0]["name"] == "moon_weight_expert"

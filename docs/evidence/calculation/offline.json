@@ -1,0 +1,42 @@
+{
+  "mode": "deterministic calculator",
+  "passed": 6,
+  "cases": 6,
+  "results": [
+    {
+      "name": "beam",
+      "pass": true,
+      "value": 45.0,
+      "unit": "MPa"
+    },
+    {
+      "name": "algebra",
+      "pass": true,
+      "value": 4.0,
+      "unit": ""
+    },
+    {
+      "name": "signed_force",
+      "pass": true,
+      "value": -6.0,
+      "unit": "N"
+    },
+    {
+      "name": "thermal",
+      "pass": true,
+      "value": 418000.0,
+      "unit": "J"
+    },
+    {
+      "name": "fluid",
+      "pass": true,
+      "value": 320.00000000000006,
+      "unit": "Pa"
+    },
+    {
+      "name": "missing_inputs",
+      "pass": true,
+      "abstained": true
+    }
+  ]
+}

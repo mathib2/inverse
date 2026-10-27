@@ -219,10 +219,11 @@ def test_run_survives_a_failing_reviewer_and_a_failing_writer(tmp_path):
     from inverse_core.team.plan import Plan
     plan = Plan("what is 1+1", [Task("T1", "add", "reasoning")])
     lead.run(plan, str(tmp_path))
-    assert plan.tasks[0].status == "done" and any("could not review" in n for n in plan.tasks[0].result["not_checked"])
+    assert plan.tasks[0].status == "failed" and any("could not review" in n for n in plan.tasks[0].result["not_checked"])
     assert events(ctx, "critic")[0]["verdict"] == "unreviewed"
     out = lead.compose(plan, str(tmp_path))
-    assert "It is 2 [T1.E1]" in out["answer"] and events(ctx, "compose")[0]["model"] is None             # one result: the writer is not called at all
+    assert "No task produced an accepted result" in out["answer"] and not out["citations"] and events(ctx, "compose")[0]["model"] is None
+    assert "could not review" in out['answer'] and out['unfinished']
     assert json.load(open(tmp_path / "answer.json"))["answer"] == out["answer"]                 # replayable without a model
 
 

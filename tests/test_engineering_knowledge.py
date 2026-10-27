@@ -269,20 +269,17 @@ def test_prompt_injection_and_python_strings_cannot_execute(index, tmp_path):
     assert out["status"] == "ok" and out["results"] == []  # known instruction attacks are withheld
 
 
-@pytest.mark.xfail(strict=True, reason="Existing verifier discards signs; deliberately not rewritten by knowledge integration")
-def test_known_sign_grounding_limitation():
+def test_sign_grounding_regression():
     from inverse_core.team.verify import unverified_numbers
     assert unverified_numbers("Force is -6 N.", [{"value": 6}])
 
 
-@pytest.mark.xfail(strict=True, reason="Existing verifier does not bind units; requires a separate verification fix")
-def test_known_unit_grounding_limitation():
+def test_unit_grounding_regression():
     from inverse_core.team.verify import unverified_numbers
     assert unverified_numbers("Stress is 10 MPa.", [{"value": 10, "unit": "Pa"}])
 
 
-@pytest.mark.xfail(strict=True, reason="Existing reviewer fails open after unreadable verdicts; separate reliability PR required")
-def test_known_reviewer_failure_limitation(tmp_path):
+def test_reviewer_failure_regression(tmp_path):
     from inverse_core.team.critic import Critic
     ctx, _ = crew(tmp_path, lambda m, msgs: json.dumps({"verdict": "maybe"}))
     result = {"answer": "A response", "confidence": 0.9, "evidence": [{"type": "step", "detail": "A response"}], "not_checked": []}
