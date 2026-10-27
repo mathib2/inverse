@@ -1,6 +1,7 @@
 """Scout (research): looks facts up in the data platform with read-only SQL. The model writes up to three SELECTs, code repairs
 them (the columns the task names, a sensor named by id, a filter or a LIMIT nobody asked for), runs them, and the model answers
-from the rows in the same conversation; row values the answer leaves out, or numbers the rows lack, are settled by code."""
+from the rows in the same conversation; row values the answer leaves out, or numbers the rows lack, are settled by code, and
+rows are said in sentences (rows_in_words), never as "k = v" pairs."""
 from __future__ import annotations
 
 import json
@@ -122,6 +123,141 @@ def complete_columns(sql, goal):
         return sql, []
     return f"SELECT {', '.join(cols + added)} FROM obs.{m.group('table')}{m.group('rest')}", added
 
+
+COLUMN_WORDS = {                                                              # a column -> (its plain name, its unit, how it is said)
+    "mass_kg": ("mass", "kg", "measure"),
+    "sigma": ("noise level (sigma)", "", "measure"),
+    "sampling_hz": ("sampling rate", "Hz", "measure"),
+    "baseline_dataset": ("baseline dataset", "", "label"),
+    "current_dataset": ("current dataset", "", "label"),
+    "date": ("date", "", "date"),
+    "note": ("note", "", "text"),
+    "count": ("count", "", "measure"),
+}
+
+UNITS = {"kg": "kg", "hz": "Hz", "mm": "mm", "m": "m", "s": "s"}                 # a column name's last word that is a unit
+
+COUNT_KEYS = {"count", "n", "cnt", "num"}                                     # SELECT COUNT(*) AS n: the schema's own example
+
+ID_LIKE = re.compile(r"(?:^|_)id$|^(?:name|dataset)$")                         # the column that says which row this is
+
+HEDGE_NAMES = {"data", "value", "information", "rows"}                        # "no value" would read as a hedge to Vera (critic.HEDGE)
+
+_NUMBER_TEXT = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
+
+
+def column_words(col):
+    """(plain name, unit, kind) for a column: the table above, else a count, 'min(t)' as 'min t', snake_case as words with a
+    trailing kg or hz as the unit. An empty kind means the value decides: a number is a measure, anything else a label."""
+    key = str(col or "").strip().lower()
+    if key in COLUMN_WORDS:
+        return COLUMN_WORDS[key]
+    if key in COUNT_KEYS or key.startswith("count("):
+        return COLUMN_WORDS["count"]
+    m = re.fullmatch(r"(\w+)\((.*)\)", key)
+    if m:
+        return (m.group(1) + " " + " ".join(m.group(2).replace("*", "").split("_"))).strip(), "", "measure"
+    words = [w for w in key.split("_") if w]
+    unit = UNITS.get(words[-1], "") if len(words) > 1 else ""
+    if unit:
+        words = words[:-1]
+    return " ".join(words) or key, unit, "measure" if unit else ("label" if ID_LIKE.search(key) else "")
+
+
+def _said(v):
+    """A cell as text, exactly as the row holds it (1.0 stays 1.0, 100 stays 100); None is the word none."""
+    return "none" if v is None else str(v)
+
+
+def _is_number(v):
+    return (isinstance(v, (int, float)) and not isinstance(v, bool)) or (isinstance(v, str) and _NUMBER_TEXT.fullmatch(v.strip()) is not None)
+
+
+def _join(parts):
+    parts = list(parts)
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
+def _article(name):
+    return "an" if name[:1] in "aeiou" else "a"
+
+
+def _cell(col, v):
+    """(kind, plain name, the value with its unit; kind 'none' for an absent one)."""
+    name, unit, kind = column_words(col)
+    if not kind:
+        kind = "measure" if _is_number(v) else "label"
+    said = _said(v)
+    if v is None or said.strip().lower() in ("none", "null", ""):
+        return "none", name, said or "empty"
+    if kind == "text":
+        return kind, name, f'"{said}"'
+    return kind, name, said + (f" {unit}" if unit else "")
+
+
+def _predicate(col, v):
+    """What a row's id has or is, from one cell: ("has", "a mass of 1.0 kg"), ("is dated", "2026-09-02"),
+    ("has", "no baseline dataset (none)")."""
+    kind, name, said = _cell(col, v)
+    if kind == "none":
+        return "has", (f"the {name} ({said})" if set(name.split()) & HEDGE_NAMES else f"no {name} ({said})")
+    if kind == "date":
+        return "is dated", said
+    if kind == "measure":
+        return "has", f"{_article(name)} {name} of {said}"
+    return "has", f"the {name} {said}"
+
+
+def _statement(col, v):
+    """One cell with no id to hang it on: "the noise level (sigma) is 0.01", "the count is 400", "the note is "..."."""
+    kind, name, said = _cell(col, v)
+    return f"the {name} is {said}"
+
+
+def id_column(rows):
+    """The column that tells the rows apart: the first id-like one (ending in _id, or id, name, dataset) whose values differ
+    between the rows; with one row, or none that differ, the first id-like one; None when there is none."""
+    keys = list(rows[0]) if rows else []
+    ids = [k for k in keys if ID_LIKE.search(str(k).lower())]
+    for k in ids:
+        if len({_said(r.get(k)) for r in rows}) == len(rows):
+            return k
+    return ids[0] if ids else None
+
+
+def row_sentences(rows, cite=""):
+    """One sentence per row, the id first, the citation before the full stop. See rows_in_words."""
+    rows = [r for r in rows or [] if isinstance(r, dict) and r]
+    tail = (f" {cite}" if cite else "") + "."
+    idc = id_column(rows)
+    out = []
+    for r in rows:
+        subject = r.get(idc) if idc is not None else None
+        rest = [k for k in r if k != idc]
+        if subject is None or str(subject).strip() == "" or not rest:
+            body = _join(_statement(k, v) for k, v in r.items())
+            out.append(body[:1].upper() + body[1:] + tail)
+            continue
+        clauses, order = {}, []
+        for k in rest:
+            verb, obj = _predicate(k, r[k])
+            if verb not in clauses:
+                order.append(verb)
+                clauses[verb] = []
+            clauses[verb].append(obj)
+        out.append(f"{_said(subject)} " + _join(f"{verb} {_join(clauses[verb])}" for verb in order) + tail)
+    return out
+
+
+def rows_in_words(rows, cite=""):
+    """A small result set as sentences, by code, so what the rows say reads as an answer and every value in it is in the evidence:
+    'P-104 has the baseline dataset p104-baseline [Q1]. T-200 has no baseline dataset (none) [Q1].'; one row with no id:
+    'The noise level (sigma) is 0.01 and the sampling rate is 100 Hz [Q1].'; a count: 'The count is 400 [Q1].' Values are written
+    as the rows hold them, none as the word none, a note in quotes. Every word of six letters or more comes from a column name,
+    a value or the reviewer's plain list, so Vera's word rule has nothing to object to."""
+    return " ".join(row_sentences(rows, cite))
+
+
 def _num(x, default):
     try:
         return float(x)
@@ -215,16 +351,22 @@ class ResearchExpert(BaseExpert):
 
     @staticmethod
     def _facts(ran, answer, max_rows=4, max_chars=320):
-        """When the queries returned a handful of rows and the answer leaves out some of their values, the values themselves,
-        cited: 'Rows: sigma = 0.01, sampling_hz = 100 [Q1]'. Code-made, so every number in it is in the evidence."""
+        """When the queries returned a handful of rows and the answer leaves out some of their values, the rows in words, cited:
+        'The noise level (sigma) is 0.01 and the sampling rate is 100 Hz [Q1].' Code-made, so every number in it is in the
+        evidence. Whole sentences up to the cap: a value is never cut in half."""
         rows = [(i + 1, r) for i, e in enumerate(ran) for r in (e.get("rows") or [])]
         if not rows or len(rows) > max_rows:
             return ""
         low = answer.lower()
         if all(str(v).lower() in low for _, r in rows for v in r.values() if str(v).strip()):
             return ""
-        text = "Rows: " + "; ".join(", ".join(f"{k} = {v}" for k, v in r.items()) + f" [Q{q}]" for q, r in rows)
-        return text[:max_chars]
+        sentences = [s for i, e in enumerate(ran) for s in row_sentences(e.get("rows") or [], f"[Q{i + 1}]")]
+        text = sentences[0]
+        for s in sentences[1:]:
+            if len(text) + 1 + len(s) > max_chars:
+                break
+            text += " " + s
+        return text
 
     def _sanitize(self, rows):
         from ..injection_guard import scrub
