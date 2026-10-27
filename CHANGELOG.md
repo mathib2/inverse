@@ -3,6 +3,12 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## A planner lane, and a lane on its own endpoint (2026-10-27, morning)
+- Atlas plans and writes the final answer on his own lane, `plan` (`Lead(plan_lane="plan", compose_lane="plan")`). Left unset it follows `LANE_DEEP`, so the live crew plans on the model it always did.
+- A lane can have its own endpoint: `LANE_<NAME>_URL`, `_KEY`, `_TIMEOUT`, `_BACKUP` (`clients/meterless.py: LaneEndpoint`). A call the endpoint cannot answer goes to the crew's own provider with the backup model, and later calls go there directly for two minutes; the endpoint's failure never marks the laptop down. This is how Atlas and Vera can run on a hosted Nemotron-3-Ultra-550B while the workers stay on the laptop's Nemotron-Mini-4B.
+- On Nightshift the lane defaults are Lightning-30B for the workers and Ultra-550B for `plan` and `critic` (they were Lightning-30B, Ultra-550B and Super-120B). The live `.env` names every lane, so nothing changes until it names `LANE_PLAN_URL` or `LANE_CRITIC_URL`; not yet measured on the benchmark.
+- Tests: 208.
+
 ## Exact numbers, every answer with its sources (2026-10-27, early morning)
 - A number counts only as a tool's value rounded to the precision it is written with (`verify.rounds_to`): 122.6, 122.63 and 123 are 122.625 rounded, 122.55 is not. Within 1 % had counted, so 122.55 N stood for 12.5 kg x 9.81 m/s^2 = 122.625 N: code overruled Vera's objection, and the benchmark graded it right. The benchmark grades the same way, and its arithmetic case expects 122.625.
 - The answer states the calculator's value, not the model's arithmetic: a number Euler or Ada writes within 1 % of a calculator result, that no evidence covers, is replaced by that result (`reconcile_numbers`, trace event `numbers_from_calculator`). Euler's evidence carries the calculator's value only; it had carried the figure the model expected, which then counted as evidence for itself.
