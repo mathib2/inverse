@@ -606,7 +606,7 @@ class Lead:
                 self.ctx.trace.event("council_error", op="file", error=f"{type(e).__name__}: {str(e)[:200]}")
 
     def compose(self, plan, run_dir=None):
-        calculation_failed = any(t.status != 'done' and (re.search(r'\b(calculate|compute|solve|convert)\b',t.goal,re.I) or
+        calculation_failed = any(t.status != 'done' and (re.search(r'\b(calculate|compute|solve|convert)\b',t.goal,re.IGNORECASE) or
             (t.result or {}).get('validation_errors') or any(e.get('type')=='calc' for e in (t.result or {}).get('evidence',[]))) for t in plan.tasks)
         # An accepted lookup or expert test is not a substitute answer for a failed calculation.
         typed_calculation = any(t.status == 'done' and any(

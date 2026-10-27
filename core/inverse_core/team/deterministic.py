@@ -13,7 +13,7 @@ def initial_value_solution(goal):
                r'(?:\s*([+-])\s*(\d+(?:\.\d*)?))?\s+with\s+y\s*\(\s*(' + NUM +
                r')\s*\)\s*=\s*(' + NUM + r')\s*\.'
                r'\s*Show the integration, apply the initial condition, and verify the result by differentiation\.?\s*$')
-    match = re.fullmatch(pattern,str(goal),re.I)
+    match = re.fullmatch(pattern,str(goal),re.IGNORECASE)
     if not match:
         return None
     a=float(match[1]); b=float((match[2] or '+')+(match[3] or '0'))
@@ -47,7 +47,7 @@ def initial_value_solution(goal):
 
 def overview_requested(goal):
     ids=list(dict.fromkeys(re.findall(r'\b[A-Z]{1,4}-\d+\b',goal)))
-    return ids[0] if len(ids)==1 and all(re.search(word,goal,re.I) for word in
+    return ids[0] if len(ids)==1 and all(re.search(word,goal,re.IGNORECASE) for word in
         (r'\bregistry\b',r'\bsensors?\b',r'\bmaintenance\b',r'\b(data|samples?)\b')) else None
 
 
@@ -55,8 +55,8 @@ def equipment_overview(expert,task,budget):
     equipment=overview_requested(task.goal)
     if not equipment:
         return None
-    from .tools import Tools
     from ..clients.zetaris import SAMPLE_VIEWS
+    from .tools import Tools
     toolbox=Tools(expert.ctx,['run_sql'],owner=expert.name)
     evidence=[]
     sections=[]

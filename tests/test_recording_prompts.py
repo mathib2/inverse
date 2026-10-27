@@ -1,5 +1,6 @@
 import pytest
-from fakes import crew,events
+
+from fakes import crew, events
 
 ODE='Solve dy/dx = 2x with y(0) = 3. Show the integration, apply the initial condition, and verify the result by differentiation.'
 OVERVIEW='From the registry, the sensor specifications and the maintenance history, what do we know about P-104, and how much sensor data is there for it?'

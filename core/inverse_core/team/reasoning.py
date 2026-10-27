@@ -184,8 +184,9 @@ class ReasoningExpert(BaseExpert):
             return by_code
         from .references import NOTICE, context_of, equations_of, inherited, retrieve
         references = inherited(task) or retrieve(self, task, budget)
-        from .calculation import quantities
         import json
+
+        from .calculation import quantities
         task_inputs = [{'value':float(q.magnitude),'unit':str(q.units)} for _,_,q in quantities(task.goal)]
         inputs_note = '\nTASK QUANTITIES (use these, not reference example values): ' + json.dumps(task_inputs) if task_inputs else ''
         formulas = equations_of(references)

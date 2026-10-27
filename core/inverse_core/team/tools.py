@@ -296,7 +296,7 @@ class Tools:
             self.ctx.trace.event("injection_guard", agent=self.owner, blocked=blocked[:5])
         for row in rows[:12]:
             for column, value in row.items():
-                if re.fullmatch(r"[A-Za-z][A-Za-z0-9]*_(kg|mm|cm|m|s|hz)", column, re.I) and type(value) in (int, float) and math.isfinite(float(value)):
+                if re.fullmatch(r"[A-Za-z][A-Za-z0-9]*_(kg|mm|cm|m|s|hz)", column, re.IGNORECASE) and type(value) in (int, float) and math.isfinite(float(value)):
                     self.task_context += f"\n{column} = {value}"
         return {"sql": sql, "rows": rows[:12], "count": len(rows)}            # a dozen rows is what a 4B model can read; the count says the rest
 

@@ -2,8 +2,8 @@
 evidence it was supposed to come from, so an agent cannot invent a figure: the Lead lowers the confidence and says so."""
 from __future__ import annotations
 
-import re
 import math
+import re
 from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal, InvalidOperation
 
 _NOT_CLAIMS = re.compile(r"\b[A-Z]{1,4}-\d+\b|\b\d{4}-\d{2}-\d{2}\b|\bT\d+(?:\.E\d+)?\b|\bQ\d+\b")
@@ -79,7 +79,7 @@ def unverified_numbers(text, evidence):
                 continue
             bad.append(tok)
             continue
-        pct = bool(re.match(r"\s*(?:%|per\s?cent\b)", masked[match.end():], re.I))
+        pct = bool(re.match(r"\s*(?:%|per\s?cent\b)", masked[match.end():], re.IGNORECASE))
         if not any(rounds_to(tok, k) or (pct and rounds_to(tok, k * 100)) for k in known):
             bad.append(tok)
     return bad

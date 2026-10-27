@@ -6,10 +6,10 @@ Python eval. This checks substitution and dimensions, not the physical model.
 from __future__ import annotations
 
 import ast
-from functools import lru_cache
 import math
 import re
 import time
+from functools import lru_cache
 
 import pint
 
@@ -28,8 +28,8 @@ def unit_of(text):
         return registry().dimensionless
     if not isinstance(text, str) or not UNIT.fullmatch(text) or text.count("(") > 4:
         raise ValueError("invalid or oversized unit identifier")
-    text = re.sub(r"degrees? Celsius", "degC", text, flags=re.I)
-    text = re.sub(r"degrees? Fahrenheit", "degF", text, flags=re.I)
+    text = re.sub(r"degrees? Celsius", "degC", text, flags=re.IGNORECASE)
+    text = re.sub(r"degrees? Fahrenheit", "degF", text, flags=re.IGNORECASE)
     return registry().parse_units(text.replace("^", "**"))
 
 
@@ -63,7 +63,7 @@ def quantities(text):
             found.append((match.start(1), match[1], q))
             break
     # Typed SQL column names retain their units even when serialized as plain text.
-    for match in re.finditer(r"\b[A-Za-z][A-Za-z0-9]*_(kg|mm|cm|m|s|hz)\s*[=:]\s*(" + NUMBER + r")", text, re.I):
+    for match in re.finditer(r"\b[A-Za-z][A-Za-z0-9]*_(kg|mm|cm|m|s|hz)\s*[=:]\s*(" + NUMBER + r")", text, re.IGNORECASE):
         found.append((match.start(2), match[2], quantity(float(match[2]), match[1].replace('hz', 'Hz'))))
     return found
 
@@ -85,7 +85,7 @@ def quantity_rounds_to(token, claimed, actual):
 
 def requested_unit(goal):
     """Recognize a requested quantity's dimension, not its physical formula."""
-    actions = list(re.finditer(r"\b(?:calculate|compute|determine|convert|what is|what are)\b", goal, re.I))
+    actions = list(re.finditer(r"\b(?:calculate|compute|determine|convert|what is|what are)\b", goal, re.IGNORECASE))
     if not actions:
         return None
     tail = goal[actions[-1].end():]
@@ -94,7 +94,7 @@ def requested_unit(goal):
              (r"\btorque\b", "N*m"), (r"\bacceleration\b", "m/s**2"),
              (r"\bstrain\b", "dimensionless"), (r"\bfrequency\b", "Hz"),
              (r"\b(?:deflection|distance|length)\b", "m"), (r"\bmass\b", "kg")]
-    hits = [(m.start(), unit) for pattern, unit in kinds if (m := re.search(pattern, tail, re.I))]
+    hits = [(m.start(), unit) for pattern, unit in kinds if (m := re.search(pattern, tail, re.IGNORECASE))]
     return min(hits)[1] if hits else None
 
 
@@ -144,7 +144,7 @@ def evidence_quantities(evidence):
 
 def _calculate(expr, inputs=None, unit=None, context=""):
     """Evaluate a short scalar formula. Optional named inputs must match task data."""
-    from .reasoning import _OPS, _FUNCS, _CONST, safe_eval
+    from .reasoning import _CONST, _FUNCS, _OPS, safe_eval
     if not isinstance(expr, str) or len(expr) > 1200:
         raise ValueError("expression must contain at most 1200 characters")
     if inputs is not None and (not isinstance(inputs, dict) or len(inputs) > 16):
@@ -238,7 +238,7 @@ def _calculate(expr, inputs=None, unit=None, context=""):
         return result
 
     result = ev(tree)
-    if known and not used and re.search(r'\b(calculate|compute|solve|convert|what is|how much)\b',context,re.I):
+    if known and not used and re.search(r'\b(calculate|compute|solve|convert|what is|how much)\b',context,re.IGNORECASE):
         raise ValueError("calculation uses none of the task's physical inputs")
     if unit:
         result = result.to(unit_of(unit))
@@ -269,7 +269,7 @@ def linear_solution(goal):
     substitution. Unsupported/nonlinear/underdetermined prompts stay on the normal
     expert path. This is deliberately not a general symbolic parser.
     """
-    match = re.fullmatch(r'\s*Solve\s+(.{1,500}?)\s+for\s+([a-z])\s*[.!]?(?:\s+Show the arithmetic[.!]?)?\s*', str(goal), re.I)
+    match = re.fullmatch(r'\s*Solve\s+(.{1,500}?)\s+for\s+([a-z])\s*[.!]?(?:\s+Show the arithmetic[.!]?)?\s*', str(goal), re.IGNORECASE)
     if not match or match[1].count('=') != 1:
         return None
     equation, variable = match[1], match[2]

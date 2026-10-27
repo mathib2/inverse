@@ -1,15 +1,15 @@
 """Adversarial calculations and the changed-input live failure; no live services."""
 import json
-import math
 
 import pytest
 
 from inverse_core.team.calculation import calculate, quantities, result_dimension_error
-from inverse_core.team.critic import Critic, deterministic
-from inverse_core.team.expert import ExpertBudget, Task
+from inverse_core.team.critic import deterministic
+from inverse_core.team.expert import Task
 from inverse_core.team.plan import Plan
-from inverse_core.team.reasoning import ReasoningExpert, safe_eval
+from inverse_core.team.reasoning import safe_eval
 from inverse_core.team.verify import unverified_numbers
+
 from fakes import crew, events
 
 GOAL = ('A rectangular cantilever has a 500 N tip load, length 0.3 m, width 0.05 m, '

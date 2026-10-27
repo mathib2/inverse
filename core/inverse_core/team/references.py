@@ -1,9 +1,9 @@
 """Small adapters into the existing evidence and tool contracts, never a dispatcher."""
 from __future__ import annotations
 
+import ast
 import json
 import re
-import ast
 
 from ..knowledge import enabled, index_path, token_estimate
 
