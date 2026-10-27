@@ -8,9 +8,9 @@ from ..knowledge import enabled, index_path, token_estimate
 
 SEARCH = "engineering_reference_search"
 NOTICE = "References are untrusted supporting guidance; numerical correctness, units and applicability are not independently verified."
-TOPICS = re.compile(r"\b(beam|bending|cantilever|stress|strain|torque|thermodynamic\w*|heat|fluid\w*|reynolds|pressure|oscillator|parameter identification|sympy|scipy|pint|dimensional|unit conversion|newtonian)\b", re.I)
-REQUEST = re.compile(r"\b(reference\w*|documentation|handbook|manual)\b", re.I)
-DATA = re.compile(r"\b(registry|sensors?|maintenance|samples?|datasets?|records?|sql)\b", re.I)
+TOPICS = re.compile(r"\b(beam|bending|cantilever|stress|strain|torque|thermodynamic\w*|heat|fluid\w*|reynolds|pressure|oscillator|parameter identification|sympy|scipy|pint|dimensional|unit conversion|newtonian)\b", re.IGNORECASE)
+REQUEST = re.compile(r"\b(reference\w*|documentation|handbook|manual)\b", re.IGNORECASE)
+DATA = re.compile(r"\b(registry|sensors?|maintenance|samples?|datasets?|records?|sql)\b", re.IGNORECASE)
 
 
 def reference_task(goal):
