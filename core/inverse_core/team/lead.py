@@ -140,7 +140,7 @@ def simple_goal(goal, equipment=()):
 
 
 class Lead:
-    def __init__(self, ctx, registry, memory, critic=None, max_attempts=3, plan_lane="plan", compose_lane="plan", rule_fallback=True, rule_first=True):
+    def __init__(self, ctx, registry, memory, critic=None, max_attempts=3, plan_lane="plan", compose_lane="compose", rule_fallback=True, rule_first=True):
         self.rule_first = rule_first                                          # plain goals are planned by rule, without a model call
         self.ctx, self.registry, self.memory = ctx, registry, memory
         self.rule_fallback = rule_fallback                                    # a plan by rule when the model cannot write one (small local models)

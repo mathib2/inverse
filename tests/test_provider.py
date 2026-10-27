@@ -19,13 +19,13 @@ def test_provider_defaults_to_nightshift_and_follows_env(monkeypatch):
 
 
 def test_lanes_default_to_the_local_model_on_a_local_provider(monkeypatch):
-    for n in ("FAST", "DEEP", "PLAN", "CRITIC"):
+    for n in ("FAST", "DEEP", "PLAN", "COMPOSE", "CRITIC"):
         monkeypatch.delenv("LANE_" + n, raising=False)
     monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
     assert Lanes(factory=lambda m: m).mapping == DEFAULTS
     monkeypatch.setenv("MODEL_PROVIDER", "ollama")
     monkeypatch.setenv("NEMOTRON_MODEL", "nemotron-mini:latest")
-    assert Lanes(factory=lambda m: m).mapping == {n: "nemotron-mini:latest" for n in ("fast", "deep", "plan", "critic")}
+    assert Lanes(factory=lambda m: m).mapping == {n: "nemotron-mini:latest" for n in DEFAULTS}
     monkeypatch.setenv("LANE_CRITIC", "qwen2.5:3b-instruct")           # a second local model keeps the Critic independent
     assert Lanes(factory=lambda m: m).mapping["critic"] == "qwen2.5:3b-instruct"
 
@@ -158,7 +158,7 @@ def test_health_reports_the_fallback_with_the_primary_status_kept(monkeypatch):
 
 
 def test_the_planner_and_vera_default_to_the_largest_nemotron_and_an_old_env_plans_where_it_did(monkeypatch):
-    for n in ("FAST", "DEEP", "PLAN", "CRITIC"):
+    for n in ("FAST", "DEEP", "PLAN", "COMPOSE", "CRITIC"):
         monkeypatch.delenv("LANE_" + n, raising=False)
     monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
     m = Lanes(factory=lambda m: m).mapping
@@ -169,12 +169,44 @@ def test_the_planner_and_vera_default_to_the_largest_nemotron_and_an_old_env_pla
     assert Lanes(factory=lambda m: m).mapping["plan"] == "nvidia/nemotron-3-ultra-550b-a55b"
 
 
+def test_the_write_up_follows_the_planner_unless_lane_compose_sends_it_elsewhere(monkeypatch):
+    for n in ("FAST", "DEEP", "PLAN", "COMPOSE", "CRITIC"):
+        monkeypatch.delenv("LANE_" + n, raising=False)
+        monkeypatch.delenv(f"LANE_{n}_URL", raising=False)
+    monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
+    m = Lanes(factory=lambda m: m).mapping
+    assert m["compose"] == m["plan"] == DEFAULTS["compose"] == "nvidia/nemotron-3-ultra-550b-a55b"       # nothing set: the write-up on the planner's route
+    monkeypatch.setenv("MODEL_PROVIDER", "ollama")
+    monkeypatch.setenv("NEMOTRON_MODEL", "nemotron-mini:latest")
+    m = Lanes(factory=lambda m: m).mapping
+    assert m["compose"] == m["plan"] == m["deep"] == "nemotron-mini:latest"                              # one local model serves every lane
+    monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
+    monkeypatch.setenv("LANE_DEEP", "local-runtime/nemotron-mini-4b-instruct-q4-k-m")                    # the live .env: deep named, plan and compose never heard of
+    m = Lanes(factory=lambda m: m).mapping
+    assert m["compose"] == m["plan"] == m["deep"] == "local-runtime/nemotron-mini-4b-instruct-q4-k-m"
+    monkeypatch.setenv("LANE_PLAN", "nvidia/nemotron-3-ultra-550b-a55b")                                # the planning moves: the write-up follows it
+    m = Lanes(factory=lambda m: m).mapping
+    assert m["compose"] == m["plan"] == "nvidia/nemotron-3-ultra-550b-a55b" and m["deep"] != m["plan"]
+    monkeypatch.setenv("LANE_COMPOSE", "local-runtime/nemotron-mini-4b-instruct-q4-k-m")                # its own lane: the planning stays hosted, the write-up local
+    m = Lanes(factory=lambda m: m).mapping
+    assert m["compose"] == "local-runtime/nemotron-mini-4b-instruct-q4-k-m" and m["plan"] == "nvidia/nemotron-3-ultra-550b-a55b"
+    monkeypatch.setenv("LANE_COMPOSE_URL", "http://hosted/v1")                                         # an endpoint of its own, like any lane
+    lanes = Lanes()
+    assert set(lanes.endpoints) == {"compose"} and isinstance(lanes.client("compose"), M.LaneEndpoint) and not isinstance(lanes.client("plan"), M.LaneEndpoint)
+
+
+def test_atlas_writes_the_final_answer_on_the_compose_lane(tmp_path):
+    ctx, lead = crew(tmp_path, lambda model, messages: "")
+    assert lead.plan_lane == "plan" and lead.compose_lane == "compose"                                  # planning and the write-up on lanes of their own
+    assert ctx.lanes.model("compose") == ctx.lanes.model("plan")                                        # which, nothing set, name the same model
+
+
 def test_a_lane_with_its_own_endpoint_falls_back_to_the_crews_provider_without_marking_it_down(monkeypatch):
     monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
     monkeypatch.setenv("MODEL_BASE_URL", "http://laptop/v1")
     monkeypatch.setenv("NEMOTRON_MODEL", "local-runtime/nemotron-mini")
     monkeypatch.setenv("LANE_PLAN", "nvidia/nemotron-3-ultra-550b-a55b")
-    for n in ("FAST", "DEEP", "CRITIC"):
+    for n in ("FAST", "DEEP", "COMPOSE", "CRITIC"):
         monkeypatch.delenv(f"LANE_{n}_URL", raising=False)
     monkeypatch.setenv("LANE_PLAN_URL", "http://hosted/v1")
     monkeypatch.setenv("LANE_PLAN_KEY", "k")

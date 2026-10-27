@@ -1,9 +1,10 @@
 """Lane name -> model id. Experts and the Critic pick a lane by name; the client is MeterlessClient, which talks to
 whichever OpenAI-compatible server MODEL_PROVIDER names. With Nightshift the defaults are Nemotron routes (it lists them
-in GET /v1/models): the workers on Lightning-30B, Atlas's planning and write-up (`plan`) and Vera's review (`critic`) on
-Ultra-550B; with a local provider every lane defaults to the configured NEMOTRON_MODEL, so one local model serves the
-whole team. Override any lane with LANE_<NAME> in .env; `plan` left unset follows LANE_DEEP, so a .env written before the
-lane existed plans on the model it always did. On Nightshift `critic` defaults to a different model than `fast` and
+in GET /v1/models): the workers on Lightning-30B, Atlas's planning (`plan`) and final write-up (`compose`) and Vera's
+review (`critic`) on Ultra-550B; with a local provider every lane defaults to the configured NEMOTRON_MODEL, so one local
+model serves the whole team. Override any lane with LANE_<NAME> in .env; `plan` left unset follows LANE_DEEP, so a .env
+written before the lane existed plans on the model it always did, and `compose` left unset follows `plan`, so only the
+planning need move to a hosted model. On Nightshift `critic` defaults to a different model than `fast` and
 `deep`, so review is independent of the work it reviews; a one-model lab loses that independence unless LANE_CRITIC names
 a second model (docs/operations/LOCAL_MODELS.md).
 
@@ -20,6 +21,7 @@ from ..clients.meterless import LaneEndpoint, MeterlessClient, provider_id
 DEFAULTS = {"fast": "nvidia/nemotron-3.5-lightning-30b-a3b",
             "deep": "nvidia/nemotron-3.5-lightning-30b-a3b",
             "plan": "nvidia/nemotron-3-ultra-550b-a55b",
+            "compose": "nvidia/nemotron-3-ultra-550b-a55b",
             "critic": "nvidia/nemotron-3-ultra-550b-a55b"}
 
 
@@ -54,6 +56,8 @@ class Lanes:
         self.mapping = {n: os.environ.get("LANE_" + n.upper(), d) for n, d in default_mapping().items()}
         if not os.environ.get("LANE_PLAN") and os.environ.get("LANE_DEEP"):
             self.mapping["plan"] = self.mapping["deep"]                       # a .env from before the plan lane plans where it always did
+        if not os.environ.get("LANE_COMPOSE"):
+            self.mapping["compose"] = self.mapping["plan"]                    # the write-up follows the planning unless sent elsewhere
         self.mapping.update(mapping or {})
         self.endpoints = {n: ep for n in self.mapping if (ep := endpoint(n))}
         self._factory = factory or _client
