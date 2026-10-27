@@ -234,7 +234,7 @@ class LaneEndpoint:
 
 def strip_thinking(text):
     """Reasoning models may emit chain-of-thought before </think>; keep only the answer."""
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
     return text.split("</think>")[-1].strip()
 
 

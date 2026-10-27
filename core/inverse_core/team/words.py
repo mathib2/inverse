@@ -20,10 +20,10 @@ _ROWS = re.compile(r"(?:^|(?<=\. )|(?<=\n))Rows: ")                             
 _KEY = re.compile(r"(?:^|(?<=[,;] ))([A-Za-z_]\w*(?:\([^)]*\))?) = ")                      # 'sigma = ', 'count(*) = ': the start of one column
 _CITE = re.compile(r" \[Q\d+\]$")
 _BARE = re.compile(r"^(?P<tok>[\w.-]*\d[\w.-]*)\. (?=Rows: )")                             # the model's '100' or 'P-104' in front of the rows
-_JSON_ROWS = re.compile(r"\[\s*\{.*\}\s*\]", re.S)
+_JSON_ROWS = re.compile(r"\[\s*\{.*\}\s*\]", re.DOTALL)
 _VALUED = re.compile(r"[\w.\-\[\]]*\d[\w.\-\[\]]*")                                       # every token that carries a digit: a number, an id, a date, a citation label with its brackets
 _NUMBER = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")                                  # a value that is a number, so a unit can follow it
-_DIGEST = re.compile(r"Found and still standing: (?P<found>.+?)\.? Ruled out: (?P<out>.+?)\.? Still unchecked: (?P<left>.+)", re.S)   # the digest custom.py makes out of the memory
+_DIGEST = re.compile(r"Found and still standing: (?P<found>.+?)\.? Ruled out: (?P<out>.+?)\.? Still unchecked: (?P<left>.+)", re.DOTALL)   # the digest custom.py makes out of the memory
 _PART = re.compile(r"; (?=[\w-]+: )")                                                      # between two findings of a digest ('expert: claim'): a '; ' inside a finding is not followed by 'expert: '
 
 
@@ -104,7 +104,7 @@ def rows_in_words(text):
         return text
     head, sentences = text[:m.start()], " ".join(row_in_words(r, c) for r, c in parsed)
     bare = _BARE.match(text)
-    if bare and re.search(r"(?<![\w.-])" + re.escape(bare.group("tok")) + r"(?![\w.-])", sentences, re.I):
+    if bare and re.search(r"(?<![\w.-])" + re.escape(bare.group("tok")) + r"(?![\w.-])", sentences, re.IGNORECASE):
         head = head[bare.end():]
     return (head.rstrip() + " " + sentences) if head.strip() else sentences
 

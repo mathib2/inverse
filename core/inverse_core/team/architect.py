@@ -45,7 +45,7 @@ class ArchitectTools(Tools):
                             for n, c in reg.configs.items() if c["enabled"]]}
 
     def _design_expert(self, **spec):
-        from .registry import validate                                   # lazy: registry imports this module
+        from .registry import validate  # lazy: registry imports this module
         c = validate(self._config(**spec), self.ctx.lanes)
         return {"valid": True, "config": {k: v for k, v in c.items() if not k.startswith("_")}}
 

@@ -8,7 +8,6 @@ from inverse_core.team.expert import Task
 
 from fakes import crew, events, lead_for, make_ctx
 
-
 RES = {"answer": "P-104 weighs 12.5 kg, so its weight is 122.6 N; the pump was overhauled in March.", "confidence": 0.9, "assumptions": [], "not_checked": [],
        "evidence": [{"type": "sql", "source": "Q1", "detail": "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'", "rows": [{"equipment_id": "P-104", "mass_kg": 12.5}]},
                     {"type": "calc", "source": "12.5*9.81", "detail": "= 122.625"}]}

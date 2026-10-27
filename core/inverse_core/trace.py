@@ -1,5 +1,8 @@
 """JSONL trace per run in runs/<timestamp>/trace.jsonl: inputs, prompts, model used, tool calls, validator results, timings."""
-import json, os, threading, time
+import json
+import os
+import threading
+import time
 
 from . import chat
 

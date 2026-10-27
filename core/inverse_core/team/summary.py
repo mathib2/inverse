@@ -39,7 +39,7 @@ _END = re.compile(r"(?:[.!?]|\[Q\d+\])(?=\s|$)")                              # 
 _RECORDS = re.compile(r"\[\s*(?=\{)")                                         # a JSON array of records pasted into a finding
 _FIELD = re.compile(r'"([^"\\]+)"\s*:\s*(?:"((?:[^"\\]|\\.)*)"|(-?[\w.+-]+))\s*(?=[,}])')   # one whole field of a record, string or bare
 _QUOTE = re.compile(r"«([^»]{0,200})»")                                       # how the reviewer quotes the answer in a reason
-_UNIT = re.compile(r"^[-+]?(?:\d[\d,]*(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?\s+[a-z][\w/^%°]*$", re.I)   # a number and its unit, no verb: "122.625 N", "9.81 m/s^2"
+_UNIT = re.compile(r"^[-+]?(?:\d[\d,]*(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?\s+[a-z][\w/^%°]*$", re.IGNORECASE)   # a number and its unit, no verb: "122.625 N", "9.81 m/s^2"
 
 
 def fold(text):
@@ -162,7 +162,7 @@ def _claim(form):
     head = _whole(fold(head), cut and not rows and not records).strip(" .;:,")
     after = fold(after).strip(" .;:,")
     bare = bool(head) and (" " not in head or bool(_UNIT.match(head)))
-    if bare and re.search(rf"(?<![\w.-]){re.escape(head)}(?![\w.-])", records + " " + rows, re.I):
+    if bare and re.search(rf"(?<![\w.-]){re.escape(head)}(?![\w.-])", records + " " + rows, re.IGNORECASE):
         head, bare = "", False
     claim = head + (": " if head and records else "") + records
     claim += ("; the rows say " if claim and rows else "") + rows

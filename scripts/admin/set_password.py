@@ -7,7 +7,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # scripts/<group>/<this file> -> the checkout
 sys.path.insert(0, os.path.join(ROOT, "ui"))
-from auth import make_hash  # noqa: E402
+from auth import make_hash
 
 
 def write_env(path, values):

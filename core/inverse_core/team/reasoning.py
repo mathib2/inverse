@@ -88,7 +88,7 @@ class ReasoningExpert(BaseExpert):
         names and constants are left alone."""
         from .research import column_words
         expr = str(calc or "").strip()
-        m = re.fullmatch(r"calc\((.*)\)", expr, re.S)
+        m = re.fullmatch(r"calc\((.*)\)", expr, re.DOTALL)
         if m:
             expr = m.group(1).strip()
         for name in sorted(set(cls._NAME.findall(expr)), key=len, reverse=True):
@@ -96,7 +96,7 @@ class ReasoningExpert(BaseExpert):
                 continue
             found = re.search(r"(?<![\w.])" + re.escape(name) + r"\s*[=:]\s*(-?\d+(?:\.\d+)?)", str(context or ""))
             if not found:                                                     # the column's plain name, then "of" or "is": "a mass of 1.0 kg", "the mass is 1.0 kg"
-                found = re.search(r"(?<![\w.])" + re.escape(column_words(name)[0]) + r"\s+(?:of|is)\s+(-?\d+(?:\.\d+)?)", str(context or ""), re.I)
+                found = re.search(r"(?<![\w.])" + re.escape(column_words(name)[0]) + r"\s+(?:of|is)\s+(-?\d+(?:\.\d+)?)", str(context or ""), re.IGNORECASE)
             if found:
                 expr = re.sub(r"\b" + re.escape(name) + r"\b", found.group(1), expr)
         return expr.strip()
@@ -130,7 +130,7 @@ class ReasoningExpert(BaseExpert):
     def system(self):
         return self.prompt + self.SYSTEM_TAIL
 
-    DAYS_ASKED = re.compile(r"\b(?:how\s+many|number\s+of)\s+days\b|\bdays?\s+(?:passed|elapsed|between|apart)\b", re.I)
+    DAYS_ASKED = re.compile(r"\b(?:how\s+many|number\s+of)\s+days\b|\bdays?\s+(?:passed|elapsed|between|apart)\b", re.IGNORECASE)
 
     def _days_by_code(self, task):
         """'How many days passed between the two maintenance records?' with exactly two dates in the task and the earlier results:

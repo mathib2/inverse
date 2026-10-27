@@ -4,10 +4,9 @@ import os
 import pytest
 
 from inverse_core.team.crew import CREW, name, rename, roster, who
-from inverse_core.team.registry import ConfigError, forget_config, load_configs, Registry, save_config
+from inverse_core.team.registry import ConfigError, Registry, forget_config, load_configs, save_config
 
 from fakes import make_ctx
-
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

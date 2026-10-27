@@ -9,7 +9,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
 
-from inverse_core import notify  # noqa: E402
+from inverse_core import notify
 
 ap = argparse.ArgumentParser()
 ap.add_argument("text")

@@ -6,10 +6,9 @@ import pytest
 from inverse_core.budget import BudgetExceeded
 from inverse_core.team.expert import ExpertBudget
 from inverse_core.team.reasoning import safe_eval
-from inverse_core.team.tools import page_text, parse_duckduckgo, Tools
+from inverse_core.team.tools import Tools, page_text, parse_duckduckgo
 
 from fakes import crew, events, make_ctx, repo
-
 
 DDG = ('<a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fcache&amp;rut=abc">Prefix <b>cache</b> notes</a>'
        '<a class="result__snippet" href="x">How the <b>KV</b> cache works &amp; why.</a>'
@@ -49,7 +48,8 @@ def test_sandbox_tools_refuse_outside_the_sandbox_and_fetch_refuses_this_machine
 
 
 def test_four_flaws_the_review_found(tmp_path, monkeypatch):
-    from inverse_core.team import lead as L, tools as T
+    from inverse_core.team import lead as L
+    from inverse_core.team import tools as T
     from inverse_core.team.research import pin_sensor
     ctx, lead = crew(tmp_path, lambda m, msgs: "{}")
     assert T.Tools(ctx, [], owner="x").allowed == [] and "calc" in T.Tools(ctx, None, owner="x").allowed              # an empty list is no tools

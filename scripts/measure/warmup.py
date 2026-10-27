@@ -11,12 +11,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
 
-from inverse_core.clients.world import WorldClient  # noqa: E402
-from inverse_core.clients.zetaris import ZetarisClient  # noqa: E402
-from inverse_core.ledger import SidecarLedger  # noqa: E402
-from inverse_core.team import critic as C  # noqa: E402
-from inverse_core.team.build import build  # noqa: E402
-from inverse_core.team.lead import COMPOSE_SYSTEM  # noqa: E402
+from inverse_core.clients.world import WorldClient
+from inverse_core.clients.zetaris import ZetarisClient
+from inverse_core.ledger import SidecarLedger
+from inverse_core.team import critic as C
+from inverse_core.team.build import build
+from inverse_core.team.lead import COMPOSE_SYSTEM
 
 
 def prefixes(lead):

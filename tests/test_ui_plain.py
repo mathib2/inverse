@@ -1,8 +1,7 @@
 """Every word the page shows (ui/plain.py), following the provider. No model and no network unless a test says so."""
+import plain
 from inverse_core.budget import BudgetExceeded
 from inverse_core.team.plan import PlanError
-
-import plain
 
 
 def test_ui_words_follow_the_provider(monkeypatch):

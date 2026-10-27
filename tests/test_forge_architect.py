@@ -13,7 +13,7 @@ from inverse_core.team.memory import TeamMemory
 from inverse_core.team.plan import Plan, PlanError
 from inverse_core.team.registry import ConfigError, Registry
 
-from fakes import crew, events, FakeZetaris, make_ctx
+from fakes import FakeZetaris, crew, events, make_ctx
 
 
 def team(ctx):
@@ -132,10 +132,10 @@ def test_architect_test_drive_budget_is_a_tool_error_not_a_task_failure(tmp_path
 
         def health(self):
             return {"status": "online", "models": [self.model]}
+    from inverse_core.budget import Budget
     from inverse_core.team.lanes import Lanes
     from inverse_core.team.llmcall import Ctx
     from inverse_core.trace import Trace
-    from inverse_core.budget import Budget
     ctx = Ctx(Lanes(factory=HungryLLM), Trace(str(tmp_path / "runs")), Budget(max_llm_calls=40), zetaris=FakeZetaris(), equipment=["P-104"])
     reg = Registry(ctx, os.path.join(ROOT, "experts"), ROOT)
     ctx.registry = reg

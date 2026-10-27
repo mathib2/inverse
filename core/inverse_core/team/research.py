@@ -16,29 +16,29 @@ QUERY_MAX_TOKENS, ANSWER_MAX_TOKENS = 300, 350                                # 
 
 
 CONCEPTS = [                                                                  # a word in the task -> the column that answers it (one table each)
-    (re.compile(r"\b(sampling|sample rate|rate|hz|hertz|frequency)\b", re.I), "sensors_table", "sampling_hz"),
-    (re.compile(r"\b(noise|sigma|uncertaint\w*)\b", re.I), "sensors_table", "sigma"),
-    (re.compile(r"\bunits?\b", re.I), "sensors_table", "unit"),
-    (re.compile(r"\b(mass|weigh\w*|kg)\b", re.I), "equipment_table", "mass_kg"),
-    (re.compile(r"\bbaseline\b", re.I), "equipment_table", "baseline_dataset"),
-    (re.compile(r"\bcurrent dataset\b", re.I), "equipment_table", "current_dataset"),
-    (re.compile(r"\b(when|dates?|performed)\b", re.I), "maintenance_table", "date"),
-    (re.compile(r"\b(notes?|what was done|work|summary|describ\w*)\b", re.I), "maintenance_table", "note"),
+    (re.compile(r"\b(sampling|sample rate|rate|hz|hertz|frequency)\b", re.IGNORECASE), "sensors_table", "sampling_hz"),
+    (re.compile(r"\b(noise|sigma|uncertaint\w*)\b", re.IGNORECASE), "sensors_table", "sigma"),
+    (re.compile(r"\bunits?\b", re.IGNORECASE), "sensors_table", "unit"),
+    (re.compile(r"\b(mass|weigh\w*|kg)\b", re.IGNORECASE), "equipment_table", "mass_kg"),
+    (re.compile(r"\bbaseline\b", re.IGNORECASE), "equipment_table", "baseline_dataset"),
+    (re.compile(r"\bcurrent dataset\b", re.IGNORECASE), "equipment_table", "current_dataset"),
+    (re.compile(r"\b(when|dates?|performed)\b", re.IGNORECASE), "maintenance_table", "date"),
+    (re.compile(r"\b(notes?|what was done|work|summary|describ\w*)\b", re.IGNORECASE), "maintenance_table", "note"),
 ]
 
-_SELECT = re.compile(r"^\s*SELECT\s+(?P<cols>.+?)\s+FROM\s+obs\.(?P<table>\w+)(?P<rest>.*)$", re.I | re.S)
+_SELECT = re.compile(r"^\s*SELECT\s+(?P<cols>.+?)\s+FROM\s+obs\.(?P<table>\w+)(?P<rest>.*)$", re.IGNORECASE | re.DOTALL)
 
-IDS_WORDS = re.compile(r"\b(which|what are (?:their|the) (?:ids?|names?)|list (?:them|the (?:machines|sensors|records)))\b", re.I)
+IDS_WORDS = re.compile(r"\b(which|what are (?:their|the) (?:ids?|names?)|list (?:them|the (?:machines|sensors|records)))\b", re.IGNORECASE)
 
 ID_COLUMN = {"equipment_table": "equipment_id", "sensors_table": "sensor_id", "maintenance_table": "record_id"}
 
-_COUNT_ONLY = re.compile(r"^\s*SELECT\s+COUNT\(\*\)(?:\s+AS\s+\w+)?\s+FROM\s+obs\.(\w+)(.*)$", re.I | re.S)
+_COUNT_ONLY = re.compile(r"^\s*SELECT\s+COUNT\(\*\)(?:\s+AS\s+\w+)?\s+FROM\s+obs\.(\w+)(.*)$", re.IGNORECASE | re.DOTALL)
 
 SENSOR_ID = re.compile(r"\b[A-Z]\d{3}-[A-Z]{3,4}-\d\b")
 
-QUANTITY_WORDS = re.compile(r"\b(displacement|velocity|disp|vel|quantity)\b|'[xv]'", re.I)
+QUANTITY_WORDS = re.compile(r"\b(displacement|velocity|disp|vel|quantity)\b|'[xv]'", re.IGNORECASE)
 
-_QFILTER = re.compile(r"\s+AND\s+quantity\s*=\s*'[^']*'|\s+WHERE\s+quantity\s*=\s*'[^']*'\s+AND\s+|\s+WHERE\s+quantity\s*=\s*'[^']*'", re.I)
+_QFILTER = re.compile(r"\s+AND\s+quantity\s*=\s*'[^']*'|\s+WHERE\s+quantity\s*=\s*'[^']*'\s+AND\s+|\s+WHERE\s+quantity\s*=\s*'[^']*'", re.IGNORECASE)
 
 def unfilter_quantity(sql, goal):
     """A quantity filter the task never asked for is dropped: `quantity = 'v'` guessed for "the sensors on P-104" finds the wrong sensor
@@ -52,19 +52,19 @@ def unfilter_quantity(sql, goal):
     new = sql[:m.start()] + (" WHERE " if hit.startswith("WHERE") and hit.endswith("AND") else "") + sql[m.end():]
     return re.sub(r"\s{2,}", " ", new).strip(), True
 
-LIST_WORDS = re.compile(r"\b(list|records?|all|each|every|history|entries)\b", re.I)
+LIST_WORDS = re.compile(r"\b(list|records?|all|each|every|history|entries)\b", re.IGNORECASE)
 
-_LIMIT = re.compile(r"\s+LIMIT\s+(\d+)\s*$", re.I)
+_LIMIT = re.compile(r"\s+LIMIT\s+(\d+)\s*$", re.IGNORECASE)
 
 def unlimit_list(sql, goal):
     """A task that asks for the records, the list or the history gets every row: a small LIMIT the model added (LIMIT 1 for "the
     last maintenance" it imagined) is dropped. Returns (sql, dropped)."""
     m = _LIMIT.search(sql or "")
-    if not m or int(m.group(1)) >= 12 or not LIST_WORDS.search(goal or "") or re.search(r"\b(last|latest|most recent|newest|first|earliest)\b", goal or "", re.I):
+    if not m or int(m.group(1)) >= 12 or not LIST_WORDS.search(goal or "") or re.search(r"\b(last|latest|most recent|newest|first|earliest)\b", goal or "", re.IGNORECASE):
         return sql, False
     return sql[:m.start()].rstrip(), True
 
-WHICH_OF_THEM = re.compile(r"\b(?:and|,)\s*which\s+(?:of\s+them|ones?)\b", re.I)
+WHICH_OF_THEM = re.compile(r"\b(?:and|,)\s*which\s+(?:of\s+them|ones?)\b", re.IGNORECASE)
 
 
 def whole_list(sql, goal):
@@ -73,18 +73,18 @@ def whole_list(sql, goal):
     its columns are kept in the selection, so the rows show which ones match. A filter on one machine is the task's subject and
     stays. Returns (sql, dropped)."""
     m = _SELECT.match(sql or "")
-    if not WHICH_OF_THEM.search(goal or "") or not m or "(" in m.group("cols") or re.search(r"\bjoin\b", sql, re.I):
+    if not WHICH_OF_THEM.search(goal or "") or not m or "(" in m.group("cols") or re.search(r"\bjoin\b", sql, re.IGNORECASE):
         return sql, False
-    parts = re.split(r"\sWHERE\s", sql, maxsplit=1, flags=re.I)
+    parts = re.split(r"\sWHERE\s", sql, maxsplit=1, flags=re.IGNORECASE)
     if len(parts) != 2:
         return sql, False
-    tail = re.search(r"\s(ORDER\s+BY\s.*|LIMIT\s.*)$", parts[1], re.I | re.S)
+    tail = re.search(r"\s(ORDER\s+BY\s.*|LIMIT\s.*)$", parts[1], re.IGNORECASE | re.DOTALL)
     cond = parts[1][:tail.start()] if tail else parts[1]
-    if re.search(r"\bequipment_id\s*=", cond, re.I):
+    if re.search(r"\bequipment_id\s*=", cond, re.IGNORECASE):
         return sql, False
     cols = [c.strip() for c in m.group("cols").split(",")]
     have = {re.split(r"\s+", c)[0].lower() for c in cols}
-    used = re.findall(r"\b([a-z_][a-z0-9_]*)\s*(?:=|<>|!=|<|>|\s+is\b|\s+like\b|\s+in\b)", cond, re.I)
+    used = re.findall(r"\b([a-z_][a-z0-9_]*)\s*(?:=|<>|!=|<|>|\s+is\b|\s+like\b|\s+in\b)", cond, re.IGNORECASE)
     add = [c for c in dict.fromkeys(used) if c.lower() not in have and c.lower() not in ("and", "or", "not")]
     head = f"SELECT {', '.join(cols + add)} FROM obs.{m.group('table')}" if add and "*" not in have else parts[0].rstrip()
     return (head + (" " + tail.group(1).strip() if tail else "")).strip(), True
@@ -94,11 +94,11 @@ def pin_sensor(sql, goal):
     """A query on the sensors table for a task that names a sensor ('T200-DISP-1') selects it by sensor_id; a filter the model guessed
     (equipment and quantity) is replaced, because a guessed quantity finds nothing. Returns (sql, pinned id or None)."""
     ids = SENSOR_ID.findall(goal or "")
-    where = re.split(r"\sWHERE\s", sql or "", maxsplit=1, flags=re.I)
+    where = re.split(r"\sWHERE\s", sql or "", maxsplit=1, flags=re.IGNORECASE)
     if not ids or "obs.sensors_table" not in (sql or "").lower() or (len(where) == 2 and "sensor_id" in where[1].lower()):   # already selected by id
         return sql, None
-    head = re.split(r"\sWHERE\s", sql, maxsplit=1, flags=re.I)[0].rstrip()
-    tail = re.search(r"\s(ORDER\s+BY\s.*|LIMIT\s.*)$", sql, re.I | re.S)
+    head = re.split(r"\sWHERE\s", sql, maxsplit=1, flags=re.IGNORECASE)[0].rstrip()
+    tail = re.search(r"\s(ORDER\s+BY\s.*|LIMIT\s.*)$", sql, re.IGNORECASE | re.DOTALL)
     return f"{head} WHERE sensor_id = '{ids[0]}'" + (" " + tail.group(1).strip() if tail else ""), ids[0]
 
 def widen_count(sql, goal):
@@ -116,7 +116,7 @@ def complete_columns(sql, goal):
     if not m or "(" in m.group("cols") or m.group("cols").strip() == "*":
         return sql, []
     cols = [c.strip() for c in m.group("cols").split(",")]
-    have = {re.split(r"\s+as\s+|\s+", c.strip(), flags=re.I)[0].lower() for c in cols}
+    have = {re.split(r"\s+as\s+|\s+", c.strip(), flags=re.IGNORECASE)[0].lower() for c in cols}
     added = [col for pat, table, col in CONCEPTS if table == m.group("table").lower() and col not in have and pat.search(goal or "")]
     added = list(dict.fromkeys(added))
     if not added:
@@ -467,7 +467,7 @@ class ResearchExpert(BaseExpert):
         facts = self._facts(ran, answer)
         if facts:                                                                     # a small result set rides along verbatim: the model dropped values the task asked for
             bare = re.fullmatch(r"\W*(?P<tok>[\w.-]*\d[\w.-]*)\W*", answer.strip())      # the model's whole answer is one number or id ('100', 'P-104')
-            if bare and re.search(r"(?<![\w.-])" + re.escape(bare.group("tok")) + r"(?![\w.-])", facts, re.I):
+            if bare and re.search(r"(?<![\w.-])" + re.escape(bare.group("tok")) + r"(?![\w.-])", facts, re.IGNORECASE):
                 answer = facts                                                        # the sentences hold it: said once, not '100. The sampling rate is 100 Hz'
             else:
                 answer = (answer.rstrip(" .") + ". " if answer.strip() else "") + facts

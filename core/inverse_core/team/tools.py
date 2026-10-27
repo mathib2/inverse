@@ -14,8 +14,8 @@ from urllib.parse import urlparse
 import requests
 
 from .expert import ExpertBudget, Task
-from .sql_guard import check_sql
 from .reasoning import safe_eval
+from .sql_guard import check_sql
 
 SECRET_GLOBS = (".env", ".env.*", "*.pem", "*.key", "id_*", "*.p12", "*.pfx", "secrets.toml", "*.kdbx", "*.jsonl", "*.local.yaml")   # the last two are live state, not code
 SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", "runs", "vendor", ".state", ".pytest_cache", "experts.local", "council", "state", "queue"}
@@ -105,9 +105,10 @@ def _untag(s):
 
 def parse_duckduckgo(page):
     """Titles, urls and snippets from DuckDuckGo's HTML results page (its redirect links carry the real url in `uddg`)."""
-    from urllib.parse import parse_qs, unquote, urlparse as _up
-    links = re.findall(r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', page or "", re.S)
-    snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', page or "", re.S)
+    from urllib.parse import parse_qs, unquote
+    from urllib.parse import urlparse as _up
+    links = re.findall(r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', page or "", re.DOTALL)
+    snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', page or "", re.DOTALL)
     out = []
     for i, (href, title) in enumerate(links):
         href = html_unescape(href)

@@ -8,7 +8,8 @@ import streamlit as st
 from inverse_core.missions import load_missions
 from inverse_core.team import council_wire as wire
 from inverse_core.team.council import Council
-from inverse_core.team.crew import CREW, name as crew_name
+from inverse_core.team.crew import CREW
+from inverse_core.team.crew import name as crew_name
 
 KINDS = {"cfg": "change an agent's settings", "mission": "add or change a standing mission", "note": "a note for the crew's shared memory",
          "agent": "keep an agent Forge built", "code": "a code change (people make it)"}

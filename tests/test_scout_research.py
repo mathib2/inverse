@@ -125,6 +125,7 @@ def test_scout_looks_up_only_and_the_rows_speak_when_its_numbers_are_not_in_them
 def _expected(case):
     """The expected items of one benchmark case, read from scripts/measure/bench_cases.yaml."""
     import os
+
     import yaml
     with open(os.path.join(ROOT, "scripts", "measure", "bench_cases.yaml")) as f:
         return next(c["expect"] for c in yaml.safe_load(f) if c["name"] == case)

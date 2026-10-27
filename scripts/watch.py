@@ -14,13 +14,13 @@ import time
 from dotenv import load_dotenv
 
 load_dotenv(".env")
-from inverse_core.missions import load_missions  # noqa: E402
-from inverse_core.team.watch import Watcher  # noqa: E402
+from inverse_core.missions import load_missions
+from inverse_core.team.watch import Watcher
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("INVERSE_PRIORITY", "warden")                            # Warden's model calls wait while a person's mission runs (team/gate.py)
 RUNS = os.path.join(ROOT, "runs")
-from inverse_core.clients.sidecars import hmem_url, markovian_url, port  # noqa: E402
+from inverse_core.clients.sidecars import hmem_url, markovian_url, port
 
 SIDECARS = {port(hmem_url()): "/healthz", port(markovian_url()): "/healthz"}     # this checkout's own ports, from .env
 

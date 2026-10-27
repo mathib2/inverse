@@ -12,7 +12,7 @@ import pytest
 import requests
 
 from inverse_core.budget import BudgetExceeded
-from inverse_core.clients.markovian import checkpoint, content_of, ensure_marker, MarkovianClient
+from inverse_core.clients.markovian import MarkovianClient, checkpoint, content_of, ensure_marker
 from inverse_core.ledger import InMemoryLedger
 from inverse_core.team.expert import ExpertBudget, Task
 from inverse_core.team.memory import TeamMemory

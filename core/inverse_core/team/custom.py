@@ -10,7 +10,7 @@ from ..budget import BudgetExceeded
 from .crew import name as crew_name
 from .expert import PROPOSE_TAIL, BaseExpert, ExpertResult, proposals_of, require_evidence
 from .llmcall import ask
-from .summary import digest                                                   # the summary read out of the memory, in words
+from .summary import digest  # the summary read out of the memory, in words
 from .tools import Tools
 from .verify import claim_numbers, reconcile_numbers, unverified_numbers
 
@@ -23,23 +23,23 @@ def _num(x, default):
 
 TURN_MAX_TOKENS = 900                                                         # one tool call or one final JSON per reply; the long tail is cut, never the work
 
-ASK_WORDS = re.compile(r"\bask (?:the )?(research|reasoning|solver) (?:expert|agent)\b(?: (?:for|to|about|what|how|whether|which))?", re.I)
+ASK_WORDS = re.compile(r"\bask (?:the )?(research|reasoning|solver) (?:expert|agent)\b(?: (?:for|to|about|what|how|whether|which))?", re.IGNORECASE)
 
-TOTAL_WORDS = re.compile(r"\b(across|together|total|in all|both|combined|altogether|sum)\b", re.I)
+TOTAL_WORDS = re.compile(r"\b(across|together|total|in all|both|combined|altogether|sum)\b", re.IGNORECASE)
 
-NEEDS_CALC = re.compile(r"\b(compute|calculate|weight|weigh\w*|times|total|sum|across|together|multipl\w*|divide\w*|convert\w*|how many .* (?:both|together|in all))\b", re.I)
+NEEDS_CALC = re.compile(r"\b(compute|calculate|weight|weigh\w*|times|total|sum|across|together|multipl\w*|divide\w*|convert\w*|how many .* (?:both|together|in all))\b", re.IGNORECASE)
 
-BARE = re.compile(r"^\W*(error|none|null|n/?a|unknown|done|ok|yes|no)\W*$", re.I)
+BARE = re.compile(r"^\W*(error|none|null|n/?a|unknown|done|ok|yes|no)\W*$", re.IGNORECASE)
 
 PREFETCH = [                                                                  # what a solver task asks about a machine -> the queries, run by code before the model speaks
-    (re.compile(r"\b(mass|weigh\w*|kg)\b", re.I), ["SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = '{m}'"]),
-    (re.compile(r"\bsensors?\b", re.I), ["SELECT sensor_id, quantity, unit, sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = '{m}'"]),
-    (re.compile(r"\b(samples?|datasets?|readings?)\b", re.I), ["SELECT baseline_dataset, current_dataset FROM obs.equipment_table WHERE equipment_id = '{m}'"]),
+    (re.compile(r"\b(mass|weigh\w*|kg)\b", re.IGNORECASE), ["SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = '{m}'"]),
+    (re.compile(r"\bsensors?\b", re.IGNORECASE), ["SELECT sensor_id, quantity, unit, sigma, sampling_hz FROM obs.sensors_table WHERE equipment_id = '{m}'"]),
+    (re.compile(r"\b(samples?|datasets?|readings?)\b", re.IGNORECASE), ["SELECT baseline_dataset, current_dataset FROM obs.equipment_table WHERE equipment_id = '{m}'"]),
 ]
 
-MEMORY_WORDS = re.compile(r"\b(memory|summari[sz]e|digest|found so far|ruled out|still unchecked|what (do|does) (we|the crew|the team) know)\b", re.I)
+MEMORY_WORDS = re.compile(r"\b(memory|summari[sz]e|digest|found so far|ruled out|still unchecked|what (do|does) (we|the crew|the team) know)\b", re.IGNORECASE)
 
-DIGEST_WORDS = re.compile(r"\b(summari[sz]e|digest|found so far|ruled out|still unchecked|what (do|does) (we|the crew|the team) know)\b", re.I)
+DIGEST_WORDS = re.compile(r"\b(summari[sz]e|digest|found so far|ruled out|still unchecked|what (do|does) (we|the crew|the team) know)\b", re.IGNORECASE)
 
 
 class CustomExpert(BaseExpert):
@@ -151,7 +151,7 @@ class CustomExpert(BaseExpert):
         evidence = []
         msgs = [{"role": "system", "content": self._system()}, {"role": "user", "content": self._task_text(task) + self._previous(task)}]
         seen = {}
-        machines = [m for m in self.ctx.equipment if re.search(r"(?<![\w-])" + re.escape(m) + r"(?![\w-])", task.goal, re.I)]
+        machines = [m for m in self.ctx.equipment if re.search(r"(?<![\w-])" + re.escape(m) + r"(?![\w-])", task.goal, re.IGNORECASE)]
         if "run_sql" in self.toolbox.allowed and machines:                     # the facts a task asks about a machine are looked up by code first
             counts = []                                                       # (dataset, count) pairs the prefetch found, for a total by code
             for pat, templates in PREFETCH:

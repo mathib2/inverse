@@ -50,6 +50,7 @@ def test_euler_may_not_state_a_new_number_in_prose(tmp_path):
 
 def test_the_calculator_counts_the_days_between_two_dates_and_takes_text_nowhere_else():
     import pytest
+
     from inverse_core.team.reasoning import ReasoningExpert, safe_eval
     assert safe_eval("days_between('2026-09-02', '2026-10-05')") == 33.0 == safe_eval("days_between('2026-10-05', '2026-09-02')")
     assert safe_eval("days_between('2026-10-05T10:00:00Z', '2026-09-02') + 1") == 34.0

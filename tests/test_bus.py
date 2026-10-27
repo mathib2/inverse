@@ -7,7 +7,8 @@ from inverse_core.ledger import InMemoryLedger
 from inverse_core.team import tools as T
 from inverse_core.team.bus import Bus
 from inverse_core.team.expert import ExpertBudget, Task
-from inverse_core.team.lanes import DEFAULTS as NEMOTRON_LANES, Lanes
+from inverse_core.team.lanes import DEFAULTS as NEMOTRON_LANES
+from inverse_core.team.lanes import Lanes
 from inverse_core.team.lead import Lead
 from inverse_core.team.llmcall import Ctx
 from inverse_core.team.memory import TeamMemory
