@@ -83,3 +83,24 @@ def test_a_lesson_reaches_an_expert_only_for_a_task_like_the_one_it_came_from():
     assert m.lessons("reasoning", goal="What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps.") == []
     assert m.lessons("reasoning", goal="Using the accepted results from the earlier tasks, answer this in plain words: what does P-104 weigh in newtons?")[0].startswith("Using the accepted")
     assert m.lessons("reasoning", goal="Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.")[0].startswith("Summarize")
+
+
+def test_a_summary_is_read_out_of_the_memory_and_never_written_back_into_it(tmp_path):
+    """Round 27's summary nested a digest inside a digest: the previous summary had been stored as a finding and read back."""
+    from fakes import crew
+    ctx, lead = crew(tmp_path, lambda m, msgs: json.dumps({"verdict": "accept", "reason": "fine"}))             # only Vera's lane is asked
+    lead.memory.add_finding("research: P-104 weighs 1.0 kg", [], expert="research", not_checked=["the current dataset was not queried"])
+    lead.memory.refute("reasoning: Weight is 122.6 N", "wrong g", expert="reasoning")
+    t = Task("T1", "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.", "solver")
+    lead._execute(t)
+    assert t.status == "done" and t.result["answer"] == ("What the crew found:\n- Scout found that P-104 weighs 1.0 kg.\n\n"
+                                                          "What was ruled out:\n- Euler said weight is 122.6 N; it was refuted: wrong g.\n\n"
+                                                          "Still unchecked: the current dataset was not queried.")
+    assert [h["form"] for h in lead.memory.findings()] == ["research: P-104 weighs 1.0 kg"] and not events(ctx, "memory_write")   # the summary is not a finding
+    assert lead.memory.refutations() == [{"form": "reasoning: Weight is 122.6 N", "reason": "wrong g", "expert": "reasoning"}]
+    assert lead.memory.unchecked() == ["the current dataset was not queried"]
+    full = t.result["evidence"][0]["result"]                                                                           # the evidence holds the fuller read the summary was made from
+    assert full["findings"] == ["research: P-104 weighs 1.0 kg"] and full["refutations"][0]["reason"] == "wrong g" and full["not_checked"] == ["the current dataset was not queried"]
+    t2 = Task("T2", "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.", "solver")
+    lead._execute(t2)
+    assert t2.result["answer"] == t.result["answer"]                                                                   # a second summary reads the same memory, not the first summary

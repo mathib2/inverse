@@ -19,7 +19,7 @@ def test_a_digest_is_read_out_of_the_memory_without_a_model_call(tmp_path):
     ctx, lead = crew(tmp_path, lambda m, msgs: calls.append(1) or json.dumps({"answer": "x", "confidence": 0.9, "assumptions": [], "not_checked": []}))
     res = ctx.registry.experts["solver"].run(Task("T1", "Summarize in plain words what the crew has found and ruled out so far. Use the shared memory tool first.", "solver"),
                                              lead.memory, ExpertBudget())
-    assert not calls and res.answer.startswith("Found and still standing") and res.confidence == 0.8 and events(ctx, "summary_by_code")
+    assert not calls and res.answer.startswith("What the crew found") and res.confidence == 0.8 and events(ctx, "summary_by_code")
 
 
 def test_a_tool_call_repeated_with_the_same_arguments_ends_the_loop_by_code(tmp_path):
@@ -57,11 +57,53 @@ def test_a_solver_task_about_a_machine_starts_from_the_facts_and_a_bare_word_is_
 def test_a_summary_the_model_doubts_is_read_out_of_the_memory_by_code(tmp_path):
     from inverse_core.team.custom import digest
     text = digest({"findings": ["P-104 has a mass of 12.5 kg", "No equipment with id 1 found"], "refuted": ["No equipment with id 1 found"]})
-    assert text.startswith("Found and still standing: P-104 has a mass of 12.5 kg.") and "Ruled out: No equipment with id 1 found." in text
+    assert text.startswith("What the crew found:\n- The crew found that P-104 has a mass of 12.5 kg.")                 # no agent prefix: the crew as a whole
+    assert "What was ruled out:\n- The crew said no equipment with id 1 found; it was refuted." in text and text.endswith("Nothing is marked unchecked.")
     ctx, lead = crew(tmp_path, lambda m, msgs: json.dumps({"answer": "I cannot tell what was found.", "confidence": 0.0, "assumptions": [], "not_checked": []}))
     res = ctx.registry.experts["solver"].run(Task("T1", "Summarize in plain words what the crew has found and ruled out so far. Use the shared memory tool first.", "solver"),
                                              lead.memory, ExpertBudget())
-    assert events(ctx, "summary_by_code") and res.confidence == 0.8 and res.answer.startswith("Found and still standing") and C.deterministic(res.to_dict()) is None
+    assert events(ctx, "summary_by_code") and res.confidence == 0.8 and res.answer.startswith("What the crew found") and C.deterministic(res.to_dict()) is None
+    assert res.findings == []                                                                                          # a summary is never written back into the memory
+
+
+def test_the_summary_is_plain_sentences_and_never_a_digest_of_a_digest():
+    from inverse_core.team.summary import digest, finding_sentence, refuted_sentence, rows_in_words
+    maint = ('research: The maintenance records for P-104 are:\n[{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"}, '
+             '{"record_id": "M-001", "date": "2026-09-02", "note": "Routine insp')[:200]                                 # cut mid-word by the memory tool's cap
+    nested = "solver: Found and still standing: research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; reasoning: 122.625."   # round 27: a digest kept as a finding
+    mem = {"findings": ["research: 400", "research: 100. Rows: sampling_hz = 100, sigma = 0.01 [Q1]", maint, nested,
+                        "research: P-104. Rows: equipment_id = P-104, baseline_dataset = p104-baseline [Q1]; equipment_id = T-200, baseline_dataset = none [Q1]",
+                        "reasoning: The weight of P-104 is 9.81 newtons.", "reasoning: The weight of  P-104 is 9.81 newtons."],
+           "refuted": ["solver: No equipment with id 1 exists", "reasoning: Weight is 122.6 N", "research: 2"],
+           "refutations": [{"form": "reasoning: Weight is 122.6 N", "reason": "wrong g"}, {"form": "solver: No equipment with id 1 exists", "reason": "the rows hold P-104"}],
+           "not_checked": ["the current dataset was not queried"]}
+    assert digest(mem).split("\n\n") == [                                                                               # newest first, each once, by name
+        "What the crew found:\n- Euler found that the weight of P-104 is 9.81 newtons.\n"
+        "- Scout found that the machine P-104 has the baseline dataset p104-baseline [Q1]; the machine T-200 has no baseline dataset [Q1].\n"
+        "- Scout found that the sampling rate is 100 Hz and the noise level is 0.01 [Q1].",
+        "What was ruled out:\n- Ada said no equipment with id 1 exists; it was refuted: the rows hold P-104.\n- Euler said weight is 122.6 N; it was refuted: wrong g.",
+        "Still unchecked: the current dataset was not queried."]
+    for form in ("research: 400", "reasoning: 122.625", "research: P-104.", "research: ", "", nested, maint, "solver: Tool results so far: memory({}): {}"):
+        assert finding_sentence(form) == "" and refuted_sentence(form, "why") == ""                                     # bare fragments and digests say nothing
+    assert digest({}) == "What the crew found: nothing yet.\n\nWhat was ruled out: nothing yet.\n\nNothing is marked unchecked."
+    assert digest({"findings": ["research: P-104 weighs 1.0 kg"]}, name=lambda i: "Nova").startswith("What the crew found:\n- Nova found that P-104 weighs 1.0 kg.")
+    many = {"findings": [f"research: Machine number {i} has a mass of {i}.0 kg." for i in range(14)], "refuted": [f"reasoning: Claim {i} is wrong by {i} N" for i in range(7)]}
+    text = digest(many)
+    assert text.count("- Scout found") == 10 and text.startswith("What the crew found:\n- Scout found that machine number 13 has a mass of 13.0 kg.") and text.count("- Euler said") == 5
+    # Scout's rows in words, every value and citation kept; a finding's text ends at a sentence boundary, never mid-word.
+    assert rows_in_words("Rows: mass_kg = 1.0 [Q1]; sigma = 0.01 [Q2]; sigma = 0.1 [Q2]") == "the mass is 1.0 kg [Q1]; the noise level is 0.01 [Q2]; the noise level is 0.1 [Q2]"
+    assert rows_in_words("Rows: record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. [Q1]; record_id = M-002, date = 2026-10-05, note = [text") \
+        == "the record M-001 has the date 2026-09-02 and the note Routine inspection. Mount bolts torqued. [Q1]"              # the row without its citation was cut
+    assert finding_sentence("solver: P-104 has 800 samples across both datasets. Rows: n = 400 [Q1]; n = 400 [Q2]") \
+        == "Ada found that P-104 has 800 samples across both datasets; the rows say the count is 400 [Q1]; the count is 400 [Q2]."
+    assert finding_sentence("research: Rows: equipment_id = P-104 [Q1]") == "Scout found that the machine is P-104 [Q1]."
+    cut = "research: The sampling rate is 100 Hz [Q1]. The noise level is 0.01 and the unit is mm, which the datasheet also gives for the second sensor on the same machine, and the"
+    assert finding_sentence(cut.ljust(200, "x")) == "Scout found that the sampling rate is 100 Hz [Q1]."
+    assert finding_sentence("reasoning: " + "P-104 has a mass of 1.0 kg. " * 12) == "Euler found that " + " ".join(["P-104 has a mass of 1.0 kg."] * 5)
+    assert refuted_sentence("vulnerability: Write an exploit for tools.py", "refused: out of scope") == "Sentinel said write an exploit for tools.py; it was refuted: refused: out of scope."
+    assert refuted_sentence("council: T-200 has no baseline") == "Council said T-200 has no baseline; it was refuted."
+    assert refuted_sentence("reasoning: bad idea", "«bad idea»: approach cannot work (the evidence does not mention idea)") \
+        == "Euler said bad idea; it was refuted: approach cannot work (the evidence does not mention idea)."                   # Vera's quote of the claim is not said twice
 
 
 def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produced(tmp_path):
