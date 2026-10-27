@@ -99,6 +99,22 @@ Shared findings, refuted claims and reviewer lessons live in Meterless H-MEM acr
 | **NVIDIA Nemotron** | The eight agents' model calls run on Nemotron-Mini-4B-Instruct: on the laptop's GPU through Nightshift's lane `local-runtime/nemotron-mini-4b-instruct-q4-k-m`, or, when Nightshift cannot answer, as `nemotron-mini` in the workstation's Ollama. On Nightshift the lanes ask for larger hosted Nemotron routes unless `LANE_FAST`, `LANE_DEEP` and `LANE_CRITIC` name the laptop's route, as the workstation's `.env` does (`team/lanes.py`, `docs/operations/NIGHTSHIFT_TUNNEL.md`); a lane can be pointed at another local model (`LANE_CRITIC`). Tinker's engineer step runs `qwen2.5-coder:7b` instead (`TINKER_ENGINEER_MODEL`). The served model and the provider of every call are in the trace. |
 | **Cursor** | Not used: optional under the official rules (05). Written with Claude Code (`docs/hackathon/SPONSORS.md`). |
 
+## Pre-existing components
+
+Nothing in this repository predates the hackathon window (22 Oct 2026, 00:00 UTC): its first commit is dated 23 Oct 2026, and
+everything in it was written during the hackathon by the team. The crew uses these third-party pieces, which we did not write:
+
+- **Zetaris data platform**: the organizers' starter (`zetaris-platform`), run unmodified in Docker.
+- **Meterless open core** (Apache-2.0): the H-MEM, World Model and Markovian reference engines, copied in by `npm run setup`; the
+  **Meterless Nightshift** Runtime runs as a separate app on a Windows laptop.
+- **NVIDIA Nemotron-Mini-4B-Instruct**, the model, served by Nightshift and, as the fallback, by Ollama.
+- The organizers' `smoke_test.py`, kept as provided.
+- Open-source libraries in `requirements.txt` (among them numpy, pandas, streamlit, requests, and pint for unit-checked
+  calculations), SQLite FTS5 for the engineering knowledge library, and Ollama, tsx, cloudflared and Tailscale as tools.
+- One line of code was written by Tinker, the crew's own improvement loop, after its council approved it.
+
+Details: `docs/hackathon/PREEXISTING.md`.
+
 ## Setup
 
 You need Linux (with tmux for the scripts that run all the time), Python 3.14 (requirements.txt pins versions tested on 3.14.4), Node.js with `npm`/`npx`, a checkout of the Meterless open core (https://github.com/Meterless/Meterless) for `npm run setup`, Docker running the organizers' Zetaris starter (`zetaris-platform`, from the event's resources at https://hackathon.genai.works/event/open-agent-hackathon-2026; it serves `ZETARIS_REST_URL` and issues the `ZETARIS_API_KEY` that goes into `.env`) and the obs-service, and a model server: Ollama with `nemotron-mini` (`docs/operations/LOCAL_MODELS.md`) or, for the primary provider, Meterless Nightshift on a Windows laptop (`docs/operations/NIGHTSHIFT_TUNNEL.md`).
