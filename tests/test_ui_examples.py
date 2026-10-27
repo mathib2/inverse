@@ -7,6 +7,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _page():
+    import os                                                                 # AppTest runs only this body: everything it uses is imported here
     import sys
 
     import streamlit as st
