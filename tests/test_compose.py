@@ -2,9 +2,9 @@
 the research expert's code-made rows as plain words, every number, id and citation kept. No model unless a test scripts one."""
 import re
 
-from inverse_core.team.custom import digest
 from inverse_core.team.expert import Task
 from inverse_core.team.plan import Plan
+from inverse_core.team.summary import digest
 from inverse_core.team.words import answer_in_words, keeps_values, results_in_words, row_in_words
 
 from fakes import crew, events
@@ -146,33 +146,34 @@ def test_a_row_is_one_sentence_in_the_schemas_words():
 
 
 def test_a_memory_digest_is_a_list_of_findings_in_words(tmp_path):
-    """The summary case's answer (round 27) is the digest custom.py makes out of the memory: 'expert: claim' parts joined by '; ',
-    the claims in the raw 'Rows: k = v' form. The final answer says each finding on its own line in words, its expert named
-    at the end, what was ruled out the same way; every value and citation kept. The digest itself, which the reviewer saw,
-    is not changed: this happens at compose time."""
+    """The summary case's answer is the summary Ada reads out of the memory by code (team/summary.py): one plain sentence per
+    finding under "What the crew found", newest first, each once, the earlier digest among round 27's findings never said again;
+    what was ruled out the same way. It is already in words, so the final answer keeps it as it is, with its citations added
+    by code: every value and citation the reviewer saw is in the answer."""
     text = digest(MEMORY)
-    assert text.startswith("Found and still standing: reasoning: The weight of P-104 is 9.81 newtons.; research: 0.01. Rows: sigma = 0.01") and "Found and still standing" not in text[30:]
+    assert text == ("What the crew found:\n"
+                    "- Scout found that the maintenance records for P-104 are: the record M-002 has the date 2026-10-05 and the note [text withheld: matched injection pattern]; "
+                    "the record M-001 has the date 2026-09-02 (cut off).\n"                                                       # cut by the memory tool: its whole records, the cut marked
+                    "- Scout found that the sampling rate is 100 Hz and the noise level is 0.01 [Q1].\n"
+                    "- Scout answered 400.\n"
+                    "- Scout found that the machine P-104 has the baseline dataset p104-baseline [Q1]; the machine T-200 has no baseline dataset [Q1].\n"
+                    "- Euler answered 122.625.\n"
+                    "- Scout answered 2.\n"
+                    "- Euler found that the weight of P-104 is 9.81 newtons.\n\n"                                                 # the earlier digest is not a finding: its parts are, each said once
+                    "What was ruled out: nothing yet.\n\n"
+                    "Nothing is marked unchecked.")
     words = answer_in_words(text)
-    assert words == ("Found and still standing:\n"
-                     "- The weight of P-104 is 9.81 newtons (reasoning).\n"
-                     "- The noise level is 0.01 and the sampling rate is 100 Hz [Q1] (research).\n"                            # the earlier digest's shorter cut of the records is not a finding of its own
-                     "- 2 (research).\n"
-                     "- 122.625 (reasoning).\n"
-                     "- For P-104, the baseline dataset is p104-baseline [Q1]. For T-200, the baseline dataset is none [Q1] (research).\n"
-                     "- 400 (research).\n"
-                     "- The sampling rate is 100 Hz and the noise level is 0.01 [Q1] (research).\n"
-                     '- The maintenance records for P-104 are: [{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"}, '
-                     '{"record_id": "M-001", "date": "2026-09-02", "note (research).\n\n'                                          # cut by the memory tool: said as it came, on one line, once
-                     "Ruled out: nothing yet.\n\n"
-                     "Still unchecked: nothing else is recorded in the shared memory.")
-    assert keeps_values(text, words) and sorted(re.findall(r"\[Q\d+\]", text)) == sorted(re.findall(r"\[Q\d+\]", words))
-    for tok in ("9.81", "0.01", "100", "2026-10-05", "2", "122.625", "P-104", "p104-baseline", "T-200", "none", "400", "M-001", "2026-09-02"):
+    assert words == text and keeps_values(text, words) and "Found and still standing" not in words
+    for tok in ("9.81", "0.01", "100", "2026-10-05", "2", "122.625", "P-104", "p104-baseline", "T-200", "400", "M-001", "2026-09-02"):
         assert tok in words, tok
     ruled = digest({"findings": ["research: " + SENSOR], "refuted": ["reasoning: The weight of P-104 is 10.0 newtons.", "research: 2"]})
-    assert answer_in_words(ruled) == ("Found and still standing:\n- The sampling rate is 100 Hz and the noise level is 0.01 [Q1] (research).\n\n"
-                                      "Ruled out:\n- The weight of P-104 is 10.0 newtons (reasoning).\n- 2 (research).\n\n"
-                                      "Still unchecked: nothing else is recorded in the shared memory.")
-    assert answer_in_words(digest({})) == "Found and still standing: nothing yet.\n\nRuled out: nothing yet.\n\nStill unchecked: nothing else is recorded in the shared memory."
+    assert answer_in_words(ruled) == ruled == ("What the crew found:\n- Scout found that the sampling rate is 100 Hz and the noise level is 0.01 [Q1].\n\n"
+                                               "What was ruled out:\n- Euler said the weight of P-104 is 10.0 newtons; it was refuted.\n- Scout said 2; it was refuted.\n\n"
+                                               "Nothing is marked unchecked.")
+    assert answer_in_words(digest({})) == "What the crew found: nothing yet.\n\nWhat was ruled out: nothing yet.\n\nNothing is marked unchecked."
+    old = "Found and still standing: research: 400; reasoning: 122.625. Ruled out: nothing yet. Still unchecked: nothing else is recorded in the shared memory."
+    assert answer_in_words(old) == ("Found and still standing:\n- 400 (research).\n- 122.625 (reasoning).\n\nRuled out: nothing yet.\n\n"
+                                    "Still unchecked: nothing else is recorded in the shared memory.")                             # the shape before summary.py, as a saved mission may hold it
     ctx, lead = no_writer(tmp_path)                                                                                             # the summary mission: one solver task, composed by code
     out = lead.compose(Plan("Summarize what the crew has found and ruled out so far.", [mk(1, "solver", text)]))
     assert out["answer"] == words + " [T1.E1]" and set(out["citations"]) == {"T1.E1"} and events(ctx, "compose")[0]["by_code"] is True

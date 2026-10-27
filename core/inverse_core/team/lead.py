@@ -530,9 +530,9 @@ class Lead:
                 task.status, task.feedback = "done", ""
                 self.bus.post(task.expert, "all", res.answer, type="result", task=task.id, confidence=res.confidence)
                 self._file(res, task)
-                for f in res.findings:                                        # shared memory only holds what survived review
+                for f in res.findings:                                        # shared memory only holds what survived review, with what its author left unchecked
                     self._mem("add_finding", f"{task.expert}: {str(f.get('claim', ''))[:200]}", f.get("evidence") or [], source=f.get("source", "fitter"),
-                              confidence=f.get("confidence", 0.7), expert=task.expert)
+                              confidence=f.get("confidence", 0.7), expert=task.expert, not_checked=task.result.get("not_checked") or [])
                 if res.findings:
                     self.ctx.trace.event("memory_write", task=task.id, findings=len(res.findings))
                 return
