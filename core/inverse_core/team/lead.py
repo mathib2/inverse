@@ -22,6 +22,7 @@ from .plan import PLACEHOLDER, Plan, PlanError
 from .verify import claim_numbers, unverified_numbers
 from .registry import ConfigError
 from .tools import CODE_TOOLS, Tools
+from .words import results_in_words
 
 
 PLAN_SYSTEM = """You are the lead of a team of experts. Decompose the user's goal into at most 5 tasks and assign each to ONE expert.
@@ -580,37 +581,32 @@ class Lead:
                     "evidence": {f"{t.id}.E{i}": str(e.get("detail") or "")[:160] for i, e in enumerate(t.result["evidence"], 1)}} for t in ok]
         problems = [{"task": t.id, "expert": t.expert, "status": t.status, "why": t.feedback} for t in plan.tasks if t.status != "done"]
         self.ctx.trace.event("composing", accepted=len(ok), unfinished=len(problems))
-
-        def by_code():                                                        # every accepted result, each with its citations: no model involved
-            return "\n\n".join(f"**{t.id} ({t.expert})**: {t.result['answer']} " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1)) for t in ok) \
-                or "No task produced an accepted result."
+        by_code = True                                                        # the accepted results in plain paragraphs, each with its citations: no model involved (words.py)
         if not ok:                                                            # nothing survived review: the answer is written by code, never by a model
-            text, model, fallback = "No task produced an accepted result.", None, True
+            text, model, fallback = results_in_words(ok), None, True
         elif len(ok) == 1 or (len(ok) == 2 and sum(len(str(t.result["answer"])) for t in ok) < 900):   # short results ARE the answer: cited by code, no writer call
-            cite = lambda t: " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1))
-            text = f"{ok[0].result['answer']} {cite(ok[0])}" if len(ok) == 1 else "\n\n".join(f"**{t.id} ({t.expert})**: {t.result['answer']} {cite(t)}" for t in ok)
-            model, fallback = None, False
+            text, model, fallback = results_in_words(ok), None, False
         else:
           try:
             out = ask(self.ctx, self.compose_lane, [{"role": "system", "content": COMPOSE_SYSTEM},
                       {"role": "user", "content": json.dumps({"goal": plan.goal, "results": payload, "unfinished": problems}, default=str)}], "lead_compose", max_tokens=COMPOSE_MAX_TOKENS)
-            text, model, fallback = out["text"].strip(), out["model"], False
+            text, model, fallback, by_code = out["text"].strip(), out["model"], False, False
             facts = [e for t in ok for e in t.result["evidence"]] + [{"detail": str(t.result["answer"])} for t in ok] + [{"detail": plan.goal}]
             invented = unverified_numbers(text, facts)
             if invented:                                                      # the writer added a number no accepted result holds (it once wrote "32 days" for a task that had failed)
                 self.ctx.trace.event("compose_numbers_refused", numbers=invented[:8], model=model)
-                text = by_code() + (f"\n\n*(The writer added {'a number' if len(invented) == 1 else 'numbers'} no accepted result holds "
-                                    f"({', '.join(invented[:4])}); this answer was assembled by code from the accepted results.)*")
-                fallback = True
+                text = results_in_words(ok) + (f"\n\n*(The writer added {'a number' if len(invented) == 1 else 'numbers'} no accepted result holds "
+                                               f"({', '.join(invented[:4])}); this answer was assembled by code from the accepted results.)*")
+                fallback, by_code = True, True
           except Exception as e:                                              # the writer is down: assemble the answer by code, nothing is lost
-            text = by_code() + f"\n\n*(The writer model was unavailable, {type(e).__name__}; this summary was assembled by code from the accepted results.)*"
-            model, fallback = None, True
+            text = results_in_words(ok) + f"\n\n*(The writer model was unavailable, {type(e).__name__}; this summary was assembled by code from the accepted results.)*"
+            model, fallback, by_code = None, True, True
         cited = set(re.findall(r"\[(T\d+\.E\d+)\]", text))
         if ok and not (cited & set(index)):                                   # the writer cited nothing: the sources are listed by code, so every answer can be checked
             text += "\n\nSources: " + "; ".join(f"{t.id} ({t.expert}) " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1)) for t in ok)
             cited = set(re.findall(r"\[(T\d+\.E\d+)\]", text))
         bad = sorted(cited - set(index))
-        self.ctx.trace.event("compose", cited=len(cited), unknown_citations=bad, unfinished=len(problems), model=model, fallback=fallback)
+        self.ctx.trace.event("compose", cited=len(cited), unknown_citations=bad, unfinished=len(problems), model=model, fallback=fallback, by_code=by_code)
         answer = text
         if problems:                                                          # written by code, verbatim: the model never paraphrases a failure
             answer += "\n\n**Not completed**\n" + "\n".join(f"- {p['task']} ({p['expert']}) {p['status']}: {p['why']}" for p in problems)
