@@ -156,23 +156,13 @@ def test_the_planner_and_vera_default_to_the_largest_nemotron_and_an_old_env_pla
     assert Lanes(factory=lambda m: m).mapping["plan"] == "nvidia/nemotron-3-ultra-550b-a55b"
 
 
-class _Reply:
-    def __init__(self, status, model="m"):
-        self.status_code, self.text, self.model = status, "{}", model
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            raise M.requests.HTTPError(str(self.status_code))
-
-    def json(self):
-        return {"model": self.model, "choices": [{"message": {"content": "ok from " + self.model}, "finish_reason": "stop"}], "usage": {}}
-
-
 def test_a_lane_with_its_own_endpoint_falls_back_to_the_crews_provider_without_marking_it_down(monkeypatch):
     monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
     monkeypatch.setenv("MODEL_BASE_URL", "http://laptop/v1")
     monkeypatch.setenv("NEMOTRON_MODEL", "local-runtime/nemotron-mini")
     monkeypatch.setenv("LANE_PLAN", "nvidia/nemotron-3-ultra-550b-a55b")
+    for n in ("FAST", "DEEP", "CRITIC"):
+        monkeypatch.delenv(f"LANE_{n}_URL", raising=False)
     monkeypatch.setenv("LANE_PLAN_URL", "http://hosted/v1")
     monkeypatch.setenv("LANE_PLAN_KEY", "k")
     monkeypatch.setattr(M, "_endpoint_down", {})
@@ -183,7 +173,7 @@ def test_a_lane_with_its_own_endpoint_falls_back_to_the_crews_provider_without_m
         calls.append((url.split("/")[2], json["model"]))
         if url.startswith("http://hosted") and not hosted_up[0]:
             raise M.requests.ConnectionError("tunnel down")
-        return _Reply(200, json["model"])
+        return _ok(json["model"])
     monkeypatch.setattr(M.requests, "post", post)
     lanes = Lanes()
     assert set(lanes.endpoints) == {"plan"} and isinstance(lanes.client("plan"), M.LaneEndpoint) and not isinstance(lanes.client("fast"), M.LaneEndpoint)
