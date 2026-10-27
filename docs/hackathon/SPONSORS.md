@@ -1,6 +1,6 @@
 # Sponsor technology: where each one does real work
 
-The submission asks how Zetaris, Meterless, Cursor and NVIDIA are used. Every row names the code and the evidence; nothing listed here is a mention without a code path and a test.
+The submission asks how Zetaris and Meterless were integrated, how Cursor was used (if it was), where NVIDIA technology contributes, and what was unique about our use of the sponsor technologies. Every row names the code and the evidence; nothing listed here is a mention without a code path and a test.
 
 ## Zetaris (data)
 
@@ -32,6 +32,32 @@ Details with file and symbol pointers: `docs/hackathon/ENGINE_EVIDENCE.md`. The 
 
 **Evidence:** every trace records the served model per call (`llm` events, `models_used`). The benchmark runs the same Nemotron-Mini-4B both ways: 8/8 in 222 s on the workstation's CPU (round 17), 8/8 in 40 s through Nightshift on the laptop's GPU (round 19), and 8/8 in 32 s in rounds 23 and 24 (`docs/BENCH.md`). Nightshift's router may serve a different Nemotron model than the lane asked for; the trace tells the truth.
 
+## What was unique about our use of the sponsor technologies
+
+- **Zetaris drives the autonomy, not just the answers.** It is the crew's only data path, and Warden's trigger for a new mission is a
+  Zetaris query per machine (`team/watch.py: Watcher.fingerprint`): when a machine's data changes, a mission starts with nobody at
+  the keyboard. Every query passes a read-only guard, and every text cell passes an injection guard before a model sees it; a note
+  planted in the maintenance table as an instruction to the AI is withheld in a real mission
+  (`docs/evidence/missions/20261026-195911`).
+- **Meterless H-MEM as a memory with a trust order.** A deterministic check outranks a tool result, which outranks a model's claim, so
+  a refuted claim cannot be written back by a later model answer; reviewer lessons reach an agent only for a task like the one they
+  came from (`team/memory.py`). Stopping the sidecar visibly breaks recall, and a test proves it.
+- **Meterless World Model as the record of the crew's own governance.** Every change an agent proposes to its own crew is a hypothesis
+  in the World Model, every council vote a result linked to it, and every adopted change is applied by code and can be undone
+  (`team/council.py`).
+- **Meterless Markovian for bounded code reviews.** Sentinel reviews long code one chunk per file with a compressed carryover instead
+  of a growing context, so a 4B model with a 4,096-token window can review a whole package (`team/vulnerability.py: _review_chunked`).
+- **Meterless Nightshift as a provider with a per-call fallback and per-lane endpoints.** Each call goes to Nightshift first and to the
+  workstation's own Nemotron when it cannot answer; Atlas's planning and Vera's review can run on a hosted Nemotron-3-Ultra-550B
+  while the workers stay on the laptop's Nemotron-Mini-4B (`clients/meterless.py: LaneEndpoint`). Every trace names the model and
+  provider of every call.
+- **NVIDIA Nemotron-Mini-4B made reliable by code around it.** A 4B model gets the numbers wrong, so the crew does not trust its
+  arithmetic: the calculator's value replaces the model's in every answer, a number counts only as a tool's value at the precision it
+  is written with, and code accepts a result only when the tool output proves it. On eight checkable goals it scores 8/8 in 30 s
+  (`docs/BENCH.md`, rounds 26 and 27).
+
 ## Cursor (build)
 
-The repository was written with Claude Code on the team's Ubuntu workstation and a Windows laptop; Cursor was installed on the laptop. The team was told the Cursor requirement had been waived for this hackathon and has not yet found the announcement. If the rule stands as written, this is a gap the team declares rather than hides. Nothing in the repository blocks opening or editing it in Cursor.
+Not used. The official rules (05) make Cursor optional: "Using Cursor for development is optional." The repository was written with
+Claude Code on the team's Ubuntu workstation and a Windows laptop. Nothing in the repository depends on an editor; it opens in
+Cursor like any other folder.

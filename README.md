@@ -5,10 +5,12 @@
 **Eight agents on local models, with no cloud model: NVIDIA Nemotron-Mini-4B, served by Meterless Nightshift on a laptop's GPU, with the workstation's own Ollama as the fallback. A ninth, Tinker, works on their code around the clock. Give them a goal, or let them find their own: they plan, do the work, check each other, talk to each other, and answer with evidence, or say plainly what they could not check.**
 Open Agent Hackathon 2026 · Track 03 (Reasoning Architecture) · Zetaris + Meterless + NVIDIA Nemotron
 
-<!-- Screenshots go here (docs/archive/IMPROVEMENT_PLAN.md item 9): the front page during a mission with the Live panel open, and the Council panel.
-![The front page during a mission](docs/img/chat.png)
-![The Council panel: open proposals, the form, decisions](docs/img/council.png)
--->
+| | |
+|---|---|
+| ![An answer with its Evidence panel: each query and calculation behind the numbers, and the planted maintenance note withheld](docs/images/evidence.jpg) | ![Who did what: each agent's task, its status and attempts, and the model that served it](docs/images/who-did-what.jpg) |
+| An answer and its evidence: Warden's maintenance review of P-104 on Nightshift (16 s, 13 model calls) | Who did what, and the model that served it |
+| ![Warden's panel: awake, its standing missions, and the missions it started on its own](docs/images/warden.jpg) | ![The council: open proposals and the decisions taken lately, each with its effect](docs/images/council.jpg) |
+| Warden, working with nobody at the keyboard | The council: the crew's proposals about itself, and what was decided |
 
 ```text
  a person, or Warden on its own ─goal─▶ Atlas plans at most five tasks, one agent each, with dependencies
@@ -95,7 +97,7 @@ Shared findings, refuted claims and reviewer lessons live in Meterless H-MEM acr
 | **Zetaris** | The only data path: Scout and Ada query the equipment registry, sensor specifications, maintenance history and samples through `run_sql` and the SQL guard (`team/sql_guard.py: check_sql`); maintenance notes pass the injection guard before any model sees them; Warden's "new data" is a Zetaris query. Setup: `scripts/admin/setup_zetaris.py`, `data/zetaris/`. |
 | **Meterless** | Nightshift: the primary provider (`MODEL_PROVIDER=nightshift`, the code's default); the eight agents' model calls go to it first, and the workstation's Ollama answers only when it cannot (`clients/meterless.py`). H-MEM: shared memory with a trust order and reviewer lessons (`services/meterless-sidecar/server.ts`, `ledger.py`, `team/memory.py`). World Model: shared entities through the sidecar (`clients/world.py`); see `docs/hackathon/SPONSORS.md` for its current use. Markovian: when its service is up and Sentinel's scan hits two or more files, the review runs as one bounded chunk per file (at most six) with a compressed carryover (`services/meterless-sidecar/markovian/`, `clients/markovian.py`, `team/vulnerability.py`). |
 | **NVIDIA Nemotron** | The eight agents' model calls run on Nemotron-Mini-4B-Instruct: on the laptop's GPU through Nightshift's lane `local-runtime/nemotron-mini-4b-instruct-q4-k-m`, or, when Nightshift cannot answer, as `nemotron-mini` in the workstation's Ollama. On Nightshift the lanes ask for larger hosted Nemotron routes unless `LANE_FAST`, `LANE_DEEP` and `LANE_CRITIC` name the laptop's route, as the workstation's `.env` does (`team/lanes.py`, `docs/operations/NIGHTSHIFT_TUNNEL.md`); a lane can be pointed at another local model (`LANE_CRITIC`). Tinker's engineer step runs `qwen2.5-coder:7b` instead (`TINKER_ENGINEER_MODEL`). The served model and the provider of every call are in the trace. |
-| **Cursor** | Written with Claude Code; Cursor is installed on the team's laptop. Declared honestly in `docs/hackathon/SPONSORS.md`. |
+| **Cursor** | Not used: optional under the official rules (05). Written with Claude Code (`docs/hackathon/SPONSORS.md`). |
 
 ## Setup
 
