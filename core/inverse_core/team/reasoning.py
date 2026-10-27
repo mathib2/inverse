@@ -114,7 +114,8 @@ class ReasoningExpert(BaseExpert):
                 val = safe_eval(str(calc))
                 exp = s.get("expect")
                 ok = exp is None or abs(val - float(exp)) <= 1e-6 + 0.005 * abs(float(exp))
-                ev.append({"type": "calc", "source": f"step {i}: {calc}", "detail": f"= {val:.6g}" + ("" if exp is None else f" (expected {exp}) " + ("OK" if ok else "MISMATCH"))})
+                ev.append({"type": "calc", "source": f"step {i}: {calc}", "detail": f"= {val:.6g}" + ("" if exp is None else (" (as the step expected) OK" if ok else
+                           " (MISMATCH: the step expected another value)"))})   # never the model's own figure: it would count as evidence for itself
                 if not ok:
                     bad.append(f"step {i}: {calc} = {val:.6g}, you wrote {exp}")
             except (ValueError, ZeroDivisionError, SyntaxError, OverflowError, TypeError) as e:
@@ -173,7 +174,7 @@ class ReasoningExpert(BaseExpert):
             answer = str(j.get("answer") or "").strip()
         values = [float(e["detail"][2:].split()[0]) for e in ev if e.get("type") == "calc" and str(e.get("detail", "")).startswith("= ")
                   and re.fullmatch(r"-?[\d.]+(?:e[-+]?\d+)?", str(e["detail"][2:].split()[0]))]
-        answer, fixed = reconcile_numbers(answer, values, [ev, str(task.context or ""), task.goal])
+        answer, fixed = reconcile_numbers(answer, values, [values, str(task.context or ""), task.goal])
         if fixed:                                                            # the model wrote its own arithmetic beside the calculator's: the calculator's goes out
             self.ctx.trace.event("numbers_from_calculator", agent=self.name, task=task.id, fixed=fixed[:6])
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
