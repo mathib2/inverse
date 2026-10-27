@@ -3,6 +3,13 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## Exact numbers, every answer with its sources (2026-10-27, early morning)
+- A number counts only as a tool's value rounded to the precision it is written with (`verify.rounds_to`): 122.6, 122.63 and 123 are 122.625 rounded, 122.55 is not. Within 1 % had counted, so 122.55 N stood for 12.5 kg x 9.81 m/s^2 = 122.625 N: code overruled Vera's objection, and the benchmark graded it right. The benchmark grades the same way, and its arithmetic case expects 122.625.
+- The answer states the calculator's value, not the model's arithmetic: a number Euler or Ada writes within 1 % of a calculator result, that no evidence covers, is replaced by that result (`reconcile_numbers`, trace event `numbers_from_calculator`). Euler's evidence carries the calculator's value only; it had carried the figure the model expected, which then counted as evidence for itself.
+- When the writer of the final answer cites nothing, code lists the sources after it (`Sources: T1 (research) [T1.E1]; ...`), so every answer can be checked against its evidence.
+- Benchmark rounds 25 and 26 on Nightshift (`docs/BENCH.md`): 7/8 and 8/8, the arithmetic case right both times; rounds 23 and 24 re-graded with the exact grader are 7/8 each.
+- Tests: 206; CI runs 200 and skips the 6 that need live services.
+
 ## Whole lists, no made-up numbers, lessons that fit the task, a replay for the video (2026-10-26, night, and 2026-10-27, early morning)
 - Scout: a task that asks "which X are there, and which of them Y" gets the whole list (`whole_list`). On Nightshift the model had filtered the registry to the machines without a baseline and left P-104 out (benchmark round 18). PR #63.
 - `deploy-live`: a sidecar port with nothing listening is no longer an error. The empty pid lookup had ended the deploy before it started the sidecars and restarted Warden. PR #62.

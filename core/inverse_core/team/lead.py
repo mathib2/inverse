@@ -606,6 +606,9 @@ class Lead:
             text = by_code() + f"\n\n*(The writer model was unavailable, {type(e).__name__}; this summary was assembled by code from the accepted results.)*"
             model, fallback = None, True
         cited = set(re.findall(r"\[(T\d+\.E\d+)\]", text))
+        if ok and not (cited & set(index)):                                   # the writer cited nothing: the sources are listed by code, so every answer can be checked
+            text += "\n\nSources: " + "; ".join(f"{t.id} ({t.expert}) " + " ".join(f"[{t.id}.E{i}]" for i in range(1, len(t.result["evidence"]) + 1)) for t in ok)
+            cited = set(re.findall(r"\[(T\d+\.E\d+)\]", text))
         bad = sorted(cited - set(index))
         self.ctx.trace.event("compose", cited=len(cited), unknown_citations=bad, unfinished=len(problems), model=model, fallback=fallback)
         answer = text

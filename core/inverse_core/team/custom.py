@@ -10,7 +10,7 @@ from ..budget import BudgetExceeded
 from .expert import PROPOSE_TAIL, BaseExpert, ExpertResult, proposals_of, require_evidence
 from .llmcall import ask
 from .tools import Tools
-from .verify import claim_numbers, unverified_numbers
+from .verify import claim_numbers, reconcile_numbers, unverified_numbers
 
 
 def _num(x, default):
@@ -199,6 +199,10 @@ class CustomExpert(BaseExpert):
         else:
             j, models = self._loop(msgs, budget, evidence, seen, task.goal)
             answer = str(j.get("answer") or "")                               # null stays empty, and the Lead asks again
+        calcs = [(e.get("result") or {}).get("value") for e in evidence if isinstance(e.get("result"), dict) and "expr" in e["result"]]
+        answer, fixed = reconcile_numbers(answer, calcs, [{"results": [e.get("result") for e in evidence]}, task.goal])
+        if fixed:                                                             # the calculator's value goes out, not the model's arithmetic
+            self.ctx.trace.event("numbers_from_calculator", agent=self.name, task=task.id, fixed=fixed[:6])
         bad = unverified_numbers(answer, {"results": [e.get("result") for e in evidence]})
         not_checked = [str(n) for n in (j.get("not_checked") or [])] + ([f"numbers in the answer not found in any tool result: {bad}"] if bad else [])
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))

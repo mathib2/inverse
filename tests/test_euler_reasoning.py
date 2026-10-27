@@ -70,3 +70,12 @@ def test_euler_counts_the_days_between_two_dates_by_code(tmp_path):
     t.context += "; record_id = M-003, date = 2026-10-20"                                      # three dates: which two is the model's call
     euler.run(t, None, ExpertBudget())
     assert calls == [1]
+
+
+def test_euler_states_the_calculators_value_not_its_own_arithmetic(tmp_path):
+    from inverse_core.team.reasoning import ReasoningExpert
+    reply = {"steps": [{"claim": "weight = mass x g", "calc": "12.5 * 9.81", "expect": 122.55}], "answer": "The weight is 122.55 N.", "confidence": 0.9, "assumptions": []}
+    ctx = make_ctx(tmp_path, lambda m, msgs: json.dumps(reply))
+    euler = ReasoningExpert(ctx, "reasoning", "r", "p", "deep", ["calc"])
+    res = euler.run(Task("T1", "What is 12.5 kg times 9.81 m/s^2 in newtons?", "reasoning"), None, ExpertBudget())
+    assert res.answer == "The weight is 122.625 N." and events(ctx, "numbers_from_calculator")[0]["fixed"] == [("122.55", "122.625")]
