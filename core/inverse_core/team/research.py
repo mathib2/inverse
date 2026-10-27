@@ -327,7 +327,7 @@ def rows_in_words(rows, cite=""):
     return " ".join(row_sentences(rows, cite))
 
 
-_CITES = re.compile(r"^(?:\s*\[Q\d+\])+")
+_CITES = re.compile(r"^\.?(?:\s*\[Q\d+\])+")                                   # the citations after a pasted array, a full stop before them or not
 
 _SCALAR = (str, int, float, bool, type(None))
 

@@ -263,6 +263,7 @@ def test_a_json_array_of_records_pasted_into_the_answer_is_said_in_sentences(tmp
     assert reword_rows(pasted + " [Q1].", ran) == (said, 1)                                                          # the citation that followed the array is kept
     assert reword_rows(pasted, ran) == (said, 1)                                                                     # none followed: the query whose rows hold the records
     assert reword_rows(pasted, []) == (said.replace(" [Q1].", "."), 1)
+    assert reword_rows('Records: [{"record_id": "M-1", "date": "2026-09-02"}]. [Q1]', ran) == ("Records: M-1 is dated 2026-09-02 [Q1].", 1)   # a citation after the full stop is not left behind it
     for left in ('Nested [[1, 2], {"a": 1}] stays', 'Deep [{"a": {"b": 1}}] stays', 'Inside {"rows": [{"a": 1}]} stays', "Nothing here [Q1] [T1.E1] [text withheld: x]"):
         assert reword_rows(left, ran) == (left, 0)
     assert reword_rows('[{"sigma": 0.010, "sampling_hz": 1e2, "n": -5}]') == ("The noise level (sigma) is 0.010, the sampling rate is 1e2 Hz and the count is -5.", 1)   # numbers as written
