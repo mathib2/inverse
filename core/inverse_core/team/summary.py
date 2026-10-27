@@ -13,7 +13,7 @@ from .crew import name as crew_name
 
 FOUND, RULED_OUT, UNCHECKED, NOTHING_UNCHECKED = "What the crew found", "What was ruled out", "Still unchecked", "Nothing is marked unchecked."
 DIGEST_HEADS = ("Found and still standing", FOUND, RULED_OUT, UNCHECKED, NOTHING_UNCHECKED, "Tool results so far")   # code-made text about other findings: never a finding itself
-FINDING_CAP = 200                                                             # the memory tool's cap on a finding's text: a text that long was cut by it, not finished
+FINDING_CAP = 200                                                             # the memory tool's cap on a finding's form and the Lead's on a refuted answer: a text that long was cut, not finished
 MAX_FINDINGS, MAX_REFUTED, MAX_UNCHECKED = 10, 10, 5                      # findings and refuted claims: the memory tool's own caps, so none it holds is dropped
 CUT = "(cut off)"                                                             # said where a limit cut a text, so a half value is not read as a whole one
 
@@ -152,10 +152,10 @@ def _claim(form):
     form = str(form or "")
     m = _EXPERT.match(form.strip())
     ident, body = (m.group(1), m.group(2) or "") if m else ("", form)
+    cut = len(form) == FINDING_CAP or len(body) >= FINDING_CAP            # the tool's cap on a finding's form, the Lead's cap on a refuted answer
     body = fold(body)
     if not body or body.startswith(DIGEST_HEADS):
         return ident, "", False
-    cut = len(form) >= FINDING_CAP
     head, rows = (_ROWS.split(body, 1) + [""])[:2] if _ROWS.search(body) else (body, "")
     rows = rows_in_words(rows, cut)
     head, records, after = records_in_words(head) or (head, "", "")

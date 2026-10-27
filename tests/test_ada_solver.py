@@ -166,6 +166,25 @@ def test_the_summary_keeps_every_number_id_and_citation_a_finding_holds():
     assert refuted_sentence("reasoning: Weight is 122.6 N", "«Rows: sigma = 0.01»: the evidence shows 0.1") == "Euler said weight is 122.6 N; it was refuted: Rows: sigma = 0.01: the evidence shows 0.1."
 
 
+def test_a_refuted_claim_is_cut_only_where_the_leads_cap_cut_the_answer():
+    """The memory tool caps a finding's form at 200 characters; the Lead stores a refuted claim as "{expert}: {answer[:200]}" and the tool
+    hands it back uncapped, so a refuted form over 200 characters whose answer is under 200 was never cut, and is said whole."""
+    from inverse_core.team.summary import refuted_sentence
+    first = "The scan of tools.py found 1 pattern hit at line 458, where the memory hands back 10 refuted claims uncapped."
+    answer = first + " The second sentence holds words alone and ends whole here, with nothing after it"
+    assert len(answer) == 190 and len("vulnerability: " + answer) == 205
+    assert refuted_sentence("vulnerability: " + answer, "the rows hold P-104") == (
+        "Sentinel said the scan of tools.py found 1 pattern hit at line 458, where the memory hands back 10 refuted claims uncapped. "
+        "The second sentence holds words alone and ends whole here, with nothing after it; it was refuted: the rows hold P-104.")   # the second sentence is said; nothing is "(cut off)"
+    cut = (first + " The second sentence holds words alone and never ends, because the cap at two hundred characters cut it before its full stop.")[:200]
+    assert refuted_sentence("vulnerability: " + cut, "the scan is not evidence") \
+        == "Sentinel said the scan of tools.py found 1 pattern hit at line 458, where the memory hands back 10 refuted claims uncapped; it was refuted: the scan is not evidence."   # the Lead's cap did cut this one: its unfinished tail of words alone is dropped
+    numbers = first + " The noise level it quotes is 0.01 and the sampling rate is 100 Hz for the sensor S-1"
+    assert len(numbers) < 200 < len("vulnerability: " + numbers) and refuted_sentence("vulnerability: " + numbers).endswith("is 100 Hz for the sensor S-1; it was refuted.")   # a whole tail with numbers is not marked
+    rows = "P-104. Rows: equipment_id = P-104, baseline_dataset = p104-baseline [Q1]; equipment_id = T-200, baseline_dataset = t200-base [Q1]; equipment_id = C-300, baseline_dataset = c300-baseline-2026 and more"
+    assert len(rows) < 200 < len("research: " + rows) and refuted_sentence("research: " + rows).endswith("the machine C-300 has the baseline dataset c300-baseline-2026 and more; it was refuted.")   # an uncited last row that nothing cut
+
+
 def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produced(tmp_path):
     replies = iter([json.dumps({"tool": "run_sql", "args": {"sql": "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'"}}),
                     json.dumps({"tool": "calc", "args": {"expr": "12.5 * 9.81"}}),
