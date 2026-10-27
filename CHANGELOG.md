@@ -7,7 +7,7 @@
 - The example questions on the chat page start a mission again: clicking one had raised StreamlitWidgetAlreadyInstantiatedError, started nothing and left the pill stuck (`ui/chat_ui.py: _take_example`). The live app shows an error's type only, never a traceback with file paths.
 - A goal with "<" and ">" in it (t < 1 ... t >= 3) is no longer refused as a copied placeholder. The SQL guard refuses backtick-quoted and try_ JVM built-ins; the web tools never read the tailnet's addresses (<tailnet-ip>/10). A replay opened from Warden or Recent shows its own duration. The Alerts panel no longer prints the ntfy topic. The publish script refuses to run after the deadline.
 - The headline is honest: 8/8 with every number exact, 7/8 read strictly. The crew against one agent holding all of it, on 13 reverse-engineering tasks: 2 of 26 against 0 (`docs/BENCH.md`). The public repository is public (it was made so on 27 Oct).
-- Tests: 213; CI runs 207.
+- Tests: 214; CI runs 208.
 
 ## A reply cut short is read; a sentence asked for is taken (2026-10-27, morning)
 - A model reply that stops after a complete value but before its closing brackets is closed and read (`clients/meterless.py: extract_json`); one cut inside a string is not. Nemotron-Mini on Nightshift had stopped Scout's query reply one brace short three times in a row, and two fresh P-104 maintenance reviews on the live crew lost their mass lookup.
