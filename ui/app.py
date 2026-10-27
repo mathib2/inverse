@@ -90,6 +90,8 @@ with st.sidebar:
             ss.pop(k, None)
         ss.panel_pick = "Answer"
         st.rerun()
+    if ss.get("mode_next"):                                                  # a widget key may only change before the widget is drawn
+        ss.mode = ss.pop("mode_next")
     mode = st.segmented_control("View", ["Chat", "Advanced"], key="mode", default="Chat", label_visibility="collapsed", width="stretch") or "Chat"
     st.caption("Recent")
     for r in advanced_ui.saved_runs(limit=8):
@@ -98,7 +100,7 @@ with st.sidebar:
                 turns = ss.setdefault("turns", [])
                 if all(t.get("dir") != ss.team_dir for t in turns):
                     turns.append({"goal": ss.team_plan.goal, "out": ss.team_out, "plan": ss.team_plan, "events": list(ss.team_events or []), "dir": ss.team_dir, "took": r["when"], "stopped": False})
-                ss.panel_turn, ss.panel_pick, ss.mode = ss.team_dir, "Answer", "Chat"
+                ss.panel_turn, ss.panel_next, ss.mode_next = ss.team_dir, "Answer", "Chat"   # applied on the next run, before the widgets exist
                 st.rerun()
     st.divider()
     try:
