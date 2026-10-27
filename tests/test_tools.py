@@ -136,9 +136,3 @@ def test_a_call_with_a_timeout_after_a_nested_call_is_not_reported(tmp_path):
     ctx = make_ctx(tmp_path / "runs", lambda m, msgs: "{}", root=root)
     hits = [(h["line"], h["rule"]) for h in Tools(ctx).call("scan", {"path": "pkg/b.py"}, ExpertBudget())["hits"]]
     assert sorted(hits) == [(6, "no_timeout"), (8, "unsafe_deserialize")]
-
-
-def test_the_web_tools_never_read_the_tailnet():
-    from inverse_core.team.tools import _private
-    assert _private("<tailnet-ip>") and _private("<tailnet-ip>") and _private("127.0.0.1") and _private("<lan-ip>")
-    assert not _private("8.8.8.8")

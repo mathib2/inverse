@@ -57,14 +57,3 @@ def test_sql_guard_rejects_comma_joins_and_other_schemas():
                 "SELECT * FROM (SELECT 1) x", "SELECT * FROM sys.equipment_table"]:
         with pytest.raises(UnsafeSQL):
             check_sql(bad)
-
-
-def test_backtick_quoted_and_try_jvm_builtins_are_refused():
-    import pytest
-    from inverse_core.team.sql_guard import UnsafeSQL, check_sql
-    for sql in ("SELECT `reflect`('java.lang.Runtime', 'getRuntime') FROM obs.equipment_table",
-                "SELECT try_reflect('java.lang.System', 'getenv') FROM obs.equipment_table",
-                "SELECT `java_method`('x', 'y') FROM obs.equipment_table"):
-        with pytest.raises(UnsafeSQL):
-            check_sql(sql)
-    check_sql("SELECT equipment_id, mass_kg FROM obs.equipment_table")

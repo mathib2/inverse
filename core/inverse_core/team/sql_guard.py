@@ -15,7 +15,7 @@ Examples of the dialect: SELECT COUNT(*) AS n FROM obs.p104_baseline_samples | S
 ALLOWED_TABLES = {"equipment_table", "sensors_table", "maintenance_table", "p104_baseline_samples", "p104_current_samples", "trap_current_samples"}
 
 FORBIDDEN = re.compile(r"\b(insert|update|delete|drop|create|alter|truncate|merge|grant|cache|call|exec)\b|;|--|/\*"
-                       r"|\b(try_)?(reflect|java_method|input_file_name|transform|current_user|exec_java)`?\s*\(", re.I)   # Spark built-ins that reach the JVM, `quoted` or try_ too
+                       r"|\b(reflect|java_method|input_file_name|transform|current_user|exec_java)\s*\(", re.I)   # Spark built-ins that reach the JVM
 
 class UnsafeSQL(ValueError):
     pass
@@ -28,6 +28,8 @@ def check_sql(sql):
     s = sql.strip().rstrip(";").strip()                       # one trailing semicolon is harmless; any other is refused below
     if not re.match(r"(?i)select\b", s) or FORBIDDEN.search(s):
         raise UnsafeSQL("only a single read-only SELECT is allowed")
+    if re.search(r"(?i)`\s*(reflect|java_method|input_file_name|transform|current_user|exec_java)\s*`|\btry_(reflect|java_method)\s*\(", s):
+        raise UnsafeSQL("only a single read-only SELECT is allowed")         # the JVM built-ins quoted in backticks, or as try_reflect
     tables = []
     for m in re.finditer(r"(?i)\b(?:from|join)\s+", s):
         rest = s[m.end():]

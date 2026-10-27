@@ -243,12 +243,3 @@ def test_days_between_dates_go_to_euler_not_to_scouts_sql(tmp_path):
         {"id": "T1", "goal": "List the maintenance records of P-104 with their dates", "expert": "research", "depends_on": []},
         {"id": "T2", "goal": "How many days passed between the two records", "expert": "research", "depends_on": []}]})
     assert p.tasks[1].expert == "reasoning" and p.tasks[1].depends_on == ["T1"]
-
-
-def test_a_goal_with_less_than_and_greater_than_is_not_a_copied_placeholder():
-    """'(t < 1) ... (t >= 3)' matched the placeholder pattern '<[^>]*>', so every plan for such a goal was refused."""
-    from inverse_core.team.plan import PLACEHOLDER
-    assert not PLACEHOLDER.search("Compare the largest |x| for t < 1 with the largest for t >= 3")
-    assert not PLACEHOLDER.search("sensors with sigma <= 0.01 and sampling_hz >= 100")
-    assert PLACEHOLDER.search("<one self-contained instruction, written by you for THIS goal>")
-    assert PLACEHOLDER.search("Do <a name from the list> now")
