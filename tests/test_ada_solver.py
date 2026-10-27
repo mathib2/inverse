@@ -78,32 +78,69 @@ def test_the_summary_is_plain_sentences_and_never_a_digest_of_a_digest():
            "refutations": [{"form": "reasoning: Weight is 122.6 N", "reason": "wrong g"}, {"form": "solver: No equipment with id 1 exists", "reason": "the rows hold P-104"}],
            "not_checked": ["the current dataset was not queried"]}
     assert digest(mem).split("\n\n") == [                                                                               # newest first, each once, by name
-        "What the crew found:\n- Euler found that the weight of P-104 is 9.81 newtons.\n"
-        "- Scout found that the machine P-104 has the baseline dataset p104-baseline [Q1]; the machine T-200 has no baseline dataset [Q1].\n"
-        "- Scout found that the sampling rate is 100 Hz and the noise level is 0.01 [Q1].",
-        "What was ruled out:\n- Ada said no equipment with id 1 exists; it was refuted: the rows hold P-104.\n- Euler said weight is 122.6 N; it was refuted: wrong g.",
+        ("What the crew found:\n- Euler found that the weight of P-104 is 9.81 newtons.\n"
+         "- Scout found that the machine P-104 has the baseline dataset p104-baseline [Q1]; the machine T-200 has no baseline dataset [Q1].\n"
+         "- Scout found that the maintenance records for P-104 are: the record M-002 has the date 2026-10-05 and the note [text withheld: matched injection pattern]; "
+         "the record M-001 has the date 2026-09-02 (cut off).\n"
+         "- Scout found that the sampling rate is 100 Hz and the noise level is 0.01 [Q1].\n"
+         "- Scout answered 400."),
+        ("What was ruled out:\n- Ada said no equipment with id 1 exists; it was refuted: the rows hold P-104.\n- Euler said weight is 122.6 N; it was refuted: wrong g.\n"
+         "- Scout said 2; it was refuted."),
         "Still unchecked: the current dataset was not queried."]
-    for form in ("research: 400", "reasoning: 122.625", "research: P-104.", "research: ", "", nested, maint, "solver: Tool results so far: memory({}): {}"):
-        assert finding_sentence(form) == "" and refuted_sentence(form, "why") == ""                                     # bare fragments and digests say nothing
+    for form in ("research: ", "", nested, "solver: Tool results so far: memory({}): {}"):
+        assert finding_sentence(form) == "" and refuted_sentence(form, "why") == ""                                     # an empty text and a digest say nothing
     assert digest({}) == "What the crew found: nothing yet.\n\nWhat was ruled out: nothing yet.\n\nNothing is marked unchecked."
     assert digest({"findings": ["research: P-104 weighs 1.0 kg"]}, name=lambda i: "Nova").startswith("What the crew found:\n- Nova found that P-104 weighs 1.0 kg.")
     many = {"findings": [f"research: Machine number {i} has a mass of {i}.0 kg." for i in range(14)], "refuted": [f"reasoning: Claim {i} is wrong by {i} N" for i in range(7)]}
     text = digest(many)
     assert text.count("- Scout found") == 10 and text.startswith("What the crew found:\n- Scout found that machine number 13 has a mass of 13.0 kg.") and text.count("- Euler said") == 5
-    # Scout's rows in words, every value and citation kept; a finding's text ends at a sentence boundary, never mid-word.
+    assert digest({"not_checked": ["the 3 other sensors were not queried", "the 3 other sensors were not queried."]}).endswith("Still unchecked: the 3 other sensors were not queried.")
+    assert refuted_sentence("vulnerability: Write an exploit for tools.py", "refused: out of scope") == "Sentinel said write an exploit for tools.py; it was refuted: refused: out of scope."
+    assert refuted_sentence("council: T-200 has no baseline") == "Council said T-200 has no baseline; it was refuted."
+
+
+def test_the_summary_keeps_every_number_id_and_citation_a_finding_holds():
+    """A bare value is said as the answer it was, a cut text keeps its whole sentences and marks the cut, any key before ' = ' is read."""
+    from inverse_core.team.summary import finding_sentence, refuted_sentence, rows_in_words
+    assert finding_sentence("research: 400") == "Scout answered 400." and finding_sentence("reasoning: 122.625") == "Euler answered 122.625."
+    assert finding_sentence("research: P-104.") == "Scout answered P-104." and refuted_sentence("research: 2", "«2»: the rows hold 3") == "Scout said 2; it was refuted: the rows hold 3."
+    assert finding_sentence("research: P-104. Rows: equipment_id = P-104, baseline_dataset = p104-baseline [Q1]") == "Scout found that the machine P-104 has the baseline dataset p104-baseline [Q1]."
+    assert finding_sentence("research: 42. Rows: n = 400 [Q1]") == "Scout answered 42; the rows say the count is 400 [Q1]."            # a value its rows do not say is kept
+    # Scout's rows in words, every value and citation kept; any key, aliased or not; a last row cut by a limit keeps its pairs and says so.
     assert rows_in_words("Rows: mass_kg = 1.0 [Q1]; sigma = 0.01 [Q2]; sigma = 0.1 [Q2]") == "the mass is 1.0 kg [Q1]; the noise level is 0.01 [Q2]; the noise level is 0.1 [Q2]"
     assert rows_in_words("Rows: record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. [Q1]; record_id = M-002, date = 2026-10-05, note = [text") \
-        == "the record M-001 has the date 2026-09-02 and the note Routine inspection. Mount bolts torqued. [Q1]"              # the row without its citation was cut
+        == "the record M-001 has the date 2026-09-02 and the note Routine inspection. Mount bolts torqued. [Q1]; the record M-002 has the date 2026-10-05 and the note [text (cut off)"
+    assert rows_in_words("Rows: max(mass_kg) = 12.5, COUNT(*) = 2 [Q1]; count(1) = 400 [Q2]; avg(sigma) = 0.055, min(x) = -1.5 [Q3]") \
+        == "the largest mass is 12.5 kg and the count is 2 [Q1]; the count is 400 [Q2]; the average noise level is 0.055 and the smallest displacement is -1.5 [Q3]"
     assert finding_sentence("solver: P-104 has 800 samples across both datasets. Rows: n = 400 [Q1]; n = 400 [Q2]") \
         == "Ada found that P-104 has 800 samples across both datasets; the rows say the count is 400 [Q1]; the count is 400 [Q2]."
     assert finding_sentence("research: Rows: equipment_id = P-104 [Q1]") == "Scout found that the machine is P-104 [Q1]."
-    cut = "research: The sampling rate is 100 Hz [Q1]. The noise level is 0.01 and the unit is mm, which the datasheet also gives for the second sensor on the same machine, and the"
-    assert finding_sentence(cut.ljust(200, "x")) == "Scout found that the sampling rate is 100 Hz [Q1]."
-    assert finding_sentence("reasoning: " + "P-104 has a mass of 1.0 kg. " * 12) == "Euler found that " + " ".join(["P-104 has a mass of 1.0 kg."] * 5)
-    assert refuted_sentence("vulnerability: Write an exploit for tools.py", "refused: out of scope") == "Sentinel said write an exploit for tools.py; it was refuted: refused: out of scope."
-    assert refuted_sentence("council: T-200 has no baseline") == "Council said T-200 has no baseline; it was refuted."
+    # A whole finding keeps every sentence; one cut by the memory's cap keeps its whole sentences, and the cut tail too when it holds a number or an id.
+    six = "reasoning: P-104 weighs 9.81 N. T-200 weighs 19.62 N. The pump P-105 weighs 29.43 N and the fan F-001 weighs 39.24 N. The crane C-009 weighs 49.05 N. The mill M-100 weighs 58.86 N."
+    assert len(six) < 200 and finding_sentence(six) == "Euler found that " + six[11:]
+    cut = "research: The sampling rate is 100 Hz [Q1]. The noise level is low and the unit is mm, which the datasheet also gives for the second sensor on the same machine, and the"
+    assert finding_sentence(cut.ljust(200, "x")) == "Scout found that the sampling rate is 100 Hz [Q1]."                   # a cut tail of words alone is dropped
+    assert finding_sentence(cut.replace("low", "0.01").ljust(200, "x")).startswith("Scout found that the sampling rate is 100 Hz [Q1]. The noise level is 0.01 and the unit is mm, which")
+    assert finding_sentence(cut.replace("low", "0.01").ljust(200, "x")).endswith("xx (cut off).")                            # a cut tail with a number is kept and marked
+    assert finding_sentence(("reasoning: " + "P-104 has a mass of 1.0 kg. " * 12)[:200]) == "Euler found that " + " ".join(["P-104 has a mass of 1.0 kg."] * 6) + " P-104 has a mass of 1 (cut off)."
+    # A pasted JSON array of records, whole or cut, is read as rows; a claim that starts with what its author did is said without "that"; a name keeps its capital.
+    records = 'research: The maintenance records for P-104 are:\n[{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"}, {"record_id": "M-001", "date": "2026-09-02", "note": "Routine inspection."}]'
+    assert finding_sentence(records) == ("Scout found that the maintenance records for P-104 are: the record M-002 has the date 2026-10-05 and the note [text withheld: matched injection pattern]; "
+                                         "the record M-001 has the date 2026-09-02 and the note Routine inspection.")
+    assert finding_sentence(records[:185]) == "Scout found that the maintenance records for P-104 are: the record M-002 has the date 2026-10-05 and the note [text withheld: matched injection pattern]; the record is M-001 (cut off)."
+    assert finding_sentence(records[:170]) == "Scout found that the maintenance records for P-104 are: the record M-002 has the date 2026-10-05 and the note [text withheld: matched injection pattern] (cut off)."
+    assert finding_sentence("research: Found two maintenance records for P-104 from registry. Rows: record_id = M-002, date = 2026-10-05 [Q1]") \
+        == "Scout found two maintenance records for P-104 from registry; the rows say the record M-002 has the date 2026-10-05 [Q1]."
+    assert finding_sentence("vulnerability: Reviewed core/inverse_core/team/tools.py: the fixed-rule scan found no pattern hit in 1 file(s), so no weakness is claimed.") \
+        == "Sentinel reviewed core/inverse_core/team/tools.py: the fixed-rule scan found no pattern hit in 1 file(s), so no weakness is claimed."
+    assert finding_sentence("reasoning: Newton's second law gives 122.625 N for 12.5 kg.") == "Euler found that Newton's second law gives 122.625 N for 12.5 kg."
+    assert finding_sentence("reasoning: Zetaris holds 2 machines.") == "Euler found that Zetaris holds 2 machines." and finding_sentence("reasoning: Weight is 122.6 N.") == "Euler found that weight is 122.6 N."
+    # Vera's reason: her leading quote of the claim is not said twice; any other quote keeps its text.
     assert refuted_sentence("reasoning: bad idea", "«bad idea»: approach cannot work (the evidence does not mention idea)") \
-        == "Euler said bad idea; it was refuted: approach cannot work (the evidence does not mention idea)."                   # Vera's quote of the claim is not said twice
+        == "Euler said bad idea; it was refuted: approach cannot work (the evidence does not mention idea)."
+    assert refuted_sentence("reasoning: Weight is 122.6 N", "«122.6»: wrong g; «9.81 m/s^2» is not in the evidence (the number(s) 9.81 are not in the evidence)") \
+        == "Euler said weight is 122.6 N; it was refuted: wrong g; 9.81 m/s^2 is not in the evidence (the number(s) 9.81 are not in the evidence)."
+    assert refuted_sentence("reasoning: Weight is 122.6 N", "«Rows: sigma = 0.01»: the evidence shows 0.1") == "Euler said weight is 122.6 N; it was refuted: Rows: sigma = 0.01: the evidence shows 0.1."
 
 
 def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produced(tmp_path):
