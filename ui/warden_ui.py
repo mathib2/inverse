@@ -98,7 +98,7 @@ def render(root, configs=None):
         if rows:
             last = state.get("missions") or {}
             st.caption("Standing missions:")
-            st.dataframe(pd.DataFrame([{"mission": m["name"].replace("_", " "), "every": f"{m.get('every', 24)} h", "last run": _ago(last.get(m["name"])), "goal": str(m["goal"])[:110]} for m in rows]),
+            st.dataframe(pd.DataFrame([{"mission": m["name"].replace("_", " "), "every": f"{m.get('every', 24)} h", "last run": _ago(last.get(m["name"])), "goal": str(m["goal"]).replace("{machines}", "each machine in the registry")[:110]} for m in rows]),   # Warden fills in the ids at run time
                          hide_index=True, width="stretch")
         done = manifests(root)
         if not done:

@@ -3,8 +3,8 @@
 The hackathon window opened on 22 Oct 2026. The first commit in this repository is dated **23 Oct 2026, 14:14** (Central), so
 nothing in the history predates the window. The public repository is this history rewritten by `scripts/admin/publish_public.sh`:
 dates, messages and authors stay, private strings such as addresses are replaced, and the commit ids change. Apart from the
-third-party pieces below, everything in the tree was written during the hackathon by the team (two people, with Claude Code on an
-Ubuntu workstation and a Windows laptop), except one line by Tinker, the crew's own improvement loop: `return expr.strip()` in
+third-party pieces below, everything in the tree was written during the hackathon by two of the team's five members, with Claude Code on an
+Ubuntu workstation and a Windows laptop,, except one line by Tinker, the crew's own improvement loop: `return expr.strip()` in
 `core/inverse_core/team/reasoning.py`, merged on 26 October as approved by the council. Its two other council-approved one-line
 changes were removed again the same day. The history shows them as the commits authored `Tinker`.
 
