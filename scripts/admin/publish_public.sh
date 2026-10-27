@@ -19,6 +19,10 @@ set -euo pipefail
 PUBLIC="${1:-git@github.com:mathib2/inverse.git}"
 BRANCH="${2:-m4-sindyc}"
 RULES="${RULES_DIR:-$HOME/.config/inverse-public}"
+# Judges see what the public repository held at the hackathon deadline (27 Oct 2026, 23:45 UTC); a later push needs AFTER_DEADLINE=1.
+if [ "$(date -u +%Y%m%d%H%M)" -ge 202610272345 ] && [ "${AFTER_DEADLINE:-0}" != 1 ]; then
+  echo "refusing: the hackathon deadline (27 Oct 23:45 UTC) has passed; set AFTER_DEADLINE=1 only after judging" >&2; exit 3
+fi
 FR="${GIT_FILTER_REPO:-git-filter-repo}"
 PRIVATE="$(git remote get-url origin)"
 for f in replace.txt mailmap.txt; do [ -s "$RULES/$f" ] || { echo "missing $RULES/$f" >&2; exit 2; }; done

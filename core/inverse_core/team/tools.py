@@ -93,7 +93,8 @@ def _private(host):
     import socket
     try:
         addrs = {host} if host.replace(".", "").isdigit() or ":" in host else {ai[4][0] for ai in socket.getaddrinfo(host, None)}
-        return any(ipaddress.ip_address(a).is_private or ipaddress.ip_address(a).is_loopback or ipaddress.ip_address(a).is_link_local for a in addrs)
+        cgnat = ipaddress.ip_network("<tailnet-ip>/10")                         # Tailscale's range: the network this whole system runs on
+        return any((ip := ipaddress.ip_address(a)).is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or (ip.version == 4 and ip in cgnat) for a in addrs)
     except (socket.gaierror, ValueError):
         return True
 

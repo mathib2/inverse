@@ -27,6 +27,8 @@ def check_sql(sql):
     s = sql.strip().rstrip(";").strip()                       # one trailing semicolon is harmless; any other is refused below
     if not re.match(r"(?i)select\b", s) or FORBIDDEN.search(s):
         raise UnsafeSQL("only a single read-only SELECT is allowed")
+    if re.search(r"(?i)`\s*(reflect|java_method|input_file_name|transform|current_user|exec_java)\s*`|\btry_(reflect|java_method)\s*\(", s):
+        raise UnsafeSQL("only a single read-only SELECT is allowed")         # the JVM built-ins quoted in backticks, or as try_reflect
     tables = []
     for m in re.finditer(r"(?i)\b(?:from|join)\s+", s):
         rest = s[m.end():]

@@ -1,6 +1,7 @@
 """Tinker: the crew's improvement loop. Round the clock it picks the next item of the crew's own improvement list, researches it on
 the web, makes the smallest change in a sandbox copy of the code, runs the tests and the probe of the agent concerned, and only
-when nothing got worse pushes a branch and asks a person to approve the merge. It never touches the live checkout. Everything it
+when nothing got worse pushes a branch and asks a person to approve the merge. A council merge pushes to m4-sindyc and runs
+deploy-live, which restarts the live app (docs/TINKER.md); keep it stopped during a recording. Everything it
 does is in the chat (state/chat.jsonl) and in state/tinker.json.
 
   PYTHONPATH=core .venv/bin/python scripts/tinker.py [--once] [--interval 1800] [--status]

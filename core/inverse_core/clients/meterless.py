@@ -33,7 +33,7 @@ PROVIDERS = {
         "offline_detail": "no response (laptop off, Nightshift closed or tunnel down)",
         "offline_short": "Start Nightshift on the laptop and reopen the SSH tunnel.",
         "offline_fix": ["On the laptop that runs **Nightshift**, open the Nightshift app and keep the laptop awake and plugged in.",
-                        "On that laptop, start the scheduled task **Nightshift tunnel** (or run `~/nightshift-tunnel.ps1`), which forwards this server's port 8090 to it.",
+                        "On that laptop, start the scheduled task **Nightshift tunnel** (or run `~/nightshift-tunnel.ps1`), which forwards this server's port 8088 to it.",
                         "Press **Check again** below. Until then the crew keeps working on the workstation's own model."],
         "key_rejected": "Nightshift answered but refused INVERSE's access key. Copy the Runtime key from Nightshift's Console "
                         "into `MODEL_API_KEY` in the server's `.env`, then restart the app.",
@@ -250,4 +250,37 @@ def extract_json(text):
             continue
         if isinstance(obj, dict):
             return obj
+    closed = _close_cut_reply(text)
+    if closed is not None:
+        return closed
     raise ValueError("no JSON object in reply")
+
+
+def _close_cut_reply(text):
+    """A reply that stops after a complete value but before its closing brackets, as Nemotron-Mini did on Nightshift for
+    Scout three times in a row ('{"queries": ["SELECT mass_kg ..."]'), is closed and read. A reply cut inside a string is
+    not: the value it was writing is unknown."""
+    start = text.find("{")
+    if start < 0:
+        return None
+    stack, in_str, esc = [], False, False
+    for ch in text[start:]:
+        if in_str:
+            esc, in_str = (not esc and ch == "\\"), in_str and (esc or ch != '"')
+        elif ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if not stack or stack.pop() != ch:
+                return None
+    if in_str or not stack:
+        return None
+    body = text[start:].rstrip().rstrip(",").rstrip()
+    if body.endswith(":"):
+        return None
+    try:
+        obj = json.loads(body + "".join(reversed(stack)))
+    except json.JSONDecodeError:
+        return None
+    return obj if isinstance(obj, dict) else None

@@ -80,3 +80,16 @@ def test_euler_states_the_calculators_value_not_its_own_arithmetic(tmp_path):
     euler = ReasoningExpert(ctx, "reasoning", "r", "p", "deep", ["calc"])
     res = euler.run(Task("T1", "What is 12.5 kg times 9.81 m/s^2 in newtons?", "reasoning"), None, ExpertBudget())
     assert res.answer == "The weight is 122.625 N." and events(ctx, "numbers_from_calculator")[0]["fixed"] == [("122.55", "122.625")]
+
+
+def test_an_empty_answer_reasked_as_a_sentence_may_come_back_as_just_the_sentence(tmp_path):
+    """On Nightshift Euler returned his steps without an answer, and the re-ask for one sentence got exactly one sentence, with no
+    JSON around it: the task failed three times on a correct 'The weight of P-104 is 9.81 newtons.'"""
+    from inverse_core.team.reasoning import ReasoningExpert
+    replies = iter([json.dumps({"steps": [{"claim": "weight = mass x g", "calc": "1.0 * 9.81", "expect": 9.81}], "confidence": 1.0}),
+                    "The weight of P-104 is 9.81 newtons."])
+    ctx = make_ctx(tmp_path, lambda m, msgs: next(replies))
+    euler = ReasoningExpert(ctx, "reasoning", "r", "p", "deep", ["calc"])
+    res = euler.run(Task("T1", "Compute the weight of P-104 in newtons with g = 9.81 m/s^2.", "reasoning", context="mass_kg = 1.0"), None, ExpertBudget())
+    assert res.answer == "The weight of P-104 is 9.81 newtons." and events(ctx, "answer_in_prose") and events(ctx, "bare_answer")
+    assert any(e.get("detail", "").startswith("= 9.81") for e in res.evidence)              # the calculator's step stays the evidence

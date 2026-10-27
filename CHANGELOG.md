@@ -3,6 +3,23 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## The audit before the recording (2026-10-27, afternoon)
+- The example questions on the chat page start a mission again: clicking one had raised StreamlitWidgetAlreadyInstantiatedError, started nothing and left the pill stuck (`ui/chat_ui.py: _take_example`). The live app shows an error's type only, never a traceback with file paths.
+- A goal with "<" and ">" in it (t < 1 ... t >= 3) is no longer refused as a copied placeholder. The SQL guard refuses backtick-quoted and try_ JVM built-ins; the web tools never read the tailnet's addresses (<tailnet-ip>/10). A replay opened from Warden or Recent shows its own duration. The Alerts panel no longer prints the ntfy topic. The publish script refuses to run after the deadline.
+- The headline is honest: 8/8 with every number exact, 7/8 read strictly. The crew against one agent holding all of it, on 13 reverse-engineering tasks: 2 of 26 against 0 (`docs/BENCH.md`). The public repository is public (it was made so on 27 Oct).
+- Tests: 214; CI runs 208.
+
+## A reply cut short is read; a sentence asked for is taken (2026-10-27, morning)
+- A model reply that stops after a complete value but before its closing brackets is closed and read (`clients/meterless.py: extract_json`); one cut inside a string is not. Nemotron-Mini on Nightshift had stopped Scout's query reply one brace short three times in a row, and two fresh P-104 maintenance reviews on the live crew lost their mass lookup.
+- Euler: an empty answer re-asked as one sentence may come back as just the sentence, with no JSON around it; that sentence is the answer, and Vera still checks its number (`answer_in_prose`). Benchmark rounds 36 and 37: 8/8 in 30 s each.
+- Tests: 210.
+
+## The submission, checked against the rules (2026-10-27, morning)
+- The video script ends at 3:45 and names Track 03, who it is for, and where each sponsor works on screen (Zetaris and H-MEM in Connections, the World Model in the council, Markovian in the close). `SPONSORS.md` says what was unique about our use of the sponsor technologies, and that Cursor was not used, which the rules allow. Four screenshots of the app are in the README and on a product slide.
+- Every benchmark claim is the exactly graded one: 8/8 in 30 s on Nightshift (rounds 26 and 27) and 8/8 on the CPU in round 14. Rounds 17, 19, 23 and 24, cited before, are 7/8 graded exactly. Only numbers are graded exactly; the registry and summary cases check less, and `docs/BENCH.md` says so.
+- Warden's standing missions show their goal with the machines filled in, not the template's `{machines}`; the trace table in the Advanced view names the provider of each call.
+- Claims narrowed to what the code does: the calculator replaces a model's number only in Euler's and Ada's answers; Markovian reviews up to six files with scan hits; the World Model mirrors the council's record, which the agents read from `council/`.
+
 ## A planner lane, and a lane on its own endpoint (2026-10-27, morning)
 - Atlas plans and writes the final answer on his own lane, `plan` (`Lead(plan_lane="plan", compose_lane="plan")`). Left unset it follows `LANE_DEEP`, so the live crew plans on the model it always did.
 - A lane can have its own endpoint: `LANE_<NAME>_URL`, `_KEY`, `_TIMEOUT`, `_BACKUP` (`clients/meterless.py: LaneEndpoint`). A call the endpoint cannot answer goes to the crew's own provider with the backup model, and later calls go there directly for two minutes; the endpoint's failure never marks the laptop down. This is how Atlas and Vera can run on a hosted Nemotron-3-Ultra-550B while the workers stay on the laptop's Nemotron-Mini-4B.
@@ -24,7 +41,7 @@
 - Days between two dates are counted by code: the calculator takes two ISO dates (`days_between`, its only call that takes text); Atlas sends "how many days between" to Euler with the lookups it needs, instead of Scout, whose SQL date functions the platform refused three times; with exactly two dates in the task and the earlier results, Euler answers with no model call (`days_by_code`). PR #64.
 - A reviewer's lesson reaches an expert only for a task like the one it came from: at least two content words in common with the task's goal (`team/memory.py`). Every task had been shown its expert's three newest lessons whatever it was about, and a lesson about a cube root made a plain multiplication answer 3. PR #64.
 - Benchmark rounds 18 to 24 on Nightshift (`docs/BENCH.md`, `docs/evidence/bench/round18-nightshift.json` to `round24-nightshift.json`): round 18 7/8 in 39 s; round 19 8/8 in 40 s, against 222 s for round 17 on the workstation's CPU; rounds 20 to 22 fell to 6/8, 6/8 and 7/8 on the lesson problem; rounds 23 and 24 8/8 in 32 s each after the fix.
-- The replay for the video: `docs/evidence/missions/20261026-195911`, Warden's autonomous maintenance review of P-104 on Nightshift, 16 s and 13 model calls; Vera accepted all four results, three of them by code. It found the mass (1.0 kg), the two maintenance records with their dates, the weight (9.81 N) and the 33 days between the records, counted by code; the injection guard withheld the note of record M-002.
+- The replay for the video: `docs/evidence/missions/20261026-195911`, Warden's maintenance review of P-104 on Nightshift, queued by a person and run by Warden, 16 s and 13 model calls; Vera accepted all four results, three of them by code. It found the mass (1.0 kg), the two maintenance records with their dates, the weight (9.81 N) and the 33 days between the records, counted by code; the injection guard withheld the note of record M-002.
 - `scripts/admin/publish_public.sh` publishes the crew to a new public repository with the history rewritten by git filter-repo. Its rules live outside the repository, because they hold the strings they remove, and it refuses to push if anything is left. Nothing is public yet: the owner runs it. Benchmark run paths are stored relative to the checkout, and a goal queued from the shell is recorded as `shell`, so new evidence holds no home folder or login name.
 - Tests: 203; CI runs 197 and skips the 6 that need live services.
 
