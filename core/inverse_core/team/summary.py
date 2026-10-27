@@ -218,9 +218,20 @@ def _unique(items):
     return out
 
 
+def _distinct(forms):
+    """Each finding once: one equal to another but for its full stop, or the start of another up to a whole word (the memory's
+    cap, or a retry, can leave a claim as the beginning of a longer one: "research: 12.5" beside "research: 12.5 kg [Q1]"), is
+    said once, as the longer. "research: 2" is not the start of "research: 2026-09-02", nor "1" of "1.5"."""
+    forms = list(forms)
+    keys = [fold(f).rstrip(".") for f in forms]
+    return [f for i, (f, k) in enumerate(zip(forms, keys))
+            if k and k not in keys[:i] and not any(t != k and t.startswith(k) and not re.match(r"\w|\.\d", t[len(k):]) for t in keys)]
+
+
 def digest(mem, name=None):
-    """The summary, from the memory read: findings (newest first, each once, at most ten) under "What the crew found", refuted
-    claims with their reasons (at most ten) under "What was ruled out", and the closing line on what is still unchecked.
+    """The summary, from the memory read: findings (newest first, each once, a finding that is the start of another said once as
+    the longer, at most ten) under "What the crew found", refuted claims with their reasons (at most ten) under "What was ruled
+    out", and the closing line on what is still unchecked.
     `mem` is the memory tool's output, with the optional `refutations` ([{form, reason}]) and `not_checked` lists the solver adds
     by code; `name` maps an agent id to its name (the crew's helper by default)."""
     mem, name = mem if isinstance(mem, dict) else {}, name or crew_name
@@ -228,7 +239,7 @@ def digest(mem, name=None):
     reasons = {str(r.get("form", "")): str(r.get("reason") or "") for r in mem.get("refutations") or [] if isinstance(r, dict)}
     newest = [str(r.get("form", "")) for r in reversed(mem.get("refutations") or []) if isinstance(r, dict)]
     refuted = _unique([f for f in newest if f in refuted] + [f for f in refuted if f not in newest])
-    found = _unique(reversed([str(f) for f in mem.get("findings") or [] if str(f) not in refuted]))
+    found = _distinct(reversed([str(f) for f in mem.get("findings") or [] if str(f) not in refuted]))
     lines = [s for s in (finding_sentence(f, name) for f in found) if s][:MAX_FINDINGS]
     ruled = [s for s in (refuted_sentence(f, reasons.get(f, ""), name) for f in refuted) if s][:MAX_REFUTED]
     open_ = _unique(fold(n).rstrip(" .") for n in reversed([str(n) for n in mem.get("not_checked") or []]))[:MAX_UNCHECKED]

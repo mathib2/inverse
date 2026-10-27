@@ -232,6 +232,20 @@ def test_an_earlier_digest_among_the_findings_is_said_as_its_parts_not_nested():
                    "refuted": ["reasoning: 3."]}) == "What the crew found:\n- Scout answered 1.\n\nWhat was ruled out:\n- Euler said 3; it was refuted.\n\nNothing is marked unchecked."
 
 
+def test_a_finding_that_is_the_start_of_another_is_said_once_as_the_longer():
+    """The memory's cap, or a retry, can leave a claim as the beginning of a longer one; the summary says the longer, once. A
+    claim that is the start of another's number or id ("2" of "2026-09-02", "1" of "1.5") is its own finding and stays."""
+    from inverse_core.team.summary import digest
+    tail = "\n\nWhat was ruled out: nothing yet.\n\nNothing is marked unchecked."
+    assert digest({"findings": ["research: 12.5 kg [Q1]", "research: 2", "research: 12.5", "research: 2."]}) == \
+        "What the crew found:\n- Scout answered 2.\n- Scout found that 12.5 kg [Q1]." + tail                                      # the longer keeps its place; an equal part is said once
+    assert digest({"findings": ["research: 2", "research: 2026-09-02 is the date", "research: 1", "research: 1.5"]}) == \
+        "What the crew found:\n- Scout answered 1.5.\n- Scout answered 1.\n- Scout found that 2026-09-02 is the date.\n- Scout answered 2." + tail
+    cut = "research: The weight of P-104 is 9.81 newtons, from its mass of 1.0 kg"
+    assert digest({"findings": ["research: The weight of P-104 is 9.81 newtons", cut, "research: The weight of P-104 is 9.81 newtons."]}) == \
+        "What the crew found:\n- Scout found that the weight of P-104 is 9.81 newtons, from its mass of 1.0 kg." + tail
+
+
 def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produced(tmp_path):
     replies = iter([json.dumps({"tool": "run_sql", "args": {"sql": "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'"}}),
                     json.dumps({"tool": "calc", "args": {"expr": "12.5 * 9.81"}}),
