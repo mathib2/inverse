@@ -61,3 +61,35 @@ def test_the_timeline_and_the_task_states_follow_the_events():
     assert run_ui.run_step(ev) == 3 and run_ui.status(ev, {}, 0).startswith("Atlas is writing the answer")
     assert all(s in plain.TASK_WORDS for s in ("pending", "running", "reviewing", "sent_back", "accepted", "skipped"))
     assert "now" in run_ui.timeline_html(1) and run_ui.timeline_html(3, over=True).count("done") == 4
+
+
+def test_the_toast_is_for_a_mission_that_just_ended_not_for_a_replay():
+    """Warden's "Show it" puts a saved run into the session with crew_replay=True and no crew_last (nothing ran), while _ended sets
+    crew_last and crew_replay=False. The page, run headlessly: no toast for the replay; one toast, not repeated on a rerun, for the run."""
+    from streamlit.testing.v1 import AppTest
+    script = f"""
+import streamlit as st
+import advanced_ui, chat_ui
+ss = st.session_state
+if "primed" not in ss:
+    assert advanced_ui._load_run({MISSION!r})
+    ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events = ss.team_out, ss.team_plan, ss.team_dir, ss.team_events
+    if ss.way == "ended":
+        ss.crew_replay, ss.crew_last = False, {{"stopped": False, "took": "16 s"}}
+    else:
+        ss.crew_replay = True
+    ss.primed = True
+chat_ui.render(None, False, None)
+"""
+
+    def toasts(way):
+        at = AppTest.from_string(script, default_timeout=30)
+        at.session_state["way"] = way
+        at.run()
+        assert not at.exception and len(at.session_state["turns"]) == 1
+        first = [t.value for t in at.toast]
+        at.run()
+        return first, [t.value for t in at.toast]
+
+    assert toasts("warden") == ([], [])
+    assert toasts("ended") == (["The crew answered in 16 s"], [])

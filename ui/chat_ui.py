@@ -132,7 +132,7 @@ def _collect():
         ss.panel_turn = ss.crew_dir
         if ss.get("panel_pick") == "Live":
             ss.panel_next = "Answer"
-        if ss.crew_dir not in ss.setdefault("toasted", set()):                # once per run, whatever reruns follow
+        if not ss.get("crew_replay") and ss.crew_dir not in ss.setdefault("toasted", set()):   # once per run that just ended; a replay opened from Warden ran nothing
             ss.toasted.add(ss.crew_dir)
             st.toast(plain.run_ended(last.get("took", ""), bool(last.get("stopped"))), icon=":material/check_circle:")
     if ss.get("crew_error"):
