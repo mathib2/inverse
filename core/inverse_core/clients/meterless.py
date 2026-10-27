@@ -118,8 +118,9 @@ ModelOffline = NightshiftOffline
 
 
 class MeterlessClient:
-    def __init__(self, base_url=None, api_key=None, model=None, timeout=None):
+    def __init__(self, base_url=None, api_key=None, model=None, timeout=None, use_fallback=True):
         local = provider_id() not in ("nightshift",)
+        self.use_fallback = use_fallback                                       # False for a lane's own endpoint: LaneEndpoint falls back instead
         self.base = (base_url or os.environ.get("MODEL_BASE_URL") or ("http://127.0.0.1:11434/v1" if local else "http://127.0.0.1:8088/v1")).rstrip("/")
         self.key = api_key or os.environ.get("MODEL_API_KEY") or "ollama"
         self.model = model or os.environ.get("NEMOTRON_MODEL") or "nemotron-mini:latest"
@@ -184,7 +185,7 @@ class MeterlessClient:
         body = {"model": self.model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
         if json_object:
             body["response_format"] = {"type": "json_object"}
-        fb, why = fallback(), primary_down()
+        fb, why = (fallback(), primary_down()) if self.use_fallback else (None, "")
         if not (fb and why):
             try:
                 return self._post(self.base, self.h, body, self.timeout, provider()["name"]) | {"provider": provider_id()}
@@ -201,6 +202,34 @@ class MeterlessClient:
         except _PrimaryFailed as e:
             raise NightshiftOffline(f"{provider()['name']} and the fallback both failed: {why}; {e}") from e
         return out | {"provider": "fallback", "fallback": why}
+
+
+_endpoint_down = {}                      # base URL -> {"until", "why"}: a lane endpoint's own hold, apart from the provider's
+
+
+class LaneEndpoint:
+    """A lane served by its own endpoint (LANE_<NAME>_URL in .env), such as a hosted Nemotron for Atlas's planning and Vera's
+    review while the workers stay on the laptop. A call the endpoint cannot answer goes to the crew's own provider with
+    `backup` (which has the usual Nightshift-then-Ollama fallback), and later calls go there directly for FALLBACK_HOLD_S.
+    The endpoint's failures never mark the crew's provider down. Each reply says which one served it."""
+
+    def __init__(self, hosted, backup, name="lane endpoint"):
+        self.hosted, self.backup, self.name = hosted, backup, name
+        self.model, self.base = hosted.model, hosted.base
+
+    def health(self):
+        return self.hosted.health()
+
+    def chat(self, messages, **kw):
+        down = _endpoint_down.get(self.base) or {"until": 0.0, "why": ""}
+        if time.time() >= down["until"]:
+            try:
+                return self.hosted.chat(messages, **kw) | {"provider": self.name}
+            except (RuntimeError, requests.RequestException) as e:            # offline, refused, rate limited after retries, a 4xx
+                down = {"until": time.time() + FALLBACK_HOLD_S, "why": f"{self.name}: {str(e)[:200]}"}
+                _endpoint_down[self.base] = down
+        out = self.backup.chat(messages, **kw)
+        return out | {"fallback": (down["why"] + ("; " + out["fallback"] if out.get("fallback") else ""))}
 
 
 def strip_thinking(text):

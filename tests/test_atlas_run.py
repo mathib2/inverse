@@ -136,6 +136,7 @@ def test_team_run_plans_delegates_retries_and_composes(tmp_path):
     assert os.path.exists(tmp_path / "plan.json")
     lanes_used = {e["lane"]: e["model"] for e in events(ctx, "llm")}
     assert lanes_used["critic"] != lanes_used["deep"]                                       # review runs on a different model
+    assert "plan" in lanes_used and "deep" not in [e["lane"] for e in events(ctx, "llm") if e["agent"].startswith("lead_")]   # Atlas plans on his own lane
     assert all(m.startswith("nvidia/nemotron") for m in lanes_used.values())
 
 
