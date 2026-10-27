@@ -11,6 +11,8 @@ TOOL_VERBS = {"run_sql": "ran a data query", "calc": "used the calculator", "mem
               "list_files": "listed files", "list_experts": "looked at the crew", "design_expert": "designed an agent", "create_expert": "built an agent",
               "test_expert": "test-drove an agent", "propose": "filed a proposal", "support": "backed a proposal"}
 
+PANEL_EMPTY = "Ask the crew below, or try one of the examples on the left: the answer, its evidence, who did what and the steps will appear here."
+
 GLOSSARY = [
     ("Mission", "A goal given to the crew: Atlas plans it, the agents work, Vera checks, and the answer cites its evidence."),
     ("Evidence", "What an agent's answer rests on: a query and its rows, a calculation, a file and line, or a tool result. Every claim must point at one."),

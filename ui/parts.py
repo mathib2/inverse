@@ -45,6 +45,11 @@ button[kind="primary"]:hover{filter:brightness(1.08);box-shadow:0 10px 30px rgba
 [data-testid="stPills"] button, [data-testid="stSegmentedControl"] button{border-radius:999px!important}
 [data-testid="stBadge"], [data-baseweb="tag"]{border-radius:999px}
 hr{border-color:var(--inv-line)}
+.st-key-panel_answer [data-testid="stWidgetLabel"] p, .st-key-panel_crew [data-testid="stWidgetLabel"] p{color:var(--inv-muted);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+.st-key-panel_answer button, .st-key-panel_crew button{padding:4px 10px}
+.st-key-inv-empty{border:1px dashed rgba(139,124,255,.45);border-radius:14px;padding:1.4rem 1rem;text-align:center;background:rgba(139,124,255,.05)}
+.st-key-inv-empty [data-testid="stMarkdownContainer"] p{text-align:center}
+.st-key-inv-empty span[role="img"]{font-size:2rem;color:var(--inv-violet)}
 ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,.25);border-radius:8px}
 @media (max-width:820px){h2{font-size:1.6rem}.inv-brand{font-size:1.4rem}}
 </style>

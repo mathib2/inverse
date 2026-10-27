@@ -54,3 +54,7 @@ def test_team_steps_read_as_plain_sentences():
     assert plain.team_step({"kind": "council_decision", "id": "P-1", "decision": "adopt", "reason": "ok"}) == "The council adopted P-1: ok"
     assert plain.team_step({"kind": "proposal_filed", "by": "<user>", "what": "x"}, agents={"research"}) == "a person proposed to the council: x"
     assert plain.team_step({"kind": "proposal_filed", "by": "research", "what": "x"}, agents={"research"}) == "research proposed to the council: x"
+
+
+def test_the_empty_panel_points_to_the_examples():
+    assert "examples on the left" in plain.PANEL_EMPTY and "appear here" in plain.PANEL_EMPTY and "!" not in plain.PANEL_EMPTY
