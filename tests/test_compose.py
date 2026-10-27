@@ -6,6 +6,7 @@ from inverse_core.team.expert import Task
 from inverse_core.team.plan import Plan
 from inverse_core.team.words import answer_in_words, keeps_values, results_in_words, row_in_words
 
+from fakes import crew, events
 
 
 def mk(i, expert, answer, n_evidence=1):
@@ -20,6 +21,76 @@ WEIGHT_ROWS = "Rows: mass_kg = 1.0 [Q1]; sigma = 0.01 [Q2]; sigma = 0.1 [Q2]"
 WEIGHT = "The weight of P-104 is 9.81 newtons."
 MAINTENANCE = ('The maintenance records for P-104 are:\n[{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"}, '
                '{"record_id": "M-001", "date": "2026-09-02", "note": "Routine inspection. Mount bolts torqued. Baseline vibration recorded."}]')
+
+
+def no_writer(tmp_path):
+    return crew(tmp_path, lambda m, msgs: (_ for _ in ()).throw(AssertionError("no model call expected")))
+
+
+def test_one_result_is_its_answer_in_words(tmp_path):
+    ctx, lead = no_writer(tmp_path)
+    out = lead.compose(Plan("g", [mk(1, "research", SENSOR)]))
+    assert out["answer"] == "The sampling rate is 100 Hz and the noise level is 0.01 [Q1]. [T1.E1]"
+    assert set(out["citations"]) == {"T1.E1"} and not events(ctx, "llm")
+    assert events(ctx, "compose")[0]["by_code"] is True and events(ctx, "compose")[0]["model"] is None and events(ctx, "compose")[0]["fallback"] is False
+
+
+def test_two_short_results_are_paragraphs_without_task_labels(tmp_path):
+    ctx, lead = no_writer(tmp_path)
+    out = lead.compose(Plan("g", [mk(1, "research", WEIGHT_ROWS, 3), mk(2, "reasoning", WEIGHT, 2)]))
+    assert out["answer"] == ("The mass is 1.0 kg [Q1]. The noise level is 0.01 [Q2]. The noise level is 0.1 [Q2]. [T1.E1] [T1.E2] [T1.E3]\n\n"
+                             "The weight of P-104 is 9.81 newtons. [T2.E1] [T2.E2]")
+    assert set(out["citations"]) == {"T1.E1", "T1.E2", "T1.E3", "T2.E1", "T2.E2"} and events(ctx, "compose")[0]["by_code"] is True
+
+
+def test_three_results_with_a_number_the_writer_invented_are_assembled_by_code(tmp_path):
+    ctx, lead = crew(tmp_path, lambda m, msgs: "P-104 weighs 9.81 N [T3.E1] and 32 days passed between its two maintenance records [T2.E1].")
+    plan = Plan("Weight of P-104 and its maintenance records", [mk(1, "research", WEIGHT_ROWS, 3), mk(2, "research", MAINTENANCE), mk(3, "reasoning", WEIGHT)])
+    out = lead.compose(plan)
+    assert events(ctx, "compose_numbers_refused")[0]["numbers"] == ["32"]
+    body, note = out["answer"].split("\n\n*(")
+    assert body == ("The mass is 1.0 kg [Q1]. The noise level is 0.01 [Q2]. The noise level is 0.1 [Q2]. [T1.E1] [T1.E2] [T1.E3]\n\n"
+                    "The maintenance records for P-104 are: For M-002, the date is 2026-10-05 and the note is [text withheld: matched injection pattern]. "
+                    "For M-001, the date is 2026-09-02 and the note is Routine inspection. Mount bolts torqued. Baseline vibration recorded. [T2.E1]\n\n"
+                    "The weight of P-104 is 9.81 newtons. [T3.E1]")
+    assert "*(" + note == "*(The writer added a number no accepted result holds (32); this answer was assembled by code from the accepted results.)*"   # verbatim
+    e = events(ctx, "compose")[0]
+    assert e["by_code"] is True and e["fallback"] is True and "**T1" not in out["answer"]
+
+
+def test_three_results_with_the_writer_down_are_assembled_by_code(tmp_path):
+    ctx, lead = crew(tmp_path, lambda m, msgs: (_ for _ in ()).throw(RuntimeError("lane down")))
+    out = lead.compose(Plan("g", [mk(1, "research", REGISTRY), mk(2, "research", SENSOR), mk(3, "reasoning", WEIGHT)]))
+    assert out["answer"] == ("For P-104, the baseline dataset is p104-baseline [Q1]. For T-200, the baseline dataset is none [Q1]. [T1.E1]\n\n"
+                             "The sampling rate is 100 Hz and the noise level is 0.01 [Q1]. [T2.E1]\n\n"
+                             "The weight of P-104 is 9.81 newtons. [T3.E1]\n\n"
+                             "*(The writer model was unavailable, RuntimeError; this summary was assembled by code from the accepted results.)*")
+    e = events(ctx, "compose")[0]
+    assert e["by_code"] is True and e["fallback"] is True and e["model"] is None
+
+
+def test_the_writers_own_text_is_untouched(tmp_path):
+    written = "P-104 weighs 9.81 N from its 1.0 kg mass [T3.E1] [T1.E1]; its records are dated 2026-09-02 and 2026-10-05 [T2.E1]."
+    ctx, lead = crew(tmp_path, lambda m, msgs: written)
+    out = lead.compose(Plan("g", [mk(1, "research", WEIGHT_ROWS, 3), mk(2, "research", MAINTENANCE), mk(3, "reasoning", WEIGHT)]))
+    assert out["answer"] == written and events(ctx, "compose")[0]["by_code"] is False and events(ctx, "compose")[0]["fallback"] is False
+
+
+def test_a_failed_task_is_reported_verbatim_after_the_answer_in_words(tmp_path):
+    ctx, lead = no_writer(tmp_path)
+    failed = Task("T2", "review", "vulnerability", status="failed", feedback="JSONDecodeError: Extra data: line 3 column 1 (char 155)")
+    out = lead.compose(Plan("g", [mk(1, "research", SENSOR), failed]))
+    assert out["answer"] == ("The sampling rate is 100 Hz and the noise level is 0.01 [Q1]. [T1.E1]"
+                             "\n\n**Not completed**\n- T2 (vulnerability) failed: JSONDecodeError: Extra data: line 3 column 1 (char 155)")
+    assert out["unfinished"] == [{"task": "T2", "expert": "vulnerability", "status": "failed", "why": "JSONDecodeError: Extra data: line 3 column 1 (char 155)"}]
+    assert events(ctx, "compose")[0]["unfinished"] == 1 and events(ctx, "compose")[0]["by_code"] is True
+
+
+def test_no_accepted_result_is_said_by_code(tmp_path):
+    ctx, lead = no_writer(tmp_path)
+    out = lead.compose(Plan("g", [Task("T1", "find it", "research", status="rejected", feedback="no rows")]))
+    assert out["answer"].startswith("No task produced an accepted result.\n\n**Not completed**\n- T1 (research) rejected: no rows")
+    assert events(ctx, "compose")[0]["by_code"] is True and events(ctx, "compose")[0]["fallback"] is True
 
 
 def test_every_citation_and_number_present_before_is_present_after():
