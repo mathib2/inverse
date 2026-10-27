@@ -24,7 +24,10 @@ from inverse_core.team.lanes import Lanes
 from inverse_core.team.registry import load_configs
 
 ROOT, RUNS_DIR, EXPERTS_DIR = advanced_ui.ROOT, advanced_ui.RUNS_DIR, advanced_ui.EXPERTS_DIR
-PANELS = ["Answer", "Evidence", "Who did what", "Steps", "Live", "Crew", "Warden", "Council", "Alerts"]
+ANSWER_PANELS = ["Answer", "Evidence", "Who did what", "Steps"]              # about the answer the panel is on
+CREW_PANELS = ["Live", "Crew", "Warden", "Council", "Alerts"]                 # about the crew as a whole
+PANELS = ANSWER_PANELS + CREW_PANELS
+GROUPS = {"panel_answer": ("This answer", ANSWER_PANELS), "panel_crew": ("The crew", CREW_PANELS)}   # widget key: its label and its pills
 PANEL_ICONS = {"Answer": ":material/article:", "Evidence": ":material/fact_check:", "Who did what": ":material/groups:", "Steps": ":material/route:",
                "Live": ":material/podcasts:", "Crew": ":material/badge:", "Warden": ":material/visibility:", "Council": ":material/gavel:", "Alerts": ":material/notifications:"}
 EXAMPLES = [("What do we know about P-104?", "From the registry, the sensor specifications and the maintenance history, what do we know about P-104, and how much sensor data is there for it?"),
@@ -298,13 +301,22 @@ def _alerts():
                     f"{parts.esc(str(r.get('text', ''))[:300])} <span class='inv-muted'>{parts.esc(where)}</span>", unsafe_allow_html=True)
 
 
+def _choose(key):
+    """A pill picked in one group becomes the chosen panel; the other group is cleared when the pills are drawn next. Clicking the
+    chosen pill again deselects it in Streamlit, which changes nothing here: one of the nine panels is always chosen."""
+    if st.session_state.get(key):
+        st.session_state.panel_pick = st.session_state[key]
+
+
 def _artifacts(ledger, sidecar, configs):
     ss = st.session_state
-    ss.setdefault("panel_pick", "Answer")
+    panel = ss.get("panel_pick") or "Answer"                                  # the one chosen panel; render() applied panel_next already
     with st.container(border=True):
-        panel = st.pills("Artifacts", PANELS, key="panel_pick", label_visibility="collapsed", selection_mode="single") or "Answer"
+        for key, (label, names) in GROUPS.items():
+            ss[key] = panel if panel in names else None                       # a widget key may only change before the widget is drawn
+            st.pills(label, names, key=key, selection_mode="single", on_change=_choose, args=(key,))
         t = _current()
-        if panel in ("Answer", "Evidence", "Who did what", "Steps") and not (t and t.get("out")):
+        if panel in ANSWER_PANELS and not (t and t.get("out")):
             st.caption("The artifacts of an answer appear here once the crew has answered." if not LIVE.get("run") else "The crew is working; the answer's artifacts appear here when it is done.")
             return
         if panel == "Answer":
