@@ -262,15 +262,24 @@ def row_sentences(rows, cite=""):
             body = _join(_statement(k, v) for k, v in r.items())
             out.append(body[:1].upper() + body[1:] + tail)
             continue
-        clauses, order = {}, []
+        groups = []                                                            # runs of one verb, in column order: a date between two "has" cells stays between them
         for k in rest:
             verb, obj = _predicate(k, r[k])
-            if verb not in clauses:
-                order.append(verb)
-                clauses[verb] = []
-            clauses[verb].append(obj)
-        out.append(f"{_said(subject)} " + _join(f"{verb} {_join(clauses[verb])}" for verb in order) + tail)
+            if groups and groups[-1][0] == verb:
+                groups[-1][1].append(obj)
+            else:
+                groups.append((verb, [obj]))
+        out.append(f"{_said(subject)} " + _join_groups(groups) + tail)
     return out
+
+
+def _join_groups(groups):
+    """'has the equipment id P-104, is dated 2026-10-05 and has the note "x"'; a comma before the last "and" when the group
+    before it already says "and": 'has the equipment id P-104 and the note "x", and is dated 2026-10-05'."""
+    parts = [f"{verb} {_join(objs)}" for verb, objs in groups]
+    if len(parts) == 1:
+        return parts[0]
+    return ", ".join(parts[:-1]) + (", and " if len(groups[-2][1]) > 1 else " and ") + parts[-1]
 
 
 def rows_in_words(rows, cite=""):

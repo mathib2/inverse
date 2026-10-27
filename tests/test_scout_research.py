@@ -212,6 +212,10 @@ def test_the_id_column_tells_the_rows_apart_and_no_word_in_the_sentences_comes_f
     rows = [{"equipment_id": "P-104", "record_id": "M-002", "date": "2026-10-05"}, {"equipment_id": "P-104", "record_id": "M-001", "date": "2026-09-02"}]
     assert id_column(rows) == "record_id"                                                                            # equipment_id is the same on both rows
     assert rows_in_words(rows, "[Q1]") == "M-002 has the equipment id P-104 and is dated 2026-10-05 [Q1]. M-001 has the equipment id P-104 and is dated 2026-09-02 [Q1]."
+    mixed = {"record_id": "M-002", "equipment_id": "P-104", "date": "2026-10-05", "note": "x"}
+    assert rows_in_words([mixed], "[Q1]") == 'M-002 has the equipment id P-104, is dated 2026-10-05 and has the note "x" [Q1].'     # the columns in their order
+    mixed = {"record_id": "M-002", "equipment_id": "P-104", "note": "x", "date": "2026-10-05"}
+    assert rows_in_words([mixed], "[Q1]") == 'M-002 has the equipment id P-104 and the note "x", and is dated 2026-10-05 [Q1].'     # no "and ... and"
     full = [{"equipment_id": "P-104", "name": "Process pump mount", "mass_kg": 1.0, "baseline_dataset": "p104-baseline", "current_dataset": "p104-current"},
             {"equipment_id": "T-200", "name": "Test rig", "mass_kg": 5.0, "baseline_dataset": None, "current_dataset": "trap-current"}]
     text = rows_in_words(full, "[Q1]")
