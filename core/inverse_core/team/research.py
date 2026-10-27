@@ -466,8 +466,12 @@ class ResearchExpert(BaseExpert):
             self.ctx.trace.event("rows_reworded", expert=self.name, task=task.id, arrays=reworded, answer=answer[:200])
         facts = self._facts(ran, answer)
         if facts:                                                                     # a small result set rides along verbatim: the model dropped values the task asked for
-            answer = (answer.rstrip(" .") + ". " if answer.strip() else "") + facts
-            self.ctx.trace.event("answer_facts", expert=self.name, task=task.id, facts=facts[:200])
+            bare = re.fullmatch(r"\W*(?P<tok>[\w.-]*\d[\w.-]*)\W*", answer.strip())      # the model's whole answer is one number or id ('100', 'P-104')
+            if bare and re.search(r"(?<![\w.-])" + re.escape(bare.group("tok")) + r"(?![\w.-])", facts, re.I):
+                answer = facts                                                        # the sentences hold it: said once, not '100. The sampling rate is 100 Hz'
+            else:
+                answer = (answer.rstrip(" .") + ". " if answer.strip() else "") + facts
+            self.ctx.trace.event("answer_facts", expert=self.name, task=task.id, facts=facts[:200], bare=bare.group("tok") if bare else None)
         bad = unverified_numbers(answer, payload)
         if bad and self._facts(ran, ""):                                              # the model stated numbers the rows do not contain: the rows speak instead, by code, and Vera has nothing to refuse
             self.ctx.trace.event("scout_numbers_dropped", expert=self.name, task=task.id, numbers=bad[:6], said=answer[:200])

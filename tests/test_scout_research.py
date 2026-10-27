@@ -335,3 +335,17 @@ def test_scout_drops_a_quantity_filter_the_task_did_not_ask_for():
     assert unfilter_quantity("SELECT sigma FROM obs.sensors_table WHERE quantity = 'x'", goal) == ("SELECT sigma FROM obs.sensors_table", True)
     assert unfilter_quantity(sql, "the displacement sensor on P-104")[1] is False and unfilter_quantity(sql, "sensor T200-DISP-1")[1] is False
     assert unfilter_quantity("SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'", goal)[1] is False
+
+
+def test_the_models_bare_number_is_not_said_before_the_sentences_that_hold_it(tmp_path):
+    def script(model, messages):
+        if messages[-1]["content"].startswith("These are the rows your queries returned"):
+            return json.dumps({"answer": "100", "confidence": 0.9, "assumptions": []})                    # the 4B model's whole answer, as in benchmark round 27
+        return json.dumps({"queries": ["SELECT sampling_hz, sigma FROM obs.sensors_table WHERE sensor_id = 'P104-DISP-1'"]})
+
+    ctx, lead = crew(tmp_path, script)
+    ctx.zetaris.sql = lambda statement, limit=2000: [{"sampling_hz": 100, "sigma": 0.01}]
+    goal = "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?"
+    res = ctx.registry.experts["research"].run(Task("T1", goal, "research"), lead.memory, ExpertBudget())
+    assert res.answer == "The sampling rate is 100 Hz and the noise level (sigma) is 0.01 [Q1]."          # not "100. The sampling rate is 100 Hz ..."
+    assert events(ctx, "answer_facts")[0]["bare"] == "100" and all(item in res.answer for item in ("100", "0.01"))
