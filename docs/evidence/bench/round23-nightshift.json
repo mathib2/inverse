@@ -1,0 +1,393 @@
+{
+ "label": "round23-nightshift",
+ "started": "2026-10-26T19:55:35",
+ "provider": "nightshift",
+ "lanes": {
+  "fast": "local-runtime/nemotron-mini-4b-instruct-q4-k-m",
+  "deep": "local-runtime/nemotron-mini-4b-instruct-q4-k-m",
+  "critic": "local-runtime/nemotron-mini-4b-instruct-q4-k-m"
+ },
+ "collaborate": "auto",
+ "parallel": 2,
+ "cases": [
+  {
+   "name": "arithmetic",
+   "goal": "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195535",
+   "tasks": [
+    [
+     "T1",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "122.55 [T1.E1]",
+   "duration": 6.9,
+   "calls": 2,
+   "prompt_tokens": 690,
+   "completion_tokens": 397,
+   "latency": {
+    "reasoning": [
+     5.1
+    ],
+    "critic": [
+     1.76
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "122.6": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "registry",
+   "goal": "Which machines are in the equipment registry, and which of them has no baseline dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195542",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "P-104. Rows: equipment_id = P-104, baseline_dataset = p104-baseline [Q1]; equipment_id = T-200, baseline_dataset = none [Q1] [T1.E1]",
+   "duration": 3.6,
+   "calls": 3,
+   "prompt_tokens": 2082,
+   "completion_tokens": 136,
+   "latency": {
+    "research": [
+     0.94,
+     0.71
+    ],
+    "critic": [
+     1.49
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "P-104": true,
+    "T-200": true,
+    "baseline": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "samples",
+   "goal": "How many sensor samples are stored for P-104's baseline dataset and for its current dataset?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195546",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "400 [T1.E1] [T1.E2]",
+   "duration": 2.4,
+   "calls": 2,
+   "prompt_tokens": 1773,
+   "completion_tokens": 73,
+   "latency": {
+    "research": [
+     1.06,
+     0.67
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "400": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "sensor",
+   "goal": "What are the sampling rate and the noise level (sigma) of the displacement sensor on P-104?",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195549",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "100. Rows: sampling_hz = 100, sigma = 0.01 [Q1] [T1.E1]",
+   "duration": 2.6,
+   "calls": 2,
+   "prompt_tokens": 1789,
+   "completion_tokens": 89,
+   "latency": {
+    "research": [
+     1.28,
+     0.78
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "100": true,
+    "0.01": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "maintenance",
+   "goal": "List the maintenance records for P-104 with their dates and what was done.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195552",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "The maintenance records for P-104 are:\n[{\"record_id\": \"M-002\", \"date\": \"2026-10-05\", \"note\": \"[text withheld: matched injection pattern]\"}, {\"record_id\": \"M-001\", \"date\": \"2026-09-02\", \"note\": \"Routine inspection. Mount bolts torqued. Baseline vibration recorded.\"}] [T1.E1]",
+   "duration": 4.4,
+   "calls": 3,
+   "prompt_tokens": 2331,
+   "completion_tokens": 184,
+   "latency": {
+    "research": [
+     1.07,
+     2.35
+    ],
+    "critic": [
+     0.46
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "2026-09-02": true,
+    "2026-10-05": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "weight",
+   "goal": "Using the mass of P-104 from the equipment registry, compute its weight in newtons with g = 9.81 m/s^2.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195557",
+   "tasks": [
+    [
+     "T1",
+     "research",
+     "done",
+     1
+    ],
+    [
+     "T2",
+     "reasoning",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 2,
+   "unfinished": 0,
+   "plan_by": "model",
+   "answer": "**T1 (research)**: Rows: mass_kg = 1.0 [Q1]; sigma = 0.01 [Q2]; sigma = 0.1 [Q2] [T1.E1] [T1.E2] [T1.E3]\n\n**T2 (reasoning)**: The weight of P-104 is 9.81 newtons. [T2.E1] [T2.E2]",
+   "duration": 9.6,
+   "calls": 6,
+   "prompt_tokens": 3808,
+   "completion_tokens": 415,
+   "latency": {
+    "lead": [
+     1.71
+    ],
+    "research": [
+     2.02,
+     0.77
+    ],
+    "reasoning": [
+     2.85,
+     0.68
+    ],
+    "critic": [
+     0.6
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ],
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "9.81": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "code",
+   "goal": "Review core/inverse_core/team/tools.py for security weaknesses. Name the file you reviewed and the most important finding with its line number, or say that none was found in it.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195607",
+   "tasks": [
+    [
+     "T1",
+     "vulnerability",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "Reviewed core/inverse_core/team/tools.py: the fixed-rule scan found no pattern hit in 1 file(s), so no weakness is claimed. [T1.E1]",
+   "duration": 0.7,
+   "calls": 1,
+   "prompt_tokens": 373,
+   "completion_tokens": 27,
+   "latency": {
+    "critic": [
+     0.69
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "llm"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {
+    "tools.py": true
+   },
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  },
+  {
+   "name": "summary",
+   "goal": "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.",
+   "run_dir": "/home/<user>/inverse-dev/runs/20261026-195608",
+   "tasks": [
+    [
+     "T1",
+     "solver",
+     "done",
+     1
+    ]
+   ],
+   "fallback": false,
+   "accepted": 1,
+   "unfinished": 0,
+   "plan_by": "rule",
+   "answer": "Found and still standing: solver: Found and still standing: research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; research: The maintenance records for P-104 are:\n[{\"record_id\": \"M-002\", \"date\": \"2026-10-05\", \"note\": \"[t; research: M-001, M-002. Rows: record_id = M-002, date = 2026-10-05, note = [text withheld: matched injection pattern] [Q1]; record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts; reasoning: There are 33 days between 2026-09-02 and 2026-10-05.; reasoning: 122.55; research: P-104. Rows: equipment_id = P-104, baseline_dataset = p104-baseline [Q1]; eq",
+   "duration": 2.2,
+   "calls": 1,
+   "prompt_tokens": 1164,
+   "completion_tokens": 99,
+   "latency": {
+    "critic": [
+     2.14
+    ]
+   },
+   "verdicts": [
+    [
+     "accept",
+     "code"
+    ]
+   ],
+   "reasks": 0,
+   "parse_errors": 0,
+   "checks": {},
+   "expert_used": true,
+   "pass": true,
+   "clean": true
+  }
+ ],
+ "totals": {
+  "cases": 8,
+  "pass": 8,
+  "clean": 8,
+  "expert_used": 8,
+  "mean_duration": 4.0,
+  "total_duration": 32.4,
+  "mean_calls": 2.5,
+  "prompt_tokens": 14010,
+  "completion_tokens": 1420,
+  "fallbacks": 0,
+  "reasks": 0,
+  "parse_errors": 0,
+  "call_latency_median": 1.1
+ }
+}
