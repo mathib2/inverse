@@ -23,7 +23,7 @@ def test_objections_are_kept_only_when_the_quote_is_in_the_answer_and_the_eviden
     kept, dropped = C.check_problems([
         {"quote": "the pump was overhauled in March", "why": "no maintenance row says so"},     # real words, nothing in the evidence -> kept
         {"quote": "P-104 weighs 12.5 kg", "why": "unsupported"},                               # 12.5 is in the rows -> covered
-        {"quote": "its weight is 122.6 N", "why": "made up"},                                  # within 1% of 122.625 -> covered
+        {"quote": "its weight is 122.6 N", "why": "made up"},                                  # 122.625 to one decimal -> covered
         {"quote": "the bearing is worn", "why": "x"},                                          # not in the answer -> made up
         "weighs 99 kg",                                                                        # a plain string works too; not in the answer
         {"quote": ""},

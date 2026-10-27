@@ -1,7 +1,8 @@
 # The benchmark: how the crew is tested, and what changed
 
 `scripts/measure/bench.py` runs eight checkable goals (`scripts/measure/bench_cases.yaml`) through the crew exactly as the crew page would, and records
-for each: whether every expected item is in the final answer (a number within 1 %, text as a substring), whether at least one
+for each: whether every expected item is in the final answer (a number as the expected value rounded to the precision the answer writes it with, text as a substring; until
+27 October a number within 1 % counted, which passed 122.55 for 122.625), whether at least one
 task was accepted, seconds, model calls, prompt and completion tokens, the reviewer's verdicts, re-asks and unreadable replies.
 Results land in `docs/evidence/bench/<label>.json`; `--compare a.json b.json` prints two runs side by side.
 
@@ -56,6 +57,7 @@ in under a second. Everything below follows from those three numbers: fewer call
 | 19 | **8/8** | 8 | **40** | 2.8 | a task that asks for the whole list "and which of them" gets every row (`whole_list`); 5 s per case against 28 s in round 17: the deterministic layer keeps the result, the GPU makes it five times faster |
 | 20-22 | 6/8, 6/8, 7/8 | | 39-69 | 2.4-3.5 | the same code as round 19 a few hours later: the arithmetic and weight cases failed ("3", "123.0", "9810"). Euler was shown its expert's three newest reviewer lessons whatever the task, and the newest one by then was about a cube root ("The cube root of 27 is not 3, but 3") |
 | 23, 24 | **8/8**, **8/8** | 8 | **32**, **32** | 2.5 | a lesson reaches an expert only for a task like the one it came from; the final write-up's numbers are checked like every task's; the days between two dates are counted by code |
+| 25, 26 | 7/8, **8/8** | 7, 8 | 36, 30 | 2.6, 2.5 | the exact grader (27 Oct): a number counts only as a tool's value rounded to its own precision, and an answer states the calculator's value, not the model's arithmetic. Re-graded this way, rounds 23 and 24 are 7/8 each: both answered the arithmetic case 122.55 for 12.5 x 9.81 = 122.625, which the 1 % tolerance had passed. Rounds 25 and 26 answered 122.625 both times. Round 25 lost the weight case to the planner, which sent the goal to Euler without the lookup of the mass; Vera refused the 981000000000 he wrote, and his next reply was not JSON |
 | nano | stopped | | | | `nemotron-3-nano:4b` on every lane (26 Oct): the arithmetic case took 130 s against 31 s, so the round was stopped; a newer 4B is not faster on this CPU |
 | hosted | 7/8 | 7 | 893 | 7.4 | the sponsor's hosted Nemotron through the tunnel (26 Oct, `MODEL_PROVIDER=nightshift`, served by `nemotron-3-ultra-550b`): a 40-token request answers in 2 s, but the whole benchmark is slower than local round 14 because the big model writes five times more (146k prompt + 14.8k completion tokens against 37k + 3k) and the pipeline makes more calls; the code case alone took 409 s and 15 calls; the summary case failed by rule twice. Not adopted |
 

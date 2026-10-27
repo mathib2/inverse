@@ -5,7 +5,8 @@ docs/evidence/bench/<label>.json so two runs can be compared.
   PYTHONPATH=core .venv/bin/python scripts/measure/bench.py --label baseline [--only arithmetic,registry] [--collaborate auto|on|off] [--parallel 2]
   PYTHONPATH=core .venv/bin/python scripts/measure/bench.py --compare docs/evidence/bench/baseline.json docs/evidence/bench/tuned.json
 
-A case passes when every expected item is in the answer (a number within 1 %, text as a case-insensitive substring) and at least
+A case passes when every expected item is in the answer (a number as the expected value rounded to the precision the answer writes it
+with, text as a case-insensitive substring) and at least
 one task was accepted; it is clean when no task failed. Stop Warden first, or its missions share the CPU with the benchmark."""
 import argparse
 import json
