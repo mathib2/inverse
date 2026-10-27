@@ -108,12 +108,13 @@ def rows_in_words(text):
 def records_in_words(text):
     """A JSON array of records pasted into a finding, whole or cut by a limit, as (the text before it, the records in words, the text
     after it): '[{"record_id": "M-002", "date": "2026-10-05"}, {"record_id": "M-001", "da' becomes "the record M-002 has the date
-    2026-10-05; the record M-001 (cut off)". Every whole field is kept. None when the text holds no such array."""
+    2026-10-05; the record M-001 (cut off)". Every whole field is kept, a number as it was written (1.50 stays 1.50, 1e-3 stays
+    1e-3). None when the text holds no such array."""
     m = _RECORDS.search(text)
     if not m:
         return None
     try:
-        records, end = json.JSONDecoder().raw_decode(text, m.start())
+        records, end = json.JSONDecoder(parse_float=str, parse_int=str).raw_decode(text, m.start())
         if not (records and all(isinstance(r, dict) for r in records)):
             return None
         rows = [_pairs(", ".join(f"{k} = {fold(v)}" for k, v in r.items() if fold(v))) for r in records]

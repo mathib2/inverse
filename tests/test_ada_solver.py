@@ -142,6 +142,8 @@ def test_the_summary_keeps_every_number_id_and_citation_a_finding_holds():
                                          "the record M-001 has the date 2026-09-02 and the note Routine inspection.")
     assert finding_sentence(records[:185]) == "Scout found that the maintenance records for P-104 are: the record M-002 has the date 2026-10-05 and the note [text withheld: matched injection pattern]; the record is M-001 (cut off)."
     assert finding_sentence(records[:170]) == "Scout found that the maintenance records for P-104 are: the record M-002 has the date 2026-10-05 and the note [text withheld: matched injection pattern] (cut off)."
+    assert finding_sentence('research: The first samples are: [{"t": 0, "x": 1.50, "v": 1e-3}, {"t": 100.0, "x": -2, "v": 1E+2}]') \
+        == "Scout found that the first samples are: the time is 0, the displacement is 1.50 and the velocity is 1e-3; the time is 100.0, the displacement is -2 and the velocity is 1E+2."   # a bare number as written
     assert finding_sentence("research: Found two maintenance records for P-104 from registry. Rows: record_id = M-002, date = 2026-10-05 [Q1]") \
         == "Scout found two maintenance records for P-104 from registry; the rows say the record M-002 has the date 2026-10-05 [Q1]."
     assert finding_sentence("vulnerability: Reviewed core/inverse_core/team/tools.py: the fixed-rule scan found no pattern hit in 1 file(s), so no weakness is claimed.") \
