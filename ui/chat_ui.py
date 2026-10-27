@@ -13,6 +13,7 @@ import council_ui
 import live_ui
 import parts
 import plain
+import run_ui
 import warden_ui
 from inverse_core import notify
 from inverse_core.clients.world import WorldClient
@@ -25,7 +26,10 @@ from inverse_core.team.lanes import Lanes
 from inverse_core.team.registry import load_configs
 
 ROOT, RUNS_DIR, EXPERTS_DIR = advanced_ui.ROOT, advanced_ui.RUNS_DIR, advanced_ui.EXPERTS_DIR
-PANELS = ["Answer", "Evidence", "Who did what", "Steps", "Live", "Crew", "Warden", "Council", "Alerts"]
+ANSWER_PANELS = ["Answer", "Evidence", "Who did what", "Steps"]              # about the answer the panel is on
+CREW_PANELS = ["Live", "Crew", "Warden", "Council", "Alerts"]                 # about the crew as a whole
+PANELS = ANSWER_PANELS + CREW_PANELS
+GROUPS = {"panel_answer": ("This answer", ANSWER_PANELS), "panel_crew": ("The crew", CREW_PANELS)}   # widget key: its label and its pills
 PANEL_ICONS = {"Answer": ":material/article:", "Evidence": ":material/fact_check:", "Who did what": ":material/groups:", "Steps": ":material/route:",
                "Live": ":material/podcasts:", "Crew": ":material/badge:", "Warden": ":material/visibility:", "Council": ":material/gavel:", "Alerts": ":material/notifications:"}
 EXAMPLES = [("What do we know about P-104?", "From the registry, the sensor specifications and the maintenance history, what do we know about P-104, and how much sensor data is there for it?"),
@@ -33,8 +37,6 @@ EXAMPLES = [("What do we know about P-104?", "From the registry, the sensor spec
             ("What do we know so far?", "Summarize in plain words what the crew has found and ruled out so far, and list what is still unchecked.")]
 
 LIVE = {}                                                                     # the one mission running in this process, shared by every browser session
-
-ENDED = {"task_failed", "task_rejected", "task_skipped"}
 
 def _configs():
     try:
@@ -67,30 +69,6 @@ def _busy(on, goal=""):
     except OSError:
         pass
 
-def _clock(t0, t1=None):
-    secs = int((t1 or time.time()) - t0)
-    return f"{secs // 60} min {secs % 60:02d} s" if secs >= 60 else f"{secs} s"
-
-def _label(live, configs):
-    """What the crew is doing right now, read from the trace: who is on which task, how many finished, for how long."""
-    ev, clock = live["events"][:], _clock(live["t0"])
-    if live.get("stopping"):
-        return f"Stopping: the step in progress finishes, nothing new starts · {clock}"
-    if any(e["kind"] == "composing" for e in ev):
-        return f"{crew_name('lead')} is writing the answer · {clock}"
-    approved = next((e for e in ev if e["kind"] == "plan_approved"), None)
-    if not approved:
-        return f"{crew_name('lead')} is planning · {clock}"
-    total = len(approved.get("tasks") or [])
-    ended = {e.get("task") for e in ev if e["kind"] in ENDED or (e["kind"] == "critic" and e.get("verdict") in ("accept", "unreviewed"))}
-    working = {}
-    for e in ev:
-        if e["kind"] == "delegate":
-            working[e.get("task")] = e.get("expert")
-    busy = [(t, x) for t, x in working.items() if t not in ended]
-    who = ", ".join(f"{crew_name(x, configs)} on {t}" for t, x in busy[-2:]) or f"{crew_name('critic')} is checking"
-    return f"{who} · {len(ended)} of {total} tasks finished · {clock}"
-
 def _ended(live):
     """The mission is over: keep its answer for this browser session, remember how it ended, free the slot."""
     ss = st.session_state
@@ -103,7 +81,7 @@ def _ended(live):
         ss.crew_error = (box["err"], live["ctx"].equipment)
     elif live["holder"].get("plan") is not None:
         ss.crew_out, ss.crew_plan, ss.crew_dir, ss.crew_events, ss.crew_replay = box["v"], live["holder"]["plan"], live["ctx"].trace.dir, list(live["events"]), False
-    ss.crew_last = {"stopped": bool(live.get("stopping")), "took": _clock(live["t0"], live["t1"])}
+    ss.crew_last = {"stopped": bool(live.get("stopping")), "took": run_ui.clock(live["t0"], live["t1"])}
 
 
 
@@ -153,31 +131,37 @@ def _collect():
     ss = st.session_state
     if ss.get("crew_out") is not None and ss.get("crew_dir") and all(t.get("dir") != ss.crew_dir for t in _turns()):
         last = ss.get("crew_last") or {}
+        if ss.get("crew_replay"):                                             # a saved run opened from Warden or Recent: its own time, never the last live mission's
+            secs = int(max([float(e.get("t") or 0) for e in (ss.get("crew_events") or [])] or [0]))
+            last = {"took": (f"{secs // 60} min {secs % 60:02d} s" if secs >= 60 else f"{secs} s") if secs else "", "stopped": False}
         _turns().append({"goal": ss.crew_plan.goal, "out": ss.crew_out, "plan": ss.crew_plan, "events": list(ss.get("crew_events") or []),
                          "dir": ss.crew_dir, "took": last.get("took", ""), "stopped": bool(last.get("stopped"))})
         ss.panel_turn = ss.crew_dir
         if ss.get("panel_pick") == "Live":
             ss.panel_next = "Answer"
+        if not ss.get("crew_replay") and ss.crew_dir not in ss.setdefault("toasted", set()):   # once per run that just ended; a replay opened from Warden ran nothing
+            ss.toasted.add(ss.crew_dir)
+            st.toast(plain.run_ended(last.get("took", ""), bool(last.get("stopped"))), icon=":material/check_circle:")
     if ss.get("crew_error"):
         err, equipment = ss.pop("crew_error")
         title, what = plain.error(err, equipment)
         _turns().append({"goal": ss.pop("pending_goal", "") or "the last question", "error": f"**{title}** {what}", "dir": None})
+        st.toast(title, icon=":material/error:")
 
 
 def _running(live_run, configs):
-    """The assistant's bubble while the crew works: a status line that redraws itself, the plain lines so far, and Stop."""
+    """The assistant's bubble while the crew works: the run panel (the status line with Stop, the timeline, one card per task), redrawn every 2 s."""
     th = live_run["thread"]
 
+    def stop():
+        live_run["stopping"] = True
+        live_run["ctx"].stop.set()
+
     def body():
-        c1, c2 = st.columns([5, 1])
-        c1.caption(_label(live_run, configs) if th.is_alive() else "Mission over")
-        if c2.button("Stop", key="chat_stop", width="stretch", disabled=live_run.get("stopping", False), help="The step in progress finishes; nothing new starts."):
-            live_run["stopping"] = True
-            live_run["ctx"].stop.set()
-        lines = [s for s in (_say(e, configs) for e in live_run["events"][:]) if s]
-        if lines:
-            st.markdown("\n".join(f"- {s}" for s in lines[-8:]))
-        if not th.is_alive():
+        alive = th.is_alive()
+        run_ui.panel(live_run["events"][:], live_run["holder"].get("plan"), configs, live_run["t0"], None if alive else time.time(),
+                     live_run.get("stopping", False), stop=stop if alive else None)
+        if not alive:
             st.session_state.pending_goal = live_run["goal"]
             _ended(live_run)
             st.rerun(scope="app")
@@ -207,13 +191,22 @@ def _turn(t, configs):
                     st.rerun()
 
 
+def _take_example():
+    """The pill's own callback: Streamlit allows clearing a widget's key here, and refuses it after the widget is drawn in a run
+    (clicking an example raised StreamlitWidgetAlreadyInstantiatedError and started nothing; the pill then stuck)."""
+    ss = st.session_state
+    if ss.get("example_pick"):
+        ss.example_goal = dict(EXAMPLES)[ss.example_pick]
+    ss.example_pick = None
+
+
 def _welcome(ledger, sidecar, enabled):
     st.markdown("#### What would you like the crew to find out?")
     st.caption("Eight agents on local models plan the work, look things up, compute, check each other and answer with evidence. Try one of these, or ask your own question below.")
-    pick = st.pills("Try one", [label for label, _ in EXAMPLES], key="example_pick", label_visibility="collapsed", selection_mode="single", disabled=not enabled)
-    if pick:
-        text = dict(EXAMPLES)[pick]
-        st.session_state.example_pick = None
+    st.pills("Try one", [label for label, _ in EXAMPLES], key="example_pick", label_visibility="collapsed", selection_mode="single", disabled=not enabled,
+             on_change=_take_example)
+    text = st.session_state.pop("example_goal", None)
+    if text:
         st.session_state.pending_goal = text
         _begin(text, ledger, sidecar)
 
@@ -248,11 +241,14 @@ def _who(t, configs):
 
 
 def _steps(t, configs):
-    lines = [(e.get("t"), _say(e, configs)) for e in t.get("events") or []]
+    events = t.get("events") or []
+    lines = [(e.get("t"), _say(e, configs)) for e in events]
     lines = [(tt, s) for tt, s in lines if s]
     if not lines:
         st.caption("No steps were recorded for this answer.")
         return
+    took = max((e["t"] for e in events if isinstance(e.get("t"), (int, float))), default=0)
+    run_ui.panel(events, t.get("plan"), configs, 0, took, bool(t.get("stopped")))   # the finished run's panel, then every step in order
     st.markdown("\n".join(f"- `{tt:6.1f} s` {s}" if isinstance(tt, (int, float)) else f"- {s}" for tt, s in lines))
 
 
@@ -273,7 +269,8 @@ def _alerts():
     st.caption("What the crew sent to your phone, newest first. Channels come from the workstation's .env: " + (", ".join(chans) if chans else "none configured") + ".")
     topic = os.environ.get("NTFY_TOPIC", "").strip()
     if topic:
-        st.markdown(f"**Phone setup:** install the ntfy app, add a subscription to the topic `{topic}` (server ntfy.sh), and allow its notifications. "
+        st.markdown("**Phone setup:** install the ntfy app, add a subscription to the topic named by `NTFY_TOPIC` in the workstation's `.env` (server ntfy.sh), "
+                    "and allow its notifications. The topic is not shown here: anyone who knows it can read every alert. "
                     "An approval request arrives with the highest priority, which rings like a call on Android.")
     if st.button("Send a test alert now", icon=":material/send:", disabled=not chans):
         sent = notify.notify("Test from the INVERSE crew: alerts reach this phone.", urgent=True)
@@ -299,14 +296,35 @@ def _alerts():
                     f"{parts.esc(str(r.get('text', ''))[:300])} <span class='inv-muted'>{parts.esc(where)}</span>", unsafe_allow_html=True)
 
 
+def _choose(key):
+    """A pill picked in one group becomes the chosen panel; the other group is cleared when the pills are drawn next. Clicking the
+    chosen pill again deselects it in Streamlit, which changes nothing here: one of the nine panels is always chosen."""
+    if st.session_state.get(key):
+        st.session_state.panel_pick = st.session_state[key]
+
+
+def _empty():
+    """The dashed box on the answer side of the panel while there is no answer to show."""
+    with st.container(key="inv-empty"):
+        st.markdown(":material/fact_check:")
+        if LIVE.get("run"):
+            st.caption("The crew is working; the answer's artifacts appear here when it is done.")
+        elif _turns():
+            st.caption("The artifacts of an answer appear here once the crew has answered.")
+        else:
+            st.caption(plain.PANEL_EMPTY)
+
+
 def _artifacts(ledger, sidecar, configs):
     ss = st.session_state
-    ss.setdefault("panel_pick", "Answer")
+    panel = ss.get("panel_pick") or "Answer"                                  # the one chosen panel; render() applied panel_next already
     with st.container(border=True):
-        panel = st.pills("Artifacts", PANELS, key="panel_pick", label_visibility="collapsed", selection_mode="single") or "Answer"
+        for key, (label, names) in GROUPS.items():
+            ss[key] = panel if panel in names else None                       # a widget key may only change before the widget is drawn
+            st.pills(label, names, key=key, selection_mode="single", on_change=_choose, args=(key,))
         t = _current()
-        if panel in ("Answer", "Evidence", "Who did what", "Steps") and not (t and t.get("out")):
-            st.caption("The artifacts of an answer appear here once the crew has answered." if not LIVE.get("run") else "The crew is working; the answer's artifacts appear here when it is done.")
+        if panel in ANSWER_PANELS and not (t and t.get("out")):
+            _empty()
             return
         if panel == "Answer":
             st.markdown(t["out"]["answer"])
@@ -347,13 +365,12 @@ def render(ledger, ai_online, sidecar, health=None):
     running = bool(live_run and live_run["thread"].is_alive())
     data_online = bool(health and health["data"]["ok"]) if health else True
     enabled = ai_online and data_online and not running
-    left, right = st.columns([7, 5], gap="large")
-    with left:
-        c1, c2 = st.columns([3, 2], vertical_alignment="center")
-        c1.markdown("<div class='inv-brand'>INVERSE</div><div class='inv-tagline'>eight agents · local models · evidence first</div>", unsafe_allow_html=True)
+    with st.container(horizontal=True, vertical_alignment="center", key="inv-header"):   # one row: brand and tagline left, the badges right
+        st.markdown("<div class='inv-brand'>INVERSE</div><div class='inv-tagline'>eight agents · local models · evidence first</div>", unsafe_allow_html=True, width="content")
         if health:
-            with c2:
-                parts.status_row(health)
+            parts.status_row(health, align="right")
+    left, right = st.container(key="inv-main").columns([7, 5], gap="large")   # the key marks this row so parts.CSS can put the panel first on a phone
+    with left:
         with st.container(height=600 if (_turns() or live_run) else 300, border=False):   # a fresh page is not a tall empty box
             if not _turns() and not live_run:
                 _welcome(ledger, sidecar, enabled)

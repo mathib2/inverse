@@ -10,17 +10,18 @@ from inverse_core.clients.zetaris import ZetarisClient
 
 z = ZetarisClient()
 ok = skip = 0
-for f in sorted(glob.glob("data/zetaris/0*.sql")):
-    for line in open(f):
-        s = line.strip().rstrip(";")
-        if not s or s.startswith("--"):
-            continue
-        try:
-            z.sql(s, limit=5)
-            ok += 1
-            print("OK   ", s[:80])
-        except Exception as e:
-            skip += 1
-            print("SKIP ", s[:60], "-", str(e)[:70])
+for path in sorted(glob.glob("data/zetaris/0*.sql")):
+    with open(path) as f:
+        for line in f:
+            s = line.strip().rstrip(";")
+            if not s or s.startswith("--"):
+                continue
+            try:
+                z.sql(s, limit=5)
+                ok += 1
+                print("OK   ", s[:80])
+            except Exception as e:
+                skip += 1
+                print("SKIP ", s[:60], "-", str(e)[:70])
 print(f"done: {ok} applied, {skip} skipped (already exist or failed; check SKIP lines)")
 print("check:", z.sql("SELECT COUNT(*) AS n FROM obs.p104_current_samples")[0])

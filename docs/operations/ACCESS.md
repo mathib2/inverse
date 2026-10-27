@@ -34,5 +34,5 @@ Within 15 minutes the sidebar and the phone show the permanent address, and the 
 
 ## The code
 
-The repository is private: the owner adds each person as a collaborator on GitHub. The working branch is `m4-sindyc`;
+The public copy is github.com/mathib2/inverse (a history-rewritten copy published by `scripts/admin/publish_public.sh`). The team works in the private mathib2/inverse, where the owner adds each person as a collaborator; the working branch is `m4-sindyc`, by pull request;
 `README.md`, `docs/CREW.md` and `docs/BENCH.md` are the place to start.

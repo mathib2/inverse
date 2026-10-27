@@ -115,6 +115,11 @@ def compare(a, b):
           f"prompt tokens {ta['prompt_tokens']}→{tb['prompt_tokens']} · median call {ta['call_latency_median']}→{tb['call_latency_median']} s")
 
 
+def read_json(path):
+    with open(path) as f:
+        return json.load(f)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--label", default=time.strftime("%Y%m%d-%H%M%S"))
@@ -126,11 +131,12 @@ def main():
     ap.add_argument("--compare", nargs=2, metavar="JSON")
     a = ap.parse_args()
     if a.compare:
-        compare(*(json.load(open(p)) for p in a.compare))
+        compare(*(read_json(p) for p in a.compare))
         return
     from inverse_core.clients.meterless import provider_id
     from inverse_core.team.lanes import Lanes
-    cases = yaml.safe_load(open(a.cases)) or []
+    with open(a.cases) as f:
+        cases = yaml.safe_load(f) or []
     if a.only:
         keep = {s.strip() for s in a.only.split(",")}
         cases = [c for c in cases if c["name"] in keep]

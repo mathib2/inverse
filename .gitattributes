@@ -1,0 +1,2 @@
+# Keep approved file-byte hashes portable across Windows and Linux checkouts.
+data/engineering/*.md text eol=lf

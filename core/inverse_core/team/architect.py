@@ -11,7 +11,7 @@ from .expert import ExpertBudget, Task
 from .memory import TeamMemory
 from .tools import ToolError, Tools
 
-GRANTABLE = ("run_sql", "calc", "list_files", "read_file", "grep", "scan", "memory", "ask_expert", "post_message")
+GRANTABLE = ("run_sql", "calc", "list_files", "read_file", "grep", "scan", "memory", "ask_expert", "post_message", "engineering_reference_search")
 NEW_BUDGET = {"tool_calls": 6, "tokens": 40000, "seconds": 240}
 
 
@@ -36,6 +36,8 @@ class ArchitectTools(Tools):
     @staticmethod
     def _config(name, role, system_prompt="", tools=(), model_lane="fast", **_):
         tools = [tools] if isinstance(tools, str) else list(tools or [])
+        if any(tool not in GRANTABLE for tool in tools) or model_lane not in ("fast", "deep"):
+            raise ToolError("unknown tool or unauthorized lane: generated experts require explicitly grantable tools and a fast or deep lane")
         return {"name": str(name), "kind": "custom", "role": str(role), "system_prompt": str(system_prompt or role), "tools": tools,
                 "model_lane": str(model_lane or "fast"), "budget": dict(NEW_BUDGET)}
 

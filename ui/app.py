@@ -110,7 +110,8 @@ with st.sidebar:
         with st.expander("Share with your team", icon=":material/share:"):
             st.code(public, language=None)
             st.caption("Anyone with this link and the crew's user and password can sign in; no Tailscale needed. The link changes if the tunnel restarts.")
-    with st.expander("Connections", expanded=not ai_online or not h["data"]["ok"]):
+    parts.sidebar_status(h)                                                   # always visible in one line; the detail stays one click away
+    with st.expander("Connections", expanded=not ai_online):                  # open only when the AI is off, since that is when the reconnect steps matter
         parts.connections(h, recheck, ssh_target(), ss.get("last_latency"))
     with st.expander("Memory"):
         if st.button("Forget what the crew remembers…", icon=":material/delete_sweep:", width="stretch"):

@@ -162,4 +162,6 @@ def render(root, configs, ledger, sidecar):
     human = os.path.join(root, "council", "human.md")
     if os.path.exists(human):
         with st.expander("Task cards for people (changes the council leaves to you)"):
-            st.markdown(open(human).read()[-4000:])
+            with open(human) as f:
+                cards = f.read()
+            st.markdown(cards[-4000:])

@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "document_id": "inverse-mechanics-v1",
+      "path": "mechanics.md",
+      "title": "INVERSE mechanics reference notes",
+      "source_url": "https://github.com/mathib2/inverse",
+      "license": "Apache-2.0",
+      "version": "INVERSE notes 1.0",
+      "domain": "mechanical",
+      "approved": true,
+      "sha256": "234e257eb25f1e366b5ce2dccdeaa54c55a5158f381e6843b69472da218f5fdb",
+      "authorship": "Original INVERSE notes; not excerpts from upstream manuals",
+      "local_reference": "mechanics.md"
+    },
+    {
+      "document_id": "inverse-thermofluids-v1",
+      "path": "thermofluids.md",
+      "title": "INVERSE thermal and fluid reference notes",
+      "source_url": "https://github.com/mathib2/inverse",
+      "license": "Apache-2.0",
+      "version": "INVERSE notes 1.0",
+      "domain": "thermofluids",
+      "approved": true,
+      "sha256": "ee077e213c3be9bd6411a8c86512d46ae661942b13bd2d61d7cc12ffe39d0e54",
+      "authorship": "Original INVERSE notes; not excerpts from upstream manuals",
+      "local_reference": "thermofluids.md"
+    },
+    {
+      "document_id": "inverse-symbolic-v1",
+      "path": "symbolic.md",
+      "title": "INVERSE symbolic mathematics notes",
+      "source_url": "https://github.com/mathib2/inverse",
+      "license": "Apache-2.0",
+      "version": "INVERSE notes 1.0",
+      "domain": "mathematics",
+      "approved": true,
+      "sha256": "5fb41c0b99c6d33598f8675f96ddcd7c147d4a38b7927ed075b7dcec54ea5f70",
+      "authorship": "Original INVERSE notes; not excerpts from upstream manuals",
+      "local_reference": "symbolic.md",
+      "upstream_url": "https://docs.sympy.org/1.14.0/tutorials/intro-tutorial/solvers.html",
+      "upstream_version": "SymPy 1.14.0",
+      "upstream_license": "BSD-3-Clause"
+    },
+    {
+      "document_id": "inverse-numerical-v1",
+      "path": "numerical.md",
+      "title": "INVERSE numerical methods notes",
+      "source_url": "https://github.com/mathib2/inverse",
+      "license": "Apache-2.0",
+      "version": "INVERSE notes 1.0",
+      "domain": "numerical",
+      "approved": true,
+      "sha256": "ffa11f687fce51163a2e532a085fef3a329bc2a8d721bc59bc1a368fa542caf2",
+      "authorship": "Original INVERSE notes; not excerpts from upstream manuals",
+      "local_reference": "numerical.md",
+      "upstream_url": "https://docs.scipy.org/doc/scipy-1.18.0/tutorial/optimize.html",
+      "upstream_version": "SciPy 1.18.0",
+      "upstream_license": "BSD-3-Clause"
+    },
+    {
+      "document_id": "inverse-units-v1",
+      "path": "units.md",
+      "title": "INVERSE dimensional analysis notes",
+      "source_url": "https://github.com/mathib2/inverse",
+      "license": "Apache-2.0",
+      "version": "INVERSE notes 1.0",
+      "domain": "units",
+      "approved": true,
+      "sha256": "7864d7e1bc5eb48f03b7e71d62526a73577d4858369b83767a3736578990496f",
+      "authorship": "Original INVERSE notes; not excerpts from upstream manuals",
+      "local_reference": "units.md",
+      "upstream_url": "https://pint.readthedocs.io/en/0.25/getting/tutorial.html",
+      "upstream_version": "Pint 0.25",
+      "upstream_license": "BSD-3-Clause"
+    }
+  ]
+}

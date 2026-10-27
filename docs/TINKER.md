@@ -34,8 +34,11 @@ minutes); a cycle is bounded to 30 model calls and 25 minutes.
 
 A 4B model is a weak engineer. Expect most cycles to end in "tests failed; reverted" or "no change made", a few in a real small
 fix, and the research notes to be the most useful output early on. That is why the gate is code: the tests, the probe, and your
-merge. Tinker cannot change the live checkout, the model server, the data platform, `.env`, or anything outside the sandbox; it
+merge. Tinker cannot change the model server, the data platform, `.env`, or anything outside the sandbox while it works; it
 cannot push to the base branch except through the council's merge described below, and it cannot skip the tests or the probe.
+A council merge does reach the live crew: it pushes to `m4-sindyc` and runs `deploy-live`, which restarts the live app. The changed
+files are checked only by count and extension (at most three .py, .md, .yaml, .yml or .txt files), and Sentinel reviews only .py
+files, so keep Tinker stopped during a recording and around a deadline (`inverse-tinker stop`).
 Those limits are what make "no limits" on its research and its attempts safe.
 
 ## Taking turns, repairing, and learning from evidence (26 October)
