@@ -1,6 +1,7 @@
 """Plain words for the answers that code assembles. Every sentence here is made from values the crew already holds (a row,
 a citation, an accepted result): nothing is added and nothing is dropped. `results_in_words` writes the accepted results as
-paragraphs; a shape it cannot render without losing a value is kept as it came. Pure functions: text in, text out, no model."""
+paragraphs, and a memory digest as a list of findings; a shape it cannot render without losing a value is kept as it came.
+Pure functions: text in, text out, no model."""
 from __future__ import annotations
 
 import json
@@ -22,6 +23,8 @@ _BARE = re.compile(r"^(?P<tok>[\w.-]*\d[\w.-]*)\. (?=Rows: )")                  
 _JSON_ROWS = re.compile(r"\[\s*\{.*\}\s*\]", re.S)
 _VALUED = re.compile(r"[\w.\-\[\]]*\d[\w.\-\[\]]*")                                       # every token that carries a digit: a number, an id, a date, a citation label with its brackets
 _NUMBER = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")                                  # a value that is a number, so a unit can follow it
+_DIGEST = re.compile(r"Found and still standing: (?P<found>.+?)\.? Ruled out: (?P<out>.+?)\.? Still unchecked: (?P<left>.+)", re.S)   # the digest custom.py makes out of the memory
+_PART = re.compile(r"; (?=[\w-]+: )")                                                      # between two findings of a digest ('expert: claim'): a '; ' inside a finding is not followed by 'expert: '
 
 
 def _phrase(col):
@@ -121,6 +124,34 @@ def json_rows_in_words(text):
     return " ".join(part for part in (head, " ".join(row_in_words(r) for r in rows), tail) if part)
 
 
+def _finding_in_words(part):
+    """One finding of a digest ('research: 100. Rows: sampling_hz = 100 [Q1]') as a sentence, its expert named at the end:
+    'The sampling rate is 100 Hz [Q1] (research).' A finding the code cannot read whole is said as it came."""
+    m = re.match(r"([\w-]+): ", part)
+    expert, claim = (m.group(1), part[m.end():]) if m else ("", part)
+    words = json_rows_in_words(rows_in_words(claim))
+    words = " ".join((words if keeps_values(claim, words) else claim).split())            # one line per finding: the model's own line breaks go
+    words = words[:-1] if words.endswith(".") else words
+    return (f"{words} ({expert})" if expert else words) + "."
+
+
+def digest_in_words(text):
+    """The digest custom.py makes out of the memory ('Found and still standing: research: 100. Rows: ...; reasoning: ...
+    Ruled out: nothing yet. Still unchecked: ...') as a list of findings, one per line, each in words; what was ruled out
+    the same way. The digest is written after review, so the reviewed text is untouched; this is how the final answer says it."""
+    m = _DIGEST.fullmatch(text.strip())
+    if not m:
+        return text
+
+    def said(title, body):
+        parts = [p for p in _PART.split(body) if p]
+        if parts == ["nothing yet"]:
+            return f"{title}: nothing yet."
+        return f"{title}:\n" + "\n".join("- " + _finding_in_words(p) for p in parts)
+
+    return said("Found and still standing", m["found"]) + "\n\n" + said("Ruled out", m["out"]) + "\n\nStill unchecked: " + m["left"]
+
+
 def keeps_values(before, after):
     """True when every token with a digit in `before` (a number, an id, a date, a citation label) is in `after` as a whole
     token: '100' is not found in '1000', nor '[Q1]' in 'Q1'."""
@@ -129,10 +160,10 @@ def keeps_values(before, after):
 
 
 def answer_in_words(answer):
-    """One accepted answer in plain words: its code-made rows and any pasted row array as sentences, every value and
-    citation kept, or the answer unchanged when a rendering would lose a value."""
+    """One accepted answer in plain words: its code-made rows and any pasted row array as sentences, a memory digest as a
+    list of findings, every value and citation kept, or the answer unchanged when a rendering would lose a value."""
     text = str(answer or "")
-    out = json_rows_in_words(rows_in_words(text))
+    out = digest_in_words(text) if _DIGEST.fullmatch(text.strip()) else json_rows_in_words(rows_in_words(text))
     return out if keeps_values(text, out) else text
 
 

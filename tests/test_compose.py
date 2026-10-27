@@ -2,6 +2,7 @@
 the research expert's code-made rows as plain words, every number, id and citation kept. No model unless a test scripts one."""
 import re
 
+from inverse_core.team.custom import digest
 from inverse_core.team.expert import Task
 from inverse_core.team.plan import Plan
 from inverse_core.team.words import answer_in_words, keeps_values, results_in_words, row_in_words
@@ -21,6 +22,10 @@ WEIGHT_ROWS = "Rows: mass_kg = 1.0 [Q1]; sigma = 0.01 [Q2]; sigma = 0.1 [Q2]"
 WEIGHT = "The weight of P-104 is 9.81 newtons."
 MAINTENANCE = ('The maintenance records for P-104 are:\n[{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"}, '
                '{"record_id": "M-001", "date": "2026-09-02", "note": "Routine inspection. Mount bolts torqued. Baseline vibration recorded."}]')
+MEMORY = {"findings": ["reasoning: " + WEIGHT,                                                                                  # the round-27 memory, as the tool returned it: 'expert: claim', 200 characters each
+                       "solver: Found and still standing: research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; research: " + MAINTENANCE[:61],   # an earlier digest, cut
+                       "research: 2", "reasoning: 122.625", "research: " + REGISTRY, "research: 400", "research: " + SENSOR, ("research: " + MAINTENANCE)[:200]],
+          "refuted": []}
 
 
 def no_writer(tmp_path):
@@ -122,8 +127,8 @@ def test_rows_the_code_cannot_read_whole_are_kept_as_they_came():
     assert answer_in_words(cut) == cut
     nested = 'Records: [{"record_id": "M-002", "extra": {"a": 1}}]'
     assert answer_in_words(nested) == nested
-    digest = "Found and still standing: research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; research: 2. Ruled out: nothing yet."
-    assert answer_in_words(digest) == digest
+    cut_digest = "Found and still standing: research: 0.01. Rows: sigma = 0.01, sampling_hz = 100 [Q1]; research: 2. Ruled out: nothing yet."   # no closing: not a whole digest
+    assert answer_in_words(cut_digest) == cut_digest
     assert answer_in_words("Rows: note = a = b [Q1]") == "Rows: note = a = b [Q1]"
     for plain in ("400", "122.625", WEIGHT, "Reviewed core/inverse_core/team/tools.py: the fixed-rule scan found no pattern hit in 1 file(s), so no weakness is claimed.", ""):
         assert answer_in_words(plain) == plain
@@ -138,6 +143,40 @@ def test_a_row_is_one_sentence_in_the_schemas_words():
     assert row_in_words({"record_id": "M-001", "note": "Mount bolts torqued."}) == "For M-001, the note is Mount bolts torqued."
     assert answer_in_words(MAINTENANCE) == ("The maintenance records for P-104 are: For M-002, the date is 2026-10-05 and the note is [text withheld: matched injection pattern]. "
                                             "For M-001, the date is 2026-09-02 and the note is Routine inspection. Mount bolts torqued. Baseline vibration recorded.")
+
+
+def test_a_memory_digest_is_a_list_of_findings_in_words(tmp_path):
+    """The summary case's answer (round 27) is the digest custom.py makes out of the memory: 'expert: claim' parts joined by '; ',
+    the claims in the raw 'Rows: k = v' form. The final answer says each finding on its own line in words, its expert named
+    at the end, what was ruled out the same way; every value and citation kept. The digest itself, which the reviewer saw,
+    is not changed: this happens at compose time."""
+    text = digest(MEMORY)
+    assert text.startswith("Found and still standing: reasoning: The weight of P-104 is 9.81 newtons.; research: 0.01. Rows: sigma = 0.01") and "Found and still standing" not in text[30:]
+    words = answer_in_words(text)
+    assert words == ("Found and still standing:\n"
+                     "- The weight of P-104 is 9.81 newtons (reasoning).\n"
+                     "- The noise level is 0.01 and the sampling rate is 100 Hz [Q1] (research).\n"
+                     '- The maintenance records for P-104 are: [{"record_id": "M-002" (research).\n'                             # cut by the memory tool: said as it came, on one line
+                     "- 2 (research).\n"
+                     "- 122.625 (reasoning).\n"
+                     "- For P-104, the baseline dataset is p104-baseline [Q1]. For T-200, the baseline dataset is none [Q1] (research).\n"
+                     "- 400 (research).\n"
+                     "- The sampling rate is 100 Hz and the noise level is 0.01 [Q1] (research).\n"
+                     '- The maintenance records for P-104 are: [{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"}, '
+                     '{"record_id": "M-001", "date": "2026-09-02", "note (research).\n\n'
+                     "Ruled out: nothing yet.\n\n"
+                     "Still unchecked: nothing else is recorded in the shared memory.")
+    assert keeps_values(text, words) and sorted(re.findall(r"\[Q\d+\]", text)) == sorted(re.findall(r"\[Q\d+\]", words))
+    for tok in ("9.81", "0.01", "100", "2026-10-05", "2", "122.625", "P-104", "p104-baseline", "T-200", "none", "400", "M-001", "2026-09-02"):
+        assert tok in words, tok
+    ruled = digest({"findings": ["research: " + SENSOR], "refuted": ["reasoning: The weight of P-104 is 10.0 newtons.", "research: 2"]})
+    assert answer_in_words(ruled) == ("Found and still standing:\n- The sampling rate is 100 Hz and the noise level is 0.01 [Q1] (research).\n\n"
+                                      "Ruled out:\n- The weight of P-104 is 10.0 newtons (reasoning).\n- 2 (research).\n\n"
+                                      "Still unchecked: nothing else is recorded in the shared memory.")
+    assert answer_in_words(digest({})) == "Found and still standing: nothing yet.\n\nRuled out: nothing yet.\n\nStill unchecked: nothing else is recorded in the shared memory."
+    ctx, lead = no_writer(tmp_path)                                                                                             # the summary mission: one solver task, composed by code
+    out = lead.compose(Plan("Summarize what the crew has found and ruled out so far.", [mk(1, "solver", text)]))
+    assert out["answer"] == words + " [T1.E1]" and set(out["citations"]) == {"T1.E1"} and events(ctx, "compose")[0]["by_code"] is True
 
 
 def test_a_count_column_is_a_count_and_a_unit_follows_only_a_number():
