@@ -1,0 +1,277 @@
+{
+ "goal": "P-104 is up for a maintenance review. From the registry, find its mass and its two maintenance records with their dates; compute its weight in newtons with g = 9.81 m/s^2; and say how many days passed between the two maintenance records.",
+ "tasks": [
+  {
+   "id": "T1",
+   "goal": "Find mass of P-104 from registry",
+   "expert": "research",
+   "depends_on": [],
+   "status": "done",
+   "attempts": 1,
+   "feedback": "",
+   "context": "",
+   "result": {
+    "answer": "1.0",
+    "evidence": [
+     {
+      "type": "sql",
+      "source": "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id LIKE 'P-104'",
+      "detail": "1 rows",
+      "rows": [
+       {
+        "mass_kg": "1.0"
+       }
+      ]
+     }
+    ],
+    "confidence": 0.9,
+    "assumptions": [],
+    "not_checked": [],
+    "models_used": [
+     "local-runtime/nemotron-mini-4b-instruct-q4-k-m",
+     "local-runtime/nemotron-mini-4b-instruct-q4-k-m"
+    ],
+    "trace_ref": "",
+    "findings": [
+     {
+      "claim": "1.0",
+      "evidence": [
+       {
+        "type": "sql",
+        "source": "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id LIKE 'P-104'",
+        "detail": "1 rows",
+        "rows": [
+         {
+          "mass_kg": "1.0"
+         }
+        ]
+       }
+      ],
+      "source": "fitter",
+      "confidence": 0.9
+     }
+    ],
+    "proposals": [],
+    "task_goal": "Find mass of P-104 from registry"
+   },
+   "lessons": [],
+   "messages": []
+  },
+  {
+   "id": "T2",
+   "goal": "Find two maintenance records for P-104 from registry",
+   "expert": "research",
+   "depends_on": [],
+   "status": "done",
+   "attempts": 1,
+   "feedback": "",
+   "context": "",
+   "result": {
+    "answer": "Found two maintenance records for P-104 from registry. Rows: record_id = M-002, date = 2026-10-05, note = [text withheld: matched injection pattern] [Q1]; record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. Baseline vibration recorded. [Q1]",
+    "evidence": [
+     {
+      "type": "sql",
+      "source": "SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date DESC",
+      "detail": "2 rows",
+      "rows": [
+       {
+        "record_id": "M-002",
+        "date": "2026-10-05",
+        "note": "[text withheld: matched injection pattern]"
+       },
+       {
+        "record_id": "M-001",
+        "date": "2026-09-02",
+        "note": "Routine inspection. Mount bolts torqued. Baseline vibration recorded."
+       }
+      ]
+     }
+    ],
+    "confidence": 1.0,
+    "assumptions": [],
+    "not_checked": [],
+    "models_used": [
+     "local-runtime/nemotron-mini-4b-instruct-q4-k-m",
+     "local-runtime/nemotron-mini-4b-instruct-q4-k-m"
+    ],
+    "trace_ref": "",
+    "findings": [
+     {
+      "claim": "Found two maintenance records for P-104 from registry. Rows: record_id = M-002, date = 2026-10-05, note = [text withheld: matched injection pattern] [Q1]; record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. Baseline vibration recorded. [Q1]",
+      "evidence": [
+       {
+        "type": "sql",
+        "source": "SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date DESC",
+        "detail": "2 rows",
+        "rows": [
+         {
+          "record_id": "M-002",
+          "date": "2026-10-05",
+          "note": "[text withheld: matched injection pattern]"
+         },
+         {
+          "record_id": "M-001",
+          "date": "2026-09-02",
+          "note": "Routine inspection. Mount bolts torqued. Baseline vibration recorded."
+         }
+        ]
+       }
+      ],
+      "source": "fitter",
+      "confidence": 1.0
+     }
+    ],
+    "proposals": [],
+    "task_goal": "Find two maintenance records for P-104 from registry"
+   },
+   "lessons": [
+    "Look facts up in the Zetaris data (equipment registry, sensor specs, maintenance: The answer does not provide any evidence to support the claim that there is no equipment named 'T-200' in the Zetaris data.",
+    "From the registry, the sensor specifications and the maintenance history: what d: \u00abthe last maintenance was done 2 months ago\u00bb: the last maintenance was done 3 months ago (the number(s) 2 are not in the evidence)"
+   ],
+   "messages": []
+  },
+  {
+   "id": "T3",
+   "goal": "Compute weight of P-104 in newtons",
+   "expert": "solver",
+   "depends_on": [
+    "T1",
+    "T2"
+   ],
+   "status": "done",
+   "attempts": 1,
+   "feedback": "",
+   "context": "[T1] 1.0\n[T2] Found two maintenance records for P-104 from registry. Rows: record_id = M-002, date = 2026-10-05, note = [text withheld: matched injection pattern] [Q1]; record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. Baseline vibration recorded. [Q1]",
+   "result": {
+    "answer": "9.81",
+    "evidence": [
+     {
+      "type": "tool",
+      "source": "run_sql(SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104')",
+      "detail": "{\"sql\": \"SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'\", \"rows\": [{\"mass_kg\": \"1.0\"}], \"count\": 1}",
+      "result": {
+       "sql": "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'",
+       "rows": [
+        {
+         "mass_kg": "1.0"
+        }
+       ],
+       "count": 1
+      }
+     },
+     {
+      "type": "tool",
+      "source": "calc({\"expr\": \"1.0 * 9.81\"})",
+      "detail": "{\"expr\": \"1.0 * 9.81\", \"value\": 9.81}",
+      "result": {
+       "expr": "1.0 * 9.81",
+       "value": 9.81
+      }
+     }
+    ],
+    "confidence": 1.0,
+    "assumptions": [],
+    "not_checked": [],
+    "models_used": [
+     "local-runtime/nemotron-mini-4b-instruct-q4-k-m",
+     "local-runtime/nemotron-mini-4b-instruct-q4-k-m",
+     "local-runtime/nemotron-mini-4b-instruct-q4-k-m"
+    ],
+    "trace_ref": "",
+    "findings": [
+     {
+      "claim": "9.81",
+      "evidence": [
+       {
+        "type": "tool",
+        "source": "run_sql(SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104')",
+        "detail": "{\"sql\": \"SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'\", \"rows\": [{\"mass_kg\": \"1.0\"}], \"count\": 1}",
+        "result": {
+         "sql": "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'",
+         "rows": [
+          {
+           "mass_kg": "1.0"
+          }
+         ],
+         "count": 1
+        }
+       },
+       {
+        "type": "tool",
+        "source": "calc({\"expr\": \"1.0 * 9.81\"})",
+        "detail": "{\"expr\": \"1.0 * 9.81\", \"value\": 9.81}",
+        "result": {
+         "expr": "1.0 * 9.81",
+         "value": 9.81
+        }
+       }
+      ],
+      "source": "fitter",
+      "confidence": 1.0
+     }
+    ],
+    "proposals": [],
+    "task_goal": "Compute weight of P-104 in newtons"
+   },
+   "lessons": [],
+   "messages": []
+  },
+  {
+   "id": "T4",
+   "goal": "Find the number of days between two maintenance records",
+   "expert": "reasoning",
+   "depends_on": [
+    "T2",
+    "T2"
+   ],
+   "status": "done",
+   "attempts": 1,
+   "feedback": "",
+   "context": "[T2] Found two maintenance records for P-104 from registry. Rows: record_id = M-002, date = 2026-10-05, note = [text withheld: matched injection pattern] [Q1]; record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. Baseline vibration recorded. [Q1]\n[T2] Found two maintenance records for P-104 from registry. Rows: record_id = M-002, date = 2026-10-05, note = [text withheld: matched injection pattern] [Q1]; record_id = M-001, date = 2026-09-02, note = Routine inspection. Mount bolts torqued. Baseline vibration recorded. [Q1]",
+   "result": {
+    "answer": "There are 33 days between 2026-09-02 and 2026-10-05.",
+    "evidence": [
+     {
+      "type": "calc",
+      "source": "calculator: days_between('2026-09-02', '2026-10-05')",
+      "detail": "= 33: there are 33 days between 2026-09-02 and 2026-10-05"
+     }
+    ],
+    "confidence": 0.95,
+    "assumptions": [],
+    "not_checked": [],
+    "models_used": [],
+    "trace_ref": "",
+    "findings": [
+     {
+      "claim": "There are 33 days between 2026-09-02 and 2026-10-05.",
+      "evidence": [
+       {
+        "type": "calc",
+        "source": "calculator: days_between('2026-09-02', '2026-10-05')",
+        "detail": "= 33: there are 33 days between 2026-09-02 and 2026-10-05"
+       }
+      ],
+      "source": "fitter",
+      "confidence": 0.95
+     }
+    ],
+    "proposals": [],
+    "task_goal": "Find the number of days between two maintenance records"
+   },
+   "lessons": [],
+   "messages": [
+    {
+     "n": 1,
+     "ts": 1793062760.826,
+     "from": "research",
+     "to": "all",
+     "type": "result",
+     "task": "T1",
+     "text": "1.0",
+     "confidence": 0.9
+    }
+   ]
+  }
+ ]
+}

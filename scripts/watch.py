@@ -44,7 +44,7 @@ def main():
     ap.add_argument("--verbose", action="store_true", help="print every trace event")
     a = ap.parse_args()
     if a.queue:
-        print("queued:", json.dumps(Watcher(None, None, root=ROOT).enqueue(a.queue, by=os.environ.get("USER", "cli"))))
+        print("queued:", json.dumps(Watcher(None, None, root=ROOT).enqueue(a.queue, by="shell")))
         return
     if a.status:
         print(json.dumps(Watcher(None, None, root=ROOT).status(), indent=1, default=str))
