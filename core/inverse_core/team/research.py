@@ -195,10 +195,13 @@ def _cell(col, v):
     return kind, name, said + (f" {unit}" if unit else "")
 
 
-def _predicate(col, v):
-    """What a row's id has or is, from one cell: ("has", "a mass of 1.0 kg"), ("is dated", "2026-09-02"),
-    ("has", "no baseline dataset (none)")."""
-    kind, name, said = _cell(col, v)
+def _predicate(col, values):
+    """What a row's id has or is, from one column: ("has", "a mass of 1.0 kg"), ("is dated", "2026-09-02"), ("has", "no baseline
+    dataset (none)"); from the cells of several rows that share the id, the values joined: ("has", "a noise level (sigma) of
+    0.01 and 0.1")."""
+    cells = [_cell(col, v) for v in values]
+    name, said = cells[0][1], _join(s for _, _, s in cells)
+    kind = next((k for k, _, _ in cells if k != "none"), "none")
     if kind == "none":
         return "has", (f"the {name} ({said})" if set(name.split()) & HEDGE_NAMES else f"no {name} ({said})")
     if kind == "date":
@@ -233,44 +236,75 @@ def _count(n):
     return COUNT_WORDS.get(n, str(n))
 
 
+def _several(parts):
+    """Parts that say "and" inside, joined with a comma before the last one: "a and b, c and d, and e and f"."""
+    parts = list(parts)
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + ", and " + parts[-1]
+
+
 def _columns_statement(rows):
-    """Several rows with no id column, said by column in one sentence that admits there are several: "the noise level (sigma)
-    is 0.01 and 0.1 in two rows"; with several columns, "in two rows, the noise level (sigma) is 0.01 and 0.1, and the sampling
-    rate is 100 Hz and 200 Hz" (the values pair up by position). One sentence per row would read as the crew contradicting
-    itself about one unnamed thing: "the noise level (sigma) is 0.01. The noise level (sigma) is 0.1"."""
+    """Several rows with no id column (or nothing but one), said by column in one sentence that admits there are several: "the
+    noise level (sigma) is 0.01 and 0.1 in two rows", "the equipment id is P-104 and T-200 in two rows"; with several columns,
+    "in two rows, the noise level (sigma) is 0.01 and 0.1, and the sampling rate is 100 Hz and 200 Hz" (the values pair up by
+    position). One sentence per row would read as the crew contradicting itself about one unnamed thing: "the noise level
+    (sigma) is 0.01. The noise level (sigma) is 0.1"."""
     parts = [f"the {_cell(k, rows[0][k])[1]} is " + _join(_cell(k, r[k])[2] for r in rows) for k in rows[0]]
     how_many = f"in {_count(len(rows))} rows"
     if len(parts) == 1:
         return f"{parts[0]} {how_many}"
-    return f"{how_many}, " + ", ".join(parts[:-1]) + ", and " + parts[-1]
+    return f"{how_many}, " + _several(parts)
+
+
+def _subject_statement(rows, idc):
+    """Several rows that share one id, said once: "P-104 has a noise level (sigma) of 0.01 and 0.1 in two rows"; with several
+    columns, "In two rows, P-104 has a noise level (sigma) of 0.01 and 0.1, and a sampling rate of 100 Hz and 200 Hz" (the
+    values pair up by position). One sentence per row would say P-104 has two noise levels; it has two sensors."""
+    groups = _verb_groups(_predicate(k, [r[k] for r in rows]) for k in rows[0] if k != idc)
+    body = _several(f"{verb} {_several(objs)}" for verb, objs in groups)
+    if len(rows[0]) == 2:
+        return f"{_said(rows[0][idc])} {body} in {_count(len(rows))} rows"
+    return f"In {_count(len(rows))} rows, {_said(rows[0][idc])} {body}"
+
+
+def _blank(v):
+    return v is None or str(v).strip() == ""
 
 
 def row_sentences(rows, cite=""):
-    """One sentence per row, the id first, the citation before the full stop; several rows with no id column are one sentence
-    that says how many there are. See rows_in_words."""
+    """One sentence per row, the id first, the citation before the full stop. Several rows of one shape are one sentence that
+    says how many there are when no id tells them apart (none, or nothing but the id) or when they share one id. See
+    rows_in_words."""
     rows = [r for r in rows or [] if isinstance(r, dict) and r]
     tail = (f" {cite}" if cite else "") + "."
     idc = id_column(rows)
-    if idc is None and len(rows) > 1 and all(list(r) == list(rows[0]) for r in rows):   # SELECT sigma on two sensors: one sentence, not two that contradict
-        body = _columns_statement(rows)
-        return [body[:1].upper() + body[1:] + tail]
+    if len(rows) > 1 and all(list(r) == list(rows[0]) for r in rows):           # one result set: not one sentence per row that contradicts the last
+        ids = {_said(r[idc]) for r in rows} if idc is not None else set()
+        if idc is None or list(rows[0]) == [idc] or (len(ids) == 1 and _blank(rows[0][idc])):   # SELECT sigma on two sensors, SELECT equipment_id on two machines
+            body = _columns_statement(rows)
+            return [body[:1].upper() + body[1:] + tail]
+        if len(ids) == 1:                                                         # SELECT equipment_id, sigma on one machine's two sensors
+            return [_subject_statement(rows, idc) + tail]
     out = []
     for r in rows:
         subject = r.get(idc) if idc is not None else None
         rest = [k for k in r if k != idc]
-        if subject is None or str(subject).strip() == "" or not rest:
+        if _blank(subject) or not rest:
             body = _join(_statement(k, v) for k, v in r.items())
             out.append(body[:1].upper() + body[1:] + tail)
             continue
-        groups = []                                                            # runs of one verb, in column order: a date between two "has" cells stays between them
-        for k in rest:
-            verb, obj = _predicate(k, r[k])
-            if groups and groups[-1][0] == verb:
-                groups[-1][1].append(obj)
-            else:
-                groups.append((verb, [obj]))
-        out.append(f"{_said(subject)} " + _join_groups(groups) + tail)
+        out.append(f"{_said(subject)} " + _join_groups(_verb_groups(_predicate(k, [r[k]]) for k in rest)) + tail)
     return out
+
+
+def _verb_groups(predicates):
+    """(verb, [object, ...]) runs of one verb, in column order: a date between two "has" cells stays between them."""
+    groups = []
+    for verb, obj in predicates:
+        if groups and groups[-1][0] == verb:
+            groups[-1][1].append(obj)
+        else:
+            groups.append((verb, [obj]))
+    return groups
 
 
 def _join_groups(groups):
@@ -286,7 +320,8 @@ def rows_in_words(rows, cite=""):
     """A small result set as sentences, by code, so what the rows say reads as an answer and every value in it is in the evidence:
     'P-104 has the baseline dataset p104-baseline [Q1]. T-200 has no baseline dataset (none) [Q1].'; one row with no id:
     'The noise level (sigma) is 0.01 and the sampling rate is 100 Hz [Q1].'; several: 'The noise level (sigma) is 0.01 and 0.1
-    in two rows [Q2].'; a count: 'The count is 400 [Q1].' Values are written
+    in two rows [Q2].'; several on one machine: 'P-104 has a noise level (sigma) of 0.01 and 0.1 in two rows [Q2].'; a count:
+    'The count is 400 [Q1].' Values are written
     as the rows hold them, none as the word none, a note in quotes. Every word of six letters or more comes from a column name,
     a value or the reviewer's plain list, so Vera's word rule has nothing to object to."""
     return " ".join(row_sentences(rows, cite))

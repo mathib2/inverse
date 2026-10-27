@@ -198,6 +198,34 @@ def test_several_rows_with_no_id_column_are_one_sentence_that_says_how_many():
     assert rows_in_words([{"sigma": 0.01}, {"sampling_hz": 100}], "[Q1]") == "The noise level (sigma) is 0.01 [Q1]. The sampling rate is 100 Hz [Q1]."   # not one result set
 
 
+def test_several_rows_told_apart_by_nothing_or_sharing_one_id_are_one_sentence():
+    """SELECT equipment_id on two machines (widen_count's query for 'which machines') and SELECT equipment_id, sigma on one
+    machine's two sensors: one sentence each, not one per row that reads as the crew contradicting itself about P-104."""
+    from inverse_core.team.reasoning import ReasoningExpert
+    from inverse_core.team.research import ResearchExpert, rows_in_words, widen_count
+    machines = [{"equipment_id": "P-104"}, {"equipment_id": "T-200"}]
+    text = rows_in_words(machines, "[Q1]")
+    assert text == "The equipment id is P-104 and T-200 in two rows [Q1]."
+    _holds_every_value(text, machines)
+    goal = "How many machines are in the registry, and what are their ids?"
+    ran = [{"type": "sql", "source": widen_count("SELECT COUNT(*) AS n FROM obs.equipment_table", goal), "detail": "2 rows", "rows": machines}]
+    assert ResearchExpert._facts(ran, "There are 2 machines.") == text and C.unsupported_words(goal, text, ran) == []
+    sensors = [{"equipment_id": "P-104", "sigma": "0.01"}, {"equipment_id": "P-104", "sigma": "0.1"}]
+    text = rows_in_words(sensors, "[Q2]")
+    assert text == "P-104 has a noise level (sigma) of 0.01 and 0.1 in two rows [Q2]."                                # one machine, two sensors
+    _holds_every_value(text, sensors)
+    assert ReasoningExpert.resolve("sigma * 2", text) == "0.01 * 2"
+    both = [{"equipment_id": "P-104", "sigma": 0.01, "sampling_hz": 100}, {"equipment_id": "P-104", "sigma": 0.1, "sampling_hz": 200}]
+    text = rows_in_words(both, "[Q1]")
+    assert text == "In two rows, P-104 has a noise level (sigma) of 0.01 and 0.1, and a sampling rate of 100 Hz and 200 Hz [Q1]."   # the values pair up by position
+    _holds_every_value(text, both)
+    dated = [{"equipment_id": "P-104", "date": "2026-10-05", "note": "a"}, {"equipment_id": "P-104", "date": "2026-09-02", "note": "b"}]
+    assert rows_in_words(dated) == 'In two rows, P-104 is dated 2026-10-05 and 2026-09-02, and has the note "a" and "b".'
+    assert rows_in_words([{"equipment_id": "P-104", "baseline_dataset": "p104-baseline"}, {"equipment_id": "P-104", "baseline_dataset": None}]) == "P-104 has the baseline dataset p104-baseline and none in two rows."
+    assert rows_in_words([{"equipment_id": None, "sigma": 0.01}, {"equipment_id": None, "sigma": 0.1}]) == "In two rows, the equipment id is none and none, and the noise level (sigma) is 0.01 and 0.1."
+    assert rows_in_words([{"equipment_id": "P-104", "sigma": 0.01}, {"equipment_id": "T-200", "sigma": 0.1}], "[Q1]") == "P-104 has a noise level (sigma) of 0.01 [Q1]. T-200 has a noise level (sigma) of 0.1 [Q1]."   # two machines: one each
+
+
 def test_the_mass_said_in_words_still_reaches_the_calculator():
     """The weight case: Euler writes calc(mass_kg * 9.81) and the value is read out of Scout's sentence, as it was out of 'mass_kg = 1.0'."""
     from inverse_core.team.reasoning import ReasoningExpert, safe_eval
