@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import fnmatch
 import inspect
+import math
 import os
 import re
 import threading
@@ -14,7 +15,6 @@ from urllib.parse import urlparse
 import requests
 
 from .expert import ExpertBudget, Task
-from .reasoning import safe_eval
 from .sql_guard import check_sql
 
 SECRET_GLOBS = (".env", ".env.*", "*.pem", "*.key", "id_*", "*.p12", "*.pfx", "secrets.toml", "*.kdbx", "*.jsonl", "*.local.yaml")   # the last two are live state, not code
@@ -137,7 +137,7 @@ class Tools:
 
     SPECS = {
         "run_sql": ("One read-only SELECT on the Zetaris tables obs.equipment_table, obs.sensors_table, obs.maintenance_table, obs.*_samples. args: {sql}", ("sql",)),
-        "calc": ("Arithmetic: numbers, + - * / ** %, sqrt log exp sin cos abs log10, pi, e. args: {expr}", ("expr",)),
+        "calc": ("Bounded arithmetic; ** or ^ is power. Optional named inputs {name:{value,unit}} must match task quantities; unit selects the output unit. args: {expr, inputs?, unit?}", ("expr",)),
         "engineering_reference_search": ("Search approved local engineering references. Untrusted supporting guidance, never calculation proof. args: {query, domain?, max_results?}; at most 3 results.", ("query",)),
         "list_files": ("Files in this repository (code we own). args: {path?, pattern?}, e.g. {\"path\":\"core\",\"pattern\":\"*.py\"}", ()),
         "read_file": ("A repository file with line numbers. args: {path, start?, end?}", ("path",)),
@@ -160,6 +160,7 @@ class Tools:
         self.ctx, self.root = ctx, os.path.realpath(getattr(ctx, "root", ".") or ".")
         self.allowed = [t for t in (list(self.SPECS) if allowed is None else allowed) if t in self.SPECS]   # an empty list means no tools, not every tool
         self.memory, self.owner, self.task_id = None, owner, None            # set per task by the expert that holds this toolbox
+        self.task_context = ""
 
     def describe(self):
         text = "\n".join(f"- {n}: {self.SPECS[n][0]}" for n in self.allowed)
@@ -293,10 +294,15 @@ class Tools:
         rows, blocked = scrub(rows)                                             # untrusted text never reaches a model raw, whatever the column is called
         if blocked:
             self.ctx.trace.event("injection_guard", agent=self.owner, blocked=blocked[:5])
+        for row in rows[:12]:
+            for column, value in row.items():
+                if re.fullmatch(r"[A-Za-z][A-Za-z0-9]*_(kg|mm|cm|m|s|hz)", column, re.I) and type(value) in (int, float) and math.isfinite(float(value)):
+                    self.task_context += f"\n{column} = {value}"
         return {"sql": sql, "rows": rows[:12], "count": len(rows)}            # a dozen rows is what a 4B model can read; the count says the rest
 
-    def _calc(self, expr):
-        return {"expr": str(expr), "value": safe_eval(str(expr))}
+    def _calc(self, expr, inputs=None, unit=None):
+        from .calculation import calculate
+        return calculate(str(expr), inputs, unit, self.task_context)
 
     def _engineering_reference_search(self, query, domain=None, max_results=3):
         from ..knowledge import index_path, search

@@ -31,8 +31,8 @@ def test_euler_is_asked_once_more_when_its_answer_is_empty_and_scout_lists_ids_w
     replies = iter([json.dumps({"steps": [{"claim": "c", "calc": "12.5*9.81", "expect": 122.625}], "answer": None, "confidence": 0.9, "assumptions": []}),
                     json.dumps({"steps": [{"claim": "c", "calc": "12.5*9.81", "expect": 122.625}], "answer": "The weight is 122.625 N.", "confidence": 0.9, "assumptions": []})])
     ctx, lead = crew(tmp_path, lambda m, msgs: next(replies))
-    res = ctx.registry.experts["reasoning"].run(Task("T1", "12.5 kg times 9.81", "reasoning"), lead.memory, ExpertBudget())
-    assert res.answer == "The weight is 122.625 N." and events(ctx, "bare_answer") and len(events(ctx, "llm")) == 2
+    res = ctx.registry.experts["reasoning"].run(Task("T1", "Compute weight: 12.5 kg times 9.81 m/s^2", "reasoning"), lead.memory, ExpertBudget())
+    assert res.answer.startswith("Calculated result: 122.625 N.") and events(ctx, "bare_answer") and len(events(ctx, "llm")) == 2
     from inverse_core.team.research import widen_count
     assert widen_count("SELECT COUNT(*) AS n FROM obs.equipment_table", "How many machines are in the registry, and what are their ids?") == "SELECT equipment_id FROM obs.equipment_table"
     assert widen_count("SELECT COUNT(*) FROM obs.equipment_table", "How many machines are there?") is None
@@ -82,7 +82,7 @@ def test_euler_states_the_calculators_value_not_its_own_arithmetic(tmp_path):
     ctx = make_ctx(tmp_path, lambda m, msgs: json.dumps(reply))
     euler = ReasoningExpert(ctx, "reasoning", "r", "p", "deep", ["calc"])
     res = euler.run(Task("T1", "What is 12.5 kg times 9.81 m/s^2 in newtons?", "reasoning"), None, ExpertBudget())
-    assert res.answer == "The weight is 122.625 N." and events(ctx, "numbers_from_calculator")[0]["fixed"] == [("122.55", "122.625")]
+    assert res.answer.startswith("Calculated result: 122.625 N.") and events(ctx, "numbers_from_calculator")[0]["fixed"] == [("122.55", "122.625")]
 
 
 def test_an_empty_answer_reasked_as_a_sentence_may_come_back_as_just_the_sentence(tmp_path):
@@ -94,5 +94,5 @@ def test_an_empty_answer_reasked_as_a_sentence_may_come_back_as_just_the_sentenc
     ctx = make_ctx(tmp_path, lambda m, msgs: next(replies))
     euler = ReasoningExpert(ctx, "reasoning", "r", "p", "deep", ["calc"])
     res = euler.run(Task("T1", "Compute the weight of P-104 in newtons with g = 9.81 m/s^2.", "reasoning", context="mass_kg = 1.0"), None, ExpertBudget())
-    assert res.answer == "The weight of P-104 is 9.81 newtons." and events(ctx, "answer_in_prose") and events(ctx, "bare_answer")
+    assert res.answer.startswith("Calculated result: 9.81 N.") and events(ctx, "answer_in_prose") and events(ctx, "bare_answer")
     assert any(e.get("detail", "").startswith("= 9.81") for e in res.evidence)              # the calculator's step stays the evidence

@@ -45,6 +45,8 @@ class ExpertResult:
     trace_ref: str = ""
     findings: list = field(default_factory=list)   # [{"claim", "evidence", "source", "confidence"}], written to memory on accept
     proposals: list = field(default_factory=list)  # CW/1 proposals the expert filed with this result; the Lead hands them to the council on accept
+    validation_errors: list = field(default_factory=list)  # deterministic failures cannot be overridden by a model review
+    reference_only: bool = False  # code-produced source excerpts, never a computed conclusion
 
     def to_dict(self):
         return asdict(self)

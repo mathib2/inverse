@@ -2,8 +2,8 @@
 Deterministic checks run first and cannot be argued away by the model. The model then looks for what the checks cannot see,
 but in a checkable shape: every objection quotes the words of the answer it is about, and code keeps an objection only when
 the quote really is in the answer and the evidence really does not cover it. An objection that does not check out does not
-send work back; a reply that cannot be read is asked for once more, and a result the reviewer could not judge twice is kept
-with a visible note, never silently accepted and never sent back for the reviewer's failure."""
+send work back as an unsupported quoted objection. Unreadable or unresolved negative reviews cannot approve a task;
+review failures remain visible and prevent completion and memory promotion."""
 from __future__ import annotations
 
 import json
@@ -44,6 +44,12 @@ def deterministic(result):
     evidence = [e for e in (result.get("evidence") or []) if isinstance(e, dict)]
     if not evidence:
         return "revise", "no evidence attached; every conclusion needs at least one evidence item"
+    if result.get("validation_errors"):
+        return "revise", "deterministic validation failed: " + "; ".join(str(e) for e in result['validation_errors'][:3])
+    failed_calcs = [e for e in evidence if (e.get("type") == "calc" and (e.get("status") == "error" or _detail(e).lower().startswith("not computable"))) or
+                    (str(e.get('source','')).startswith('calc(') and isinstance(e.get('result'),dict) and e['result'].get('error'))]
+    if failed_calcs:
+        return "revise", "a calculation failed and cannot support an answer: " + str(failed_calcs[0].get("source", ""))
     refused = [e for e in evidence if e.get("type") == "policy" and _detail(e).startswith("REFUSED")]
     if refused:                                                              # out of scope: no retry can make it acceptable
         return "reject", "the expert refused the task: " + _detail(refused[0])[9:]
@@ -52,6 +58,8 @@ def deterministic(result):
         return "revise", f"every query was refused by the SQL guard ({why[9:]}); write a read-only SELECT on the listed tables"
     errors = [e for e in evidence if _detail(e).startswith("ERROR")]
     if errors and not any(e.get("type") == "sql" and not _detail(e).startswith(("ERROR", "REFUSED")) for e in evidence):
+        if any(e.get('type') != 'sql' for e in errors):
+            return "revise", "a tool failed; its inputs are not evidence of a result: " + _detail(errors[0])[:160]
         return "revise", f"every query failed ({_detail(errors[0])[6:160]}); use only the listed tables and columns and quote text values such as 'P-104'"
     mism = [e for e in evidence if "MISMATCH" in _detail(e)]
     if mism:
@@ -61,7 +69,13 @@ def deterministic(result):
     if sql and all(isinstance(e.get("rows"), list) and e["rows"] for e in sql) and HEDGE.search(answer):
         shown = "; ".join(json.dumps(e["rows"][0], default=str)[:120] for e in sql[:3])
         return "revise", f"the answer says a value is missing, but every query returned rows ({shown}); answer from those values"
-    bad = unverified_numbers(answer, [evidence, task_goal(result)])          # the task's own numbers (a given g, a mass) are inputs, not inventions
+    reference_only = result.get("reference_only") is True and all(e.get('type') == 'reference' for e in evidence)
+    if not reference_only and any(e.get('type') == 'reference' for e in evidence) and claim_numbers(answer):
+        computed = [e for e in evidence if (e.get('type') == 'calc' and not _detail(e).lower().startswith('not computable')) or
+                    (str(e.get('source') or '').startswith('calc(') and isinstance(e.get('result'), dict) and 'value' in e['result'] and not e['result'].get('error'))]
+        if not computed:
+            return "revise", "a numerical conclusion needs a successful calculation; reference examples are not numerical proof"
+    bad = [] if reference_only else unverified_numbers(answer, [evidence, task_goal(result)])
     if bad:                                                                   # a number from nowhere is the one mistake the reviewer's model misses most
         return "revise", f"the number(s) {', '.join(bad[:4])} in the answer appear in no evidence; use only values the tools returned"
     missing = asked_but_missing(task_goal(result), answer, sql)
@@ -264,7 +278,7 @@ class Critic:
             return {"verdict": "accept", "reason": easy, "by": "code"}
         payload = {"task": task.goal, "answer": result.get("answer"), "confidence": result.get("confidence"), "assumptions": result.get("assumptions"),
                    "not_checked": result.get("not_checked"),
-                   "evidence": [{k: v for k, v in e.items() if k not in ("rows", "result")} | ({"rows": e["rows"][:8]} if isinstance(e.get("rows"), list) else {})
+                   "evidence": [{k: v for k, v in e.items() if k not in ("rows",) and (k != "result" or e.get("type") == "calc" or str(e.get("source", "")).startswith("calc("))} | ({"rows": e["rows"][:8]} if isinstance(e.get("rows"), list) else {})
                                 for e in result.get("evidence") or [] if isinstance(e, dict)]}
         messages = [{"role": "system", "content": SYSTEM + self.note}, {"role": "user", "content": json.dumps(payload, default=str)}]
         read, model, calls = None, None, 0
@@ -280,11 +294,11 @@ class Critic:
                 break
             self.ctx.trace.event("critic_reask", task=task.id, reason=problem)
             messages = messages + [{"role": "user", "content": REASK}]
-        if not read:                                                          # unreadable twice: kept and marked, never silently accepted, never sent back
+        if not read:                                                          # unreadable twice: visible failure, no approval
             note = f"the reviewer's verdict could not be read twice ({problem}); this result was not reviewed"
             result["not_checked"] = list(result.get("not_checked") or []) + [note]
-            self.ctx.trace.event("critic", task=task.id, verdict="accept", reason=note, by="error", model=model, calls=calls)
-            return {"verdict": "accept", "reason": note, "by": "error", "model": model}
+            self.ctx.trace.event("critic", task=task.id, verdict="reject", reason=note, by="error", model=model, calls=calls)
+            return {"verdict": "reject", "reason": note, "by": "error", "model": model}
         v, problems, reason = read
         kept, dropped = check_problems(problems, result.get("answer"), result.get("evidence") or [])
         if v == "accept":
@@ -298,5 +312,5 @@ class Critic:
         why = ("; ".join(f"«{d['quote'][:60]}» {d['check']}" for d in dropped[:MAX_PROBLEMS]) or "it quoted nothing from the answer")
         note = f"the reviewer asked to {v} ({reason or 'no reason given'}) but no objection checked out: {why}"
         result["not_checked"] = list(result.get("not_checked") or []) + [note]
-        self.ctx.trace.event("critic", task=task.id, verdict="accept", reason=note, by="code", model=model, calls=calls, asked=v, dropped=[d["check"] for d in dropped])
-        return {"verdict": "accept", "reason": note, "by": "code", "model": model}
+        self.ctx.trace.event("critic", task=task.id, verdict="revise", reason=note, by="review_unresolved", model=model, calls=calls, asked=v, dropped=[d["check"] for d in dropped])
+        return {"verdict": "revise", "reason": note, "by": "review_unresolved", "model": model}
