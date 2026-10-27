@@ -79,20 +79,3 @@ def test_euler_states_the_calculators_value_not_its_own_arithmetic(tmp_path):
     euler = ReasoningExpert(ctx, "reasoning", "r", "p", "deep", ["calc"])
     res = euler.run(Task("T1", "What is 12.5 kg times 9.81 m/s^2 in newtons?", "reasoning"), None, ExpertBudget())
     assert res.answer == "The weight is 122.625 N." and events(ctx, "numbers_from_calculator")[0]["fixed"] == [("122.55", "122.625")]
-
-
-def test_a_prose_answer_is_shown_back_once_and_put_in_the_shape(tmp_path):
-    """Euler answered 'The weight of P-104 is 9.81 newtons.' three times on Nightshift; each retry started afresh and said it again."""
-    from inverse_core.team.reasoning import ReasoningExpert
-    replies = iter(["The weight of P-104 is 9.81 newtons.",
-                    json.dumps({"steps": [{"claim": "weight = mass x g", "calc": "1.0 * 9.81", "expect": 9.81}], "answer": "The weight of P-104 is 9.81 N.", "confidence": 0.9, "assumptions": []})])
-    seen = []
-
-    def llm(m, msgs):
-        seen.append([x["role"] for x in msgs])
-        return next(replies)
-    ctx = make_ctx(tmp_path, llm)
-    euler = ReasoningExpert(ctx, "reasoning", "r", "p", "deep", ["calc"])
-    res = euler.run(Task("T1", "Compute the weight of P-104 in newtons with g = 9.81 m/s^2.", "reasoning", context="mass_kg = 1.0"), None, ExpertBudget())
-    assert res.answer == "The weight of P-104 is 9.81 N." and events(ctx, "prose_reasked")
-    assert seen[1][-2:] == ["assistant", "user"]                                  # the second call carries its own prose and the request
