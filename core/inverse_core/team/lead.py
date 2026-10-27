@@ -455,7 +455,7 @@ class Lead:
                 self._mem("refute", f"{task.expert}: {task.goal[:160]}", "refused: " + why, source="validator", confidence=1.0, expert=task.expert)
                 self.ctx.trace.event("task_rejected", task=task.id, reason=task.feedback)
                 return
-        task.lessons = self._mem("lessons", task.expert) or []               # what reviewers told this expert before (Reflexion)
+        task.lessons = self._mem("lessons", task.expert, goal=task.goal) or []   # what reviewers told this expert before, on a task like this one (Reflexion)
         if task.lessons:
             self.ctx.trace.event("lessons", task=task.id, expert=task.expert, count=len(task.lessons))
         last, repeats, rejected_once, last_rule = None, 0, "", ""

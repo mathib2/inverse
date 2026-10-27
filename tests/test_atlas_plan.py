@@ -237,7 +237,7 @@ def test_days_between_dates_go_to_euler_not_to_scouts_sql(tmp_path):
         {"id": "T3", "goal": "Compute weight of P-104 in newtons", "expert": "solver", "depends_on": ["T1", "T2"]},
         {"id": "T4", "goal": "Find the number of days between the two maintenance records", "expert": "research", "depends_on": ["T2"]}]})
     t4 = p.tasks[3]
-    assert t4.expert == "reasoning" and t4.depends_on == ["T2"] and "days_between" in t4.goal
+    assert t4.expert == "reasoning" and t4.depends_on == ["T2"] and t4.goal.startswith("Using the dates")
     assert [t.expert for t in p.tasks[:2]] == ["research", "research"]
     p = lead._parse_plan("How many days passed between the two maintenance records of P-104?", {"tasks": [
         {"id": "T1", "goal": "List the maintenance records of P-104 with their dates", "expert": "research", "depends_on": []},

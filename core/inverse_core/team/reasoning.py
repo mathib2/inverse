@@ -138,8 +138,8 @@ class ReasoningExpert(BaseExpert):
             return None
         expr = f"days_between('{dates[0]}', '{dates[1]}')"
         n = int(safe_eval(expr))
-        answer = f"{n} days passed between {dates[0]} and {dates[1]}."
-        ev = [{"type": "calc", "source": f"calculator: {expr}", "detail": f"= {n}"}]
+        answer = f"There are {n} days between {dates[0]} and {dates[1]}."
+        ev = [{"type": "calc", "source": f"calculator: {expr}", "detail": f"= {n}: there are {n} days between {dates[0]} and {dates[1]}"}]
         self.ctx.trace.event("days_by_code", agent=self.name, task=task.id, dates=dates, days=n)
         res = ExpertResult(answer, ev, 0.95, [], [], [])
         res.findings = [{"claim": answer, "evidence": ev, "source": "fitter", "confidence": 0.95}]
