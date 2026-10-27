@@ -23,8 +23,11 @@ code, pre, kbd, [data-testid="stCode"]{font-family:'JetBrains Mono',ui-monospace
 .stApp::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
   background-image:radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.2px);background-size:22px 22px;
   -webkit-mask-image:linear-gradient(to bottom, rgba(0,0,0,.85), rgba(0,0,0,.15) 70%, transparent);mask-image:linear-gradient(to bottom, rgba(0,0,0,.85), rgba(0,0,0,.15) 70%, transparent)}
-.stApp::after{content:"";position:fixed;left:-20vw;top:-30vh;width:60vw;height:60vh;z-index:0;pointer-events:none;filter:blur(90px);opacity:.35;
+.stApp::after{content:"";position:fixed;left:-20vw;top:-30vh;width:60vw;height:60vh;z-index:0;pointer-events:none;filter:blur(120px);opacity:.16;
   background:conic-gradient(from 180deg at 50% 50%, #8B7CFF, #38E1FF, #FFB547, #8B7CFF)}
+@keyframes inv-fade{from{opacity:0}to{opacity:1}}
+.stApp{animation:inv-fade .4s ease-out}
+@media (prefers-reduced-motion:reduce){.stApp{animation:none}}
 [data-testid="stAppViewContainer"] > *{position:relative;z-index:1}
 [data-testid="stSidebar"]{background:linear-gradient(180deg,rgba(14,21,38,.94),rgba(7,11,20,.97));backdrop-filter:blur(12px);border-right:1px solid rgba(139,124,255,.18)}
 [data-testid="stSidebar"] [data-testid="stSidebarContent"]{z-index:1}
@@ -51,7 +54,10 @@ hr{border-color:var(--inv-line)}
 .st-key-inv-empty [data-testid="stMarkdownContainer"] p{text-align:center}
 .st-key-inv-empty span[role="img"]{font-size:2rem;color:var(--inv-violet)}
 ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,.25);border-radius:8px}
-@media (max-width:820px){h2{font-size:1.6rem}.inv-brand{font-size:1.4rem}}
+@media (max-width:820px){h2{font-size:1.6rem}.inv-brand{font-size:1.4rem}
+  .st-key-inv-header [data-testid="stHorizontalBlock"]{justify-content:flex-start}
+  .st-key-inv-main > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"]{gap:1rem}
+  .st-key-inv-main > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child{order:1}}
 </style>
 """
 
@@ -64,16 +70,27 @@ def css():
     st.html(CSS)
 
 
-def status_row(h):
-    ai = h["ai"]["status"]
+def _states(h):
+    """(short name, what it says, icon, colour) for the AI, the data platform and the memory, in that order."""
+    ai, fb = h["ai"]["status"], h["ai"].get("fallback")
+    return [("AI", "AI online · fallback" if ai == "online" and fb else {"online": "AI online", "unauthorized": "AI key rejected"}.get(ai, "AI offline"),
+             ":material/smart_toy:", "orange" if fb else {"online": "green", "unauthorized": "orange"}.get(ai, "red")),
+            ("Data", "Data platform online" if h["data"]["ok"] else "Data platform offline", ":material/database:", "green" if h["data"]["ok"] else "red"),
+            ("Memory", "Memory online" if h["memory"]["ok"] else "Memory offline", ":material/neurology:", "green" if h["memory"]["ok"] else "red")]
+
+
+def status_row(h, align="left"):
+    """The three status badges on one line; align="right" puts them at the far end of a header row."""
+    with st.container(horizontal=True, gap="small", horizontal_alignment=align):
+        for _, words, icon, color in _states(h):
+            st.badge(words, icon=icon, color=color)
+
+
+def sidebar_status(h):
+    """The same three, short enough for one sidebar line: the name says which, the colour says how, the tooltip says both."""
     with st.container(horizontal=True, gap="small"):
-        fb = h["ai"].get("fallback")
-        st.badge("AI online · fallback" if ai == "online" and fb else {"online": "AI online", "unauthorized": "AI key rejected"}.get(ai, "AI offline"),
-                 icon=":material/smart_toy:", color="orange" if fb else {"online": "green", "unauthorized": "orange"}.get(ai, "red"))
-        st.badge("Data platform online" if h["data"]["ok"] else "Data platform offline", icon=":material/database:",
-                 color="green" if h["data"]["ok"] else "red")
-        st.badge("Memory online" if h["memory"]["ok"] else "Memory offline", icon=":material/neurology:",
-                 color="green" if h["memory"]["ok"] else "red")
+        for short, words, icon, color in _states(h):
+            st.badge(short, icon=icon, color=color, help=words)
 
 
 def connections(h, on_recheck, ssh_target, last_latency=None):
