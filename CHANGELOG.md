@@ -3,6 +3,11 @@
 > Entries before 2026-10-24 describe features that were removed when the entry was refocused on the crew (the physics subsystem, the
 > Physics bench page, the evaluation report); they live in the git history before commit `db408c1`.
 
+## A reply cut short is read; a sentence asked for is taken (2026-10-27, morning)
+- A model reply that stops after a complete value but before its closing brackets is closed and read (`clients/meterless.py: extract_json`); one cut inside a string is not. Nemotron-Mini on Nightshift had stopped Scout's query reply one brace short three times in a row, and two fresh P-104 maintenance reviews on the live crew lost their mass lookup.
+- Euler: an empty answer re-asked as one sentence may come back as just the sentence, with no JSON around it; that sentence is the answer, and Vera still checks its number (`answer_in_prose`). Benchmark rounds 36 and 37: 8/8 in 30 s each.
+- Tests: 210.
+
 ## The submission, checked against the rules (2026-10-27, morning)
 - The video script ends at 3:45 and names Track 03, who it is for, and where each sponsor works on screen (Zetaris and H-MEM in Connections, the World Model in the council, Markovian in the close). `SPONSORS.md` says what was unique about our use of the sponsor technologies, and that Cursor was not used, which the rules allow. Four screenshots of the app are in the README and on a product slide.
 - Every benchmark claim is the exactly graded one: 8/8 in 30 s on Nightshift (rounds 26 and 27) and 8/8 on the CPU in round 14. Rounds 17, 19, 23 and 24, cited before, are 7/8 graded exactly. Only numbers are graded exactly; the registry and summary cases check less, and `docs/BENCH.md` says so.
