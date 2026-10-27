@@ -289,6 +289,35 @@ def test_a_json_array_of_records_pasted_into_the_answer_is_said_in_sentences(tmp
     assert C.deterministic(res.to_dict() | {"task_goal": goal}) is None
 
 
+def test_a_pasted_registry_array_with_an_absent_cell_is_not_said_twice(tmp_path):
+    """The registry's 'none' (or a JSON null) is said as "T-200 has no baseline dataset" with no "none" in it: _facts counts that
+    cell as said, so the sentences reword_rows made are not appended a second time."""
+    from inverse_core.team.research import ResearchExpert, reword_rows
+    registry = [{"equipment_id": "P-104", "baseline_dataset": "p104-baseline"}, {"equipment_id": "T-200", "baseline_dataset": "none"}]
+    full = [{"equipment_id": "P-104", "name": "Process pump mount", "mass_kg": 1.0, "baseline_dataset": "p104-baseline", "current_dataset": "p104-current"},
+            {"equipment_id": "T-200", "name": "Test rig", "mass_kg": 5.0, "baseline_dataset": None, "current_dataset": "trap-current"}]
+    for rows in (registry, full):
+        ran = [{"type": "sql", "source": "q", "detail": "2 rows", "rows": rows}]
+        text, n = reword_rows("The machines are: " + json.dumps(rows) + " [Q1].", ran)                               # None is pasted as null
+        assert n == 1 and "T-200 has " in text and "no baseline dataset" in text and "none" not in text.lower()
+        assert ResearchExpert._facts(ran, text) == ""
+    assert ResearchExpert._facts(ran, "P-104 and T-200 are in the registry.").startswith("P-104 has the name")     # a value left out: the rows still ride along
+    pasted = "The machines are: " + json.dumps(registry) + " [Q1]."
+
+    def script(model, messages):
+        if messages[-1]["content"].startswith("These are the rows your queries returned"):
+            return json.dumps({"answer": pasted, "confidence": 0.9, "assumptions": []})
+        return json.dumps({"queries": ["SELECT equipment_id, baseline_dataset FROM obs.equipment_table"]})
+
+    ctx, lead = crew(tmp_path, script)
+    ctx.zetaris.sql = lambda statement, limit=2000: [dict(r) for r in registry]
+    goal = "Which machines are in the equipment registry, and which of them has no baseline dataset?"
+    res = ctx.registry.experts["research"].run(Task("T1", goal, "research"), lead.memory, ExpertBudget())
+    assert res.answer == "The machines are: P-104 has the baseline dataset p104-baseline [Q1]. T-200 has no baseline dataset [Q1]."
+    assert res.answer.count("T-200") == 1 and not events(ctx, "answer_facts") and events(ctx, "rows_reworded")[0]["arrays"] == 1
+    assert all(item.lower() in res.answer.lower() for item in _expected("registry"))
+
+
 def test_a_sensor_named_in_the_task_is_selected_by_its_id():
     from inverse_core.team.research import pin_sensor
     goal = "What are the noise level and the sampling rate of sensor T200-DISP-1?"

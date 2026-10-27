@@ -195,6 +195,13 @@ def _cell(col, v):
     return kind, name, said + (f" {unit}" if unit else "")
 
 
+def _in_words(col, v, low):
+    """The cell is in the lower-cased answer: as its text (none for an absent one), or, for an absent one, as _predicate says
+    it after an id ("no baseline dataset")."""
+    kind, name, _ = _cell(col, v)
+    return _said(v).lower() in low or (kind == "none" and f"no {name}" in low)
+
+
 def _predicate(col, values):
     """What a row's id has or is, from one column: ("has", "a mass of 1.0 kg"), ("is dated", "2026-09-02"), ("has", "no baseline
     dataset"); from the cells of several rows that share the id, the values joined: ("has", "a noise level (sigma) of 0.01 and
@@ -481,7 +488,7 @@ class ResearchExpert(BaseExpert):
         if not rows or len(rows) > max_rows:
             return ""
         low = answer.lower()
-        if all(str(v).lower() in low for _, r in rows for v in r.values() if str(v).strip()):
+        if all(_in_words(k, v, low) for _, r in rows for k, v in r.items() if str(v).strip()):          # an absent cell is said as "no baseline dataset"
             return ""
         sentences = [s for i, e in enumerate(ran) for s in row_sentences(e.get("rows") or [], f"[Q{i + 1}]")]
         text = sentences[0]
