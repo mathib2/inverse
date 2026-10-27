@@ -237,6 +237,10 @@ def test_a_json_array_of_records_pasted_into_the_answer_is_said_in_sentences(tmp
     assert reword_rows(pasted, []) == (said.replace(" [Q1].", "."), 1)
     for left in ('Nested [[1, 2], {"a": 1}] stays', 'Deep [{"a": {"b": 1}}] stays', 'Inside {"rows": [{"a": 1}]} stays', "Nothing here [Q1] [T1.E1] [text withheld: x]"):
         assert reword_rows(left, ran) == (left, 0)
+    assert reword_rows('[{"sigma": 0.010, "sampling_hz": 1e2, "n": -5}]') == ("The noise level (sigma) is 0.010, the sampling rate is 1e2 Hz and the count is -5.", 1)   # numbers as written
+    mass = [{"type": "sql", "source": "q", "detail": "1 rows", "rows": [{"mass_kg": "1.0", "sigma": 0.01}]}]
+    assert reword_rows('[{"mass_kg": 1, "sigma": 0.010}]', mass) == ("The mass is 1 kg and the noise level (sigma) is 0.010 [Q1].", 1)   # 1 is the row's 1.0: cited
+    assert reword_rows('[{"mass_kg": 1.5}]', mass) == ("The mass is 1.5 kg.", 1)                                       # not the row's value: no citation
 
     def script(model, messages):
         if messages[-1]["content"].startswith("These are the rows your queries returned"):

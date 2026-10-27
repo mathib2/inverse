@@ -10,7 +10,7 @@ import re
 from .expert import PROPOSE_TAIL, BaseExpert, ExpertResult, proposals_of, require_evidence
 from .llmcall import ask
 from .sql_guard import SCHEMA, UnsafeSQL, check_sql
-from .verify import unverified_numbers
+from .verify import rounds_to, unverified_numbers
 
 QUERY_MAX_TOKENS, ANSWER_MAX_TOKENS = 300, 350                                # reply caps per call: three short SELECTs, one answer
 
@@ -297,12 +297,17 @@ _CITES = re.compile(r"^(?:\s*\[Q\d+\])+")
 _SCALAR = (str, int, float, bool, type(None))
 
 
+def _same(held, said):
+    """A pasted value is the row's: the same text, or a number the row's number rounds to (1 for 1.0, 0.010 for 0.01)."""
+    return _said(held) == said or (_is_number(said) and _is_number(held) and rounds_to(said, float(held)))
+
+
 def _cite_of(record, ran):
-    """The query whose rows hold this record (every pasted value equal to the row's), as [Qn]; '' when none does."""
+    """The query whose rows hold this record (every pasted value the row's, see _same), as [Qn]; '' when none does."""
     want = {k: _said(v) for k, v in record.items()}
     for q, e in enumerate(ran or (), 1):
         for r in e.get("rows") or []:
-            if isinstance(r, dict) and all(k in r and _said(r[k]) == v for k, v in want.items()):
+            if isinstance(r, dict) and all(k in r and _same(r[k], v) for k, v in want.items()):
                 return f"[Q{q}]"
     return ""
 
@@ -311,8 +316,9 @@ def reword_rows(text, ran=()):
     """A JSON array of flat records pasted into an answer ('The maintenance records for P-104 are: [{"record_id": ...}, ...]')
     is said in sentences instead, one per record, with the citation that followed the array (or the query whose rows hold the
     first record). Only an array whose items are all flat dicts of scalars, and not one inside a JSON object; anything else is
-    left as it is. Returns (text, how many arrays were reworded)."""
-    s, dec, out, pos, n = str(text or ""), json.JSONDecoder(), [], 0, 0
+    left as it is. A number is kept as the model wrote it (0.010 stays 0.010, 1e2 stays 1e2), never re-formatted through float.
+    Returns (text, how many arrays were reworded)."""
+    s, dec, out, pos, n = str(text or ""), json.JSONDecoder(parse_float=str, parse_int=str), [], 0, 0
     i = s.find("[")
     while i != -1:
         obj = None
