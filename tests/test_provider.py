@@ -66,6 +66,19 @@ def test_extract_json_tolerates_prose_fences_and_a_second_object():
         extract_json("no json here")
 
 
+def test_a_reply_cut_before_its_closing_brackets_is_closed_but_one_cut_inside_a_string_is_not():
+    """Nemotron-Mini on Nightshift stopped Scout's query reply one brace short, three times in a row, and the task failed."""
+    from inverse_core.clients.meterless import extract_json
+    cut = '{\n  "queries": [\n    "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = \'P-104\'"\n  ]'
+    assert extract_json(cut) == {"queries": ["SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'"]}
+    assert extract_json('{"a": {"b": [1, 2') == {"a": {"b": [1, 2]}}
+    assert extract_json('{"answer": "9.81 N", "confidence": 0.9,') == {"answer": "9.81 N", "confidence": 0.9}
+    assert extract_json('{"note": "a \\"quoted\\" word", "ok": true') == {"note": 'a "quoted" word', "ok": True}
+    for bad in ('{"answer": "The mass is 1.0 k', '{"answer":', '{"a": [1, 2}', 'prose {"a": 1] more'):
+        with pytest.raises(ValueError):
+            extract_json(bad)
+
+
 
 class _Reply:
     def __init__(self, status, payload=None, text=""):
