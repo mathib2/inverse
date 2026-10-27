@@ -346,11 +346,11 @@ def render(ledger, ai_online, sidecar, health=None):
     running = bool(live_run and live_run["thread"].is_alive())
     data_online = bool(health and health["data"]["ok"]) if health else True
     enabled = ai_online and data_online and not running
-    with st.container(horizontal=True, vertical_alignment="center"):     # one header row: brand and tagline left, the three badges right
+    with st.container(horizontal=True, vertical_alignment="center", key="inv-header"):   # one row: brand and tagline left, the badges right
         st.markdown("<div class='inv-brand'>INVERSE</div><div class='inv-tagline'>eight agents · local models · evidence first</div>", unsafe_allow_html=True, width="content")
         if health:
             parts.status_row(health, align="right")
-    left, right = st.columns([7, 5], gap="large")
+    left, right = st.container(key="inv-main").columns([7, 5], gap="large")   # the key marks this row so parts.CSS can put the panel first on a phone
     with left:
         with st.container(height=600 if (_turns() or live_run) else 300, border=False):   # a fresh page is not a tall empty box
             if not _turns() and not live_run:

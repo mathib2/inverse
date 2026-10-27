@@ -49,7 +49,10 @@ button[kind="primary"]:hover{filter:brightness(1.08);box-shadow:0 10px 30px rgba
 [data-testid="stBadge"], [data-baseweb="tag"]{border-radius:999px}
 hr{border-color:var(--inv-line)}
 ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,.25);border-radius:8px}
-@media (max-width:820px){h2{font-size:1.6rem}.inv-brand{font-size:1.4rem}}
+@media (max-width:820px){h2{font-size:1.6rem}.inv-brand{font-size:1.4rem}
+  .st-key-inv-header [data-testid="stHorizontalBlock"]{justify-content:flex-start}
+  .st-key-inv-main > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"]{gap:1rem}
+  .st-key-inv-main > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child{order:1}}
 </style>
 """
 
