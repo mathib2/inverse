@@ -364,7 +364,8 @@ def council_merge(ctx, branch, files, note, tests, before, after):
     """Sentinel reviews the changed files; Vera votes on the diff. Returns (approved, reason)."""
     rc, diff = sh(["git", "diff", f"origin/{BASE}...{branch}", "--", *files], timeout=60)
     try:
-        prompt = open(os.path.join(ROOT, "prompts", "vulnerability.md"), encoding="utf-8").read()
+        with open(os.path.join(ROOT, "prompts", "vulnerability.md"), encoding="utf-8") as f:
+            prompt = f.read()
     except OSError:
         prompt = "You review code the team owns for weaknesses."
     sentinel = VulnerabilityExpert(ctx, "vulnerability", "reviews a change for weaknesses", prompt, "deep", ["scan", "read_file", "grep", "list_files"])

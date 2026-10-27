@@ -363,7 +363,10 @@ class Council:
         from .registry import _local, save_config
         c = dict(registry.configs[p["t"]])
         local = os.path.join(_local(registry.directory), p["t"] + ".yaml")
-        before = open(local).read() if os.path.exists(local) else None
+        before = None
+        if os.path.exists(local):
+            with open(local) as f:
+                before = f.read()
         budget, tools = dict(c.get("budget") or {}), list(c.get("tools") or [])
         changes = []
         for k, v in p["p"].items():
@@ -412,7 +415,10 @@ class Council:
         from .registry import _local, save_config
         cfg = dict(p["p"]["config"])
         local = os.path.join(_local(registry.directory), cfg["name"] + ".yaml")
-        before = open(local).read() if os.path.exists(local) else None
+        before = None
+        if os.path.exists(local):
+            with open(local) as f:
+                before = f.read()
         save_config(registry.directory, {k: v for k, v in cfg.items() if not k.startswith("_")}, registry.ctx.lanes)
         registry.reload()
         return {"kind": "cfg", "path": local, "before": before}, f"kept agent {cfg['name']}"
