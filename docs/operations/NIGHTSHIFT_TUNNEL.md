@@ -62,7 +62,7 @@ sudo sshd -t && sudo systemctl reload ssh
 |---|---|
 | `curl -s http://127.0.0.1:8088/healthz` on the workstation: connection refused | no tunnel; start the script on the laptop |
 | `/healthz` ok but `/v1/models` is 401 | the Runtime token in `.env` is not this Nightshift's; store the new one with `~/.local/bin/set-nightshift-token` |
-| `remote port forwarding failed for listen port 8088` on the laptop | a dead forward still holds the port; the keepalive drop-in above fixes it, or `pkill -f 'sshd: .*<user>'` the stale session |
+| `remote port forwarding failed for listen port 8088` on the laptop | a dead forward still holds the port; the keepalive drop-in above fixes it; or on the workstation find the process that holds the port with `ss -ltnp | grep 127.0.0.1:8088` and stop only that pid (never `pkill -f` a pattern: it matches every session of the user, your own shell included) |
 | Nightshift's Console shows 127.0.0.1:8088 but `/healthz` fails on the laptop itself | the Runtime did not start (port conflict); restart Nightshift |
 
 The UI never prints the address or user name on screen (set `INVERSE_SHOW_SSH_TARGET=1` to allow it on a private screen).

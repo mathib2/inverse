@@ -33,7 +33,7 @@ PROVIDERS = {
         "offline_detail": "no response (laptop off, Nightshift closed or tunnel down)",
         "offline_short": "Start Nightshift on the laptop and reopen the SSH tunnel.",
         "offline_fix": ["On the laptop that runs **Nightshift**, open the Nightshift app and keep the laptop awake and plugged in.",
-                        "On that laptop, start the scheduled task **Nightshift tunnel** (or run `~/nightshift-tunnel.ps1`), which forwards this server's port 8090 to it.",
+                        "On that laptop, start the scheduled task **Nightshift tunnel** (or run `~/nightshift-tunnel.ps1`), which forwards this server's port 8088 to it.",
                         "Press **Check again** below. Until then the crew keeps working on the workstation's own model."],
         "key_rejected": "Nightshift answered but refused INVERSE's access key. Copy the Runtime key from Nightshift's Console "
                         "into `MODEL_API_KEY` in the server's `.env`, then restart the app.",

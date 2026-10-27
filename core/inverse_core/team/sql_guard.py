@@ -15,7 +15,7 @@ Examples of the dialect: SELECT COUNT(*) AS n FROM obs.p104_baseline_samples | S
 ALLOWED_TABLES = {"equipment_table", "sensors_table", "maintenance_table", "p104_baseline_samples", "p104_current_samples", "trap_current_samples"}
 
 FORBIDDEN = re.compile(r"\b(insert|update|delete|drop|create|alter|truncate|merge|grant|cache|call|exec)\b|;|--|/\*"
-                       r"|\b(reflect|java_method|input_file_name|transform|current_user|exec_java)\s*\(", re.I)   # Spark built-ins that reach the JVM
+                       r"|\b(try_)?(reflect|java_method|input_file_name|transform|current_user|exec_java)`?\s*\(", re.I)   # Spark built-ins that reach the JVM, `quoted` or try_ too
 
 class UnsafeSQL(ValueError):
     pass
