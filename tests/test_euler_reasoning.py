@@ -55,3 +55,18 @@ def test_the_calculator_counts_the_days_between_two_dates_and_takes_text_nowhere
             safe_eval(bad)
     assert ReasoningExpert.resolve("days_between(first, second)", "first = 3") == "days_between(first, second)".replace("first", "3")
     assert ReasoningExpert.resolve("calc(days_between('2026-09-02', '2026-10-05'))") == "days_between('2026-09-02', '2026-10-05')"
+
+
+def test_euler_counts_the_days_between_two_dates_by_code(tmp_path):
+    from inverse_core.team.reasoning import ReasoningExpert
+    calls = []
+    ctx = make_ctx(tmp_path, lambda m, msgs: calls.append(1) or json.dumps({"steps": [], "answer": "32", "confidence": 0.9, "assumptions": []}))
+    euler = ReasoningExpert(ctx, "reasoning", "r", "p", "deep", ["calc"])
+    t = Task("T4", "Find the number of days between the two maintenance records", "reasoning", ["T2"])
+    t.context = "T2: Rows: record_id = M-002, date = 2026-10-05; record_id = M-001, date = 2026-09-02"
+    res = euler.run(t, None, ExpertBudget())
+    assert calls == [] and res.answer == "33 days passed between 2026-09-02 and 2026-10-05." and res.evidence[0]["detail"] == "= 33"
+    assert events(ctx, "days_by_code")[0]["days"] == 33
+    t.context += "; record_id = M-003, date = 2026-10-20"                                      # three dates: which two is the model's call
+    euler.run(t, None, ExpertBudget())
+    assert calls == [1]

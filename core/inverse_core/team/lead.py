@@ -251,7 +251,7 @@ class Lead:
                 looks = [o.id for o in plan.tasks if o is not t and o.expert == "research" and t.id not in o.depends_on]
                 if t.depends_on or looks:
                     t.expert, t.depends_on = "reasoning", list(t.depends_on) or looks
-                    t.goal = f"Using the dates in the accepted results from the earlier tasks, count with the calculator's days_between('YYYY-MM-DD', 'YYYY-MM-DD'): {t.goal}"
+                    t.goal = f"Using the dates in the accepted results from the earlier tasks, count the days: {t.goal}"
                     changes.append(f"{t.id}: research -> reasoning (days between dates are computed, not queried)")
         for t in plan.tasks:                                                      # a computation in Scout's own task tempts the model to compute, and the numbers it makes up are refused three times
             if t.expert == "research" and CALC_WORDS.search(t.goal) and any(o.expert in ("reasoning", "solver") for o in plan.tasks if o is not t):

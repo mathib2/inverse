@@ -135,8 +135,7 @@ class Tools:
 
     SPECS = {
         "run_sql": ("One read-only SELECT on the Zetaris tables obs.equipment_table, obs.sensors_table, obs.maintenance_table, obs.*_samples. args: {sql}", ("sql",)),
-        "calc": ("Arithmetic: numbers, + - * / ** %, sqrt log exp sin cos abs log10, pi, e; days_between('2026-09-02', '2026-10-05') "
-                 "counts the days between two dates. args: {expr}", ("expr",)),
+        "calc": ("Arithmetic: numbers, + - * / ** %, sqrt log exp sin cos abs log10, pi, e. args: {expr}", ("expr",)),
         "list_files": ("Files in this repository (code we own). args: {path?, pattern?}, e.g. {\"path\":\"core\",\"pattern\":\"*.py\"}", ()),
         "read_file": ("A repository file with line numbers. args: {path, start?, end?}", ("path",)),
         "grep": ("Regex search across repository files. args: {pattern, path?, glob?}", ("pattern",)),

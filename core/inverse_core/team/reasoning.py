@@ -125,7 +125,30 @@ class ReasoningExpert(BaseExpert):
     def system(self):
         return self.prompt + self.SYSTEM_TAIL
 
+    DAYS_ASKED = re.compile(r"\b(?:how\s+many|number\s+of)\s+days\b|\bdays?\s+(?:passed|elapsed|between|apart)\b", re.I)
+
+    def _days_by_code(self, task):
+        """'How many days passed between the two maintenance records?' with exactly two dates in the task and the earlier results:
+        the calculator counts them and no model is asked. The model counted 32 for 2026-09-02 to 2026-10-05 (33), and when its
+        own calc said 33 it dropped the calc and answered 32 again. More or fewer than two dates: the model's steps, as before."""
+        if not self.DAYS_ASKED.search(task.goal or ""):
+            return None
+        dates = sorted(set(re.findall(r"\b\d{4}-\d{2}-\d{2}\b", f"{task.goal} {task.context or ''}")))
+        if len(dates) != 2:
+            return None
+        expr = f"days_between('{dates[0]}', '{dates[1]}')"
+        n = int(safe_eval(expr))
+        answer = f"{n} days passed between {dates[0]} and {dates[1]}."
+        ev = [{"type": "calc", "source": f"calculator: {expr}", "detail": f"= {n}"}]
+        self.ctx.trace.event("days_by_code", agent=self.name, task=task.id, dates=dates, days=n)
+        res = ExpertResult(answer, ev, 0.95, [], [], [])
+        res.findings = [{"claim": answer, "evidence": ev, "source": "fitter", "confidence": 0.95}]
+        return res
+
     def run(self, task, memory, budget):
+        by_code = self._days_by_code(task)
+        if by_code:
+            return by_code
         msgs = [{"role": "system", "content": self.system()}, {"role": "user", "content": self._task_text(task)}]
         r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
         models, j = [r["model"]], r["json"]
