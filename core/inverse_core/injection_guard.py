@@ -16,7 +16,7 @@ def scrub(rows):
             continue
         clean = {}
         for k, v in r.items():
-            hit = next((p for p in PATTERNS if isinstance(v, str) and re.search(p, v, re.I)), None)
+            hit = next((p for p in PATTERNS if isinstance(v, str) and re.search(p, v, re.IGNORECASE)), None)
             if hit:
                 blocked.append({"record_id": r.get("record_id", k), "matched": hit})
                 clean[k] = "[text withheld: matched injection pattern]"
@@ -30,7 +30,7 @@ def sanitize(notes):
     """notes: list of dicts with 'note'. Returns (safe_notes, blocked[{record_id, matched}])."""
     safe, blocked = [], []
     for n in notes:
-        hit = next((p for p in PATTERNS if re.search(p, n["note"], re.I)), None)
+        hit = next((p for p in PATTERNS if re.search(p, n["note"], re.IGNORECASE)), None)
         if hit:
             blocked.append({"record_id": n["record_id"], "matched": hit})
             safe.append({**n, "note": "[note withheld: matched injection pattern]"})

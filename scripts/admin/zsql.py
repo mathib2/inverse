@@ -1,5 +1,9 @@
 """Run one Zetaris SQL statement over REST. Usage: zsql.py "SQL" [limit]"""
-import os, sys, uuid, json, requests
+import os
+import sys
+import uuid
+
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()

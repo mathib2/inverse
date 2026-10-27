@@ -11,8 +11,8 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv()                                                                 # ZETARIS_API_KEY decides whether the live tests run
-from inverse_core import ledger as L  # noqa: E402
-from inverse_core.clients.zetaris import ZetarisClient  # noqa: E402
+from inverse_core import ledger as L
+from inverse_core.clients.zetaris import ZetarisClient
 
 
 def zetaris_up():

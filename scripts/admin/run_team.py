@@ -1,7 +1,10 @@
 """Run the INVERSE team. Usage: PYTHONPATH=core .venv/bin/python scripts/admin/run_team.py "goal" [--collaborate] [--reset] [--edit]
 --collaborate lets each expert review its own tasks before the run; --edit pauses after planning so you can change plan.json."""
-import argparse, json, os
+import argparse
+import json
+
 from dotenv import load_dotenv
+
 load_dotenv(".env")
 from inverse_core.clients.world import WorldClient
 from inverse_core.clients.zetaris import ZetarisClient

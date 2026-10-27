@@ -49,7 +49,7 @@ def report_items(root):
             text = f.read()
     except OSError:
         return []
-    return [re.sub(r"\s+", " ", m).strip() for m in re.findall(r"^\d+\.\s+\*\*(.+?)\*\*", text, re.M)]
+    return [re.sub(r"\s+", " ", m).strip() for m in re.findall(r"^\d+\.\s+\*\*(.+?)\*\*", text, re.MULTILINE)]
 
 
 def all_known(root):

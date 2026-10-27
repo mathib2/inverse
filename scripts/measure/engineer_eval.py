@@ -17,16 +17,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 sys.path.insert(0, os.path.join(ROOT, "core"))
 
-import tinker  # noqa: E402  (sets INVERSE_SANDBOX to this checkout and loads .env)
-from inverse_core import injection_guard as guard  # noqa: E402
-from inverse_core.budget import Budget  # noqa: E402
-from inverse_core.ledger import SidecarLedger  # noqa: E402
-from inverse_core.team.custom import CustomExpert  # noqa: E402
-from inverse_core.team.expert import ExpertBudget, Task  # noqa: E402
-from inverse_core.team.lanes import Lanes  # noqa: E402
-from inverse_core.team.llmcall import Ctx  # noqa: E402
-from inverse_core.team.memory import TeamMemory  # noqa: E402
-from inverse_core.trace import Trace  # noqa: E402
+import tinker
+from inverse_core import injection_guard as guard
+from inverse_core.budget import Budget
+from inverse_core.ledger import SidecarLedger
+from inverse_core.team.custom import CustomExpert
+from inverse_core.team.expert import ExpertBudget, Task
+from inverse_core.team.lanes import Lanes
+from inverse_core.team.llmcall import Ctx
+from inverse_core.team.memory import TeamMemory
+from inverse_core.trace import Trace
 
 TARGET = "core/inverse_core/eval_target.py"
 TEST = "tests/test_eval_target.py"

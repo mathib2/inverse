@@ -3,6 +3,7 @@
 #   pip install openai python-dotenv requests
 import os
 import uuid
+
 import requests
 from dotenv import load_dotenv
 from openai import OpenAI

@@ -86,7 +86,7 @@ class ReasoningExpert(BaseExpert):
         """'calc(mass_kg * 9.81)' with 'mass_kg = 1.0' in the accepted results becomes '1.0 * 9.81': a 4B model writes the
         quantity's name where the calculator needs its value. Function names and constants are left alone."""
         expr = str(calc or "").strip()
-        m = re.fullmatch(r"calc\((.*)\)", expr, re.S)
+        m = re.fullmatch(r"calc\((.*)\)", expr, re.DOTALL)
         if m:
             expr = m.group(1).strip()
         for name in sorted(set(cls._NAME.findall(expr)), key=len, reverse=True):
@@ -126,7 +126,7 @@ class ReasoningExpert(BaseExpert):
     def system(self):
         return self.prompt + self.SYSTEM_TAIL
 
-    DAYS_ASKED = re.compile(r"\b(?:how\s+many|number\s+of)\s+days\b|\bdays?\s+(?:passed|elapsed|between|apart)\b", re.I)
+    DAYS_ASKED = re.compile(r"\b(?:how\s+many|number\s+of)\s+days\b|\bdays?\s+(?:passed|elapsed|between|apart)\b", re.IGNORECASE)
 
     def _days_by_code(self, task):
         """'How many days passed between the two maintenance records?' with exactly two dates in the task and the earlier results:

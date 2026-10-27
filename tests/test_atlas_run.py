@@ -13,7 +13,6 @@ from inverse_core.team.registry import Registry
 
 from fakes import crew, events, lead_for, make_ctx, repo
 
-
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 

@@ -22,10 +22,10 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "core"))
-from dotenv import load_dotenv  # noqa: E402
+from dotenv import load_dotenv
 
 load_dotenv(os.path.join(ROOT, ".env"))
-from inverse_core import chat, notify  # noqa: E402
+from inverse_core import chat, notify
 
 URL = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 ENABLE = re.compile(r"https://login\.tailscale\.com/f/funnel\?node=\w+")

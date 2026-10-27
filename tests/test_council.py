@@ -4,7 +4,8 @@ import os
 import time
 
 from inverse_core.missions import load_missions
-from inverse_core.team import council as CO, council_wire as wire
+from inverse_core.team import council as CO
+from inverse_core.team import council_wire as wire
 from inverse_core.team.expert import ExpertBudget, Task
 from inverse_core.team.plan import Plan
 from inverse_core.team.tools import Tools
