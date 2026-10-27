@@ -173,6 +173,15 @@ def test_rows_are_said_in_sentences_the_id_first_every_value_kept_and_cited():
     assert rows_in_words([], "[Q1]") == "" and rows_in_words([{"equipment_id": "P-104"}]) == "The equipment id is P-104."
 
 
+def test_the_mass_said_in_words_still_reaches_the_calculator():
+    """The weight case: Euler writes calc(mass_kg * 9.81) and the value is read out of Scout's sentence, as it was out of 'mass_kg = 1.0'."""
+    from inverse_core.team.reasoning import ReasoningExpert, safe_eval
+    from inverse_core.team.research import rows_in_words
+    context = "[T1] " + rows_in_words([{"equipment_id": "P-104", "mass_kg": 1.0}], "[Q1]")
+    calc = ReasoningExpert.resolve("calc(mass_kg * 9.81)", context)
+    assert calc == "1.0 * 9.81" and f"{safe_eval(calc):g}" in _expected("weight")
+
+
 def test_the_id_column_tells_the_rows_apart_and_no_word_in_the_sentences_comes_from_nowhere():
     from inverse_core.team.research import id_column, rows_in_words
     rows = [{"equipment_id": "P-104", "record_id": "M-002", "date": "2026-10-05"}, {"equipment_id": "P-104", "record_id": "M-001", "date": "2026-09-02"}]

@@ -22,6 +22,9 @@ def test_a_calc_that_names_a_quantity_is_resolved_from_the_accepted_results():
     assert ReasoningExpert.resolve("calc(mass_kg * 9.81)", ctx) == "1.0 * 9.81"
     assert ReasoningExpert.resolve("sqrt(mass_kg) + pi", ctx) == "sqrt(1.0) + pi"
     assert ReasoningExpert.resolve("12.5 * 9.81", ctx) == "12.5 * 9.81" and ReasoningExpert.resolve("unknown_name * 2", ctx) == "unknown_name * 2"
+    said = "[T1] P-104 has a mass of 1.0 kg [Q1]. The noise level (sigma) is 0.01 [Q2]."                              # Scout's rows in words
+    assert ReasoningExpert.resolve("calc(mass_kg * 9.81)", said) == "1.0 * 9.81" and ReasoningExpert.resolve("sigma * 2", said) == "0.01 * 2"
+    assert ReasoningExpert.resolve("sampling_hz / 2", "The sampling rate is 100 Hz [Q1].") == "100 / 2" and ReasoningExpert.resolve("mass_kg * 2", "a mass of about 1.0 kg") == "mass_kg * 2"
 
 
 def test_euler_is_asked_once_more_when_its_answer_is_empty_and_scout_lists_ids_when_asked_which(tmp_path):
