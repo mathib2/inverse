@@ -13,8 +13,10 @@
 #
 # Needs git-filter-repo (pip install git-filter-repo) and push rights to the public repository.
 # Use: RULES_DIR=~/.config/inverse-public scripts/admin/publish_public.sh [public-repo-url] [private-branch]
+# The default URL is SSH: GitHub refuses an HTTPS push made with a GitHub CLI login that lacks the `workflow` scope, because
+# the history adds .github/workflows/tests.yml. An SSH key on the account has no such limit.
 set -euo pipefail
-PUBLIC="${1:-https://github.com/mathib2/inverse.git}"
+PUBLIC="${1:-git@github.com:mathib2/inverse.git}"
 BRANCH="${2:-m4-sindyc}"
 RULES="${RULES_DIR:-$HOME/.config/inverse-public}"
 FR="${GIT_FILTER_REPO:-git-filter-repo}"
