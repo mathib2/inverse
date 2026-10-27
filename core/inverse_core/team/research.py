@@ -197,13 +197,13 @@ def _cell(col, v):
 
 def _predicate(col, values):
     """What a row's id has or is, from one column: ("has", "a mass of 1.0 kg"), ("is dated", "2026-09-02"), ("has", "no baseline
-    dataset (none)"); from the cells of several rows that share the id, the values joined: ("has", "a noise level (sigma) of
-    0.01 and 0.1")."""
+    dataset"); from the cells of several rows that share the id, the values joined: ("has", "a noise level (sigma) of 0.01 and
+    0.1")."""
     cells = [_cell(col, v) for v in values]
     name, said = cells[0][1], _join(s for _, _, s in cells)
     kind = next((k for k, _, _ in cells if k != "none"), "none")
     if kind == "none":
-        return "has", (f"the {name} ({said})" if set(name.split()) & HEDGE_NAMES else f"no {name} ({said})")
+        return "has", (f"the {name} {said}" if set(name.split()) & HEDGE_NAMES else f"no {name}")
     if kind == "date":
         return "is dated", said
     if kind == "measure":
@@ -318,12 +318,12 @@ def _join_groups(groups):
 
 def rows_in_words(rows, cite=""):
     """A small result set as sentences, by code, so what the rows say reads as an answer and every value in it is in the evidence:
-    'P-104 has the baseline dataset p104-baseline [Q1]. T-200 has no baseline dataset (none) [Q1].'; one row with no id:
+    'P-104 has the baseline dataset p104-baseline [Q1]. T-200 has no baseline dataset [Q1].'; one row with no id:
     'The noise level (sigma) is 0.01 and the sampling rate is 100 Hz [Q1].'; several: 'The noise level (sigma) is 0.01 and 0.1
     in two rows [Q2].'; several on one machine: 'P-104 has a noise level (sigma) of 0.01 and 0.1 in two rows [Q2].'; a count:
-    'The count is 400 [Q1].' Values are written
-    as the rows hold them, none as the word none, a note in quotes. Every word of six letters or more comes from a column name,
-    a value or the reviewer's plain list, so Vera's word rule has nothing to object to."""
+    'The count is 400 [Q1].' Values are written as the rows hold them, none as the word none (after an id, "no baseline
+    dataset"), a note in quotes. Every word of six letters or more comes from a column name, a value or the reviewer's plain
+    list, so Vera's word rule has nothing to object to."""
     return " ".join(row_sentences(rows, cite))
 
 

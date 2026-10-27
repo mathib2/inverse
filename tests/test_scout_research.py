@@ -131,12 +131,15 @@ def _expected(case):
 
 
 def _holds_every_value(text, rows):
-    """Every value of every row is in the text as the row holds it, and no number was altered or added."""
+    """Every value of every row is in the text as the row holds it (none as the word none, or as "no baseline dataset" after an
+    id), and no number was altered or added."""
+    from inverse_core.team.research import column_words
     from inverse_core.team.verify import unverified_numbers
     assert unverified_numbers(text, rows) == [], (text, rows)
     for r in rows:
-        for v in r.values():
-            assert ("none" if v is None else str(v)) in text, (v, text)
+        for k, v in r.items():
+            said = "none" if v is None else str(v)
+            assert said in text or (said == "none" and f"no {column_words(k)[0]}" in text), (v, text)
 
 
 MAINTENANCE = [{"record_id": "M-002", "date": "2026-10-05", "note": "[text withheld: matched injection pattern]"},
@@ -150,7 +153,7 @@ def test_rows_are_said_in_sentences_the_id_first_every_value_kept_and_cited():
     from inverse_core.team.research import rows_in_words
     registry = [{"equipment_id": "P-104", "baseline_dataset": "p104-baseline"}, {"equipment_id": "T-200", "baseline_dataset": "none"}]
     text = rows_in_words(registry, "[Q1]")
-    assert text == "P-104 has the baseline dataset p104-baseline [Q1]. T-200 has no baseline dataset (none) [Q1]."
+    assert text == "P-104 has the baseline dataset p104-baseline [Q1]. T-200 has no baseline dataset [Q1]."
     _holds_every_value(text, registry)
     assert all(item.lower() in text.lower() for item in _expected("registry"))
     sensor = [{"sampling_hz": 100, "sigma": 0.01}]
@@ -247,11 +250,12 @@ def test_the_id_column_tells_the_rows_apart_and_no_word_in_the_sentences_comes_f
     full = [{"equipment_id": "P-104", "name": "Process pump mount", "mass_kg": 1.0, "baseline_dataset": "p104-baseline", "current_dataset": "p104-current"},
             {"equipment_id": "T-200", "name": "Test rig", "mass_kg": 5.0, "baseline_dataset": None, "current_dataset": "trap-current"}]
     text = rows_in_words(full, "[Q1]")
-    assert text.endswith("T-200 has the name Test rig, a mass of 5.0 kg, no baseline dataset (none) and the current dataset trap-current [Q1].")
+    assert text.endswith("T-200 has the name Test rig, a mass of 5.0 kg, no baseline dataset and the current dataset trap-current [Q1].")
     _holds_every_value(text, full)
     goal = "Which machines are in the equipment registry, and which of them has no baseline dataset?"
     assert C.unsupported_words(goal, text, [{"type": "sql", "source": "q", "detail": "2 rows", "rows": full}]) == []   # Vera's word rule stays quiet
-    assert C.HEDGE.search(rows_in_words([{"sensor_id": "S-1", "value": None}], "[Q1]")) is None                      # "no value" would read as a hedge
+    text = rows_in_words([{"sensor_id": "S-1", "value": None}], "[Q1]")
+    assert text == "S-1 has the value none [Q1]." and C.HEDGE.search(text) is None                                   # "no value" would read as a hedge
     assert rows_in_words([{"min(t)": 0.0, "max(t)": 3.99, "offset_mm": 2.5}]) == "The min t is 0.0, the max t is 3.99 and the offset is 2.5 mm."
 
 
