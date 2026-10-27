@@ -189,6 +189,31 @@ def test_the_id_column_tells_the_rows_apart_and_no_word_in_the_sentences_comes_f
     assert rows_in_words([{"min(t)": 0.0, "max(t)": 3.99, "offset_mm": 2.5}]) == "The min t is 0.0, the max t is 3.99 and the offset is 2.5 mm."
 
 
+def test_a_json_array_of_records_pasted_into_the_answer_is_said_in_sentences(tmp_path):
+    from inverse_core.team.research import reword_rows
+    pasted = "The maintenance records for P-104 are:\n" + json.dumps(MAINTENANCE)
+    said = "The maintenance records for P-104 are: " + MAINTENANCE_SAID
+    ran = [{"type": "sql", "source": "q", "detail": "2 rows", "rows": MAINTENANCE}]
+    assert reword_rows(pasted + " [Q1].", ran) == (said, 1)                                                          # the citation that followed the array is kept
+    assert reword_rows(pasted, ran) == (said, 1)                                                                     # none followed: the query whose rows hold the records
+    assert reword_rows(pasted, []) == (said.replace(" [Q1].", "."), 1)
+    for left in ('Nested [[1, 2], {"a": 1}] stays', 'Deep [{"a": {"b": 1}}] stays', 'Inside {"rows": [{"a": 1}]} stays', "Nothing here [Q1] [T1.E1] [text withheld: x]"):
+        assert reword_rows(left, ran) == (left, 0)
+
+    def script(model, messages):
+        if messages[-1]["content"].startswith("These are the rows your queries returned"):
+            return json.dumps({"answer": pasted, "confidence": 0.9, "assumptions": []})
+        return json.dumps({"queries": ["SELECT record_id, date, note FROM obs.maintenance_table WHERE equipment_id = 'P-104' ORDER BY date DESC"]})
+
+    ctx, lead = crew(tmp_path, script)
+    ctx.zetaris.sql = lambda statement, limit=2000: [dict(r) for r in MAINTENANCE]
+    goal = "List the maintenance records for P-104 with their dates and what was done."
+    res = ctx.registry.experts["research"].run(Task("T1", goal, "research"), lead.memory, ExpertBudget())
+    assert res.answer == said and "[{" not in res.answer and events(ctx, "rows_reworded")[0]["arrays"] == 1
+    assert all(item in res.answer for item in _expected("maintenance")) and not events(ctx, "answer_facts")
+    assert C.deterministic(res.to_dict() | {"task_goal": goal}) is None
+
+
 def test_a_sensor_named_in_the_task_is_selected_by_its_id():
     from inverse_core.team.research import pin_sensor
     goal = "What are the noise level and the sampling rate of sensor T200-DISP-1?"

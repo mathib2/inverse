@@ -1,7 +1,7 @@
 """Scout (research): looks facts up in the data platform with read-only SQL. The model writes up to three SELECTs, code repairs
 them (the columns the task names, a sensor named by id, a filter or a LIMIT nobody asked for), runs them, and the model answers
 from the rows in the same conversation; row values the answer leaves out, or numbers the rows lack, are settled by code, and
-rows are said in sentences (rows_in_words), never as "k = v" pairs."""
+rows are said in sentences (rows_in_words), never as "k = v" pairs or pasted JSON."""
 from __future__ import annotations
 
 import json
@@ -258,6 +258,51 @@ def rows_in_words(rows, cite=""):
     return " ".join(row_sentences(rows, cite))
 
 
+_CITES = re.compile(r"^(?:\s*\[Q\d+\])+")
+
+_SCALAR = (str, int, float, bool, type(None))
+
+
+def _cite_of(record, ran):
+    """The query whose rows hold this record (every pasted value equal to the row's), as [Qn]; '' when none does."""
+    want = {k: _said(v) for k, v in record.items()}
+    for q, e in enumerate(ran or (), 1):
+        for r in e.get("rows") or []:
+            if isinstance(r, dict) and all(k in r and _said(r[k]) == v for k, v in want.items()):
+                return f"[Q{q}]"
+    return ""
+
+
+def reword_rows(text, ran=()):
+    """A JSON array of flat records pasted into an answer ('The maintenance records for P-104 are: [{"record_id": ...}, ...]')
+    is said in sentences instead, one per record, with the citation that followed the array (or the query whose rows hold the
+    first record). Only an array whose items are all flat dicts of scalars, and not one inside a JSON object; anything else is
+    left as it is. Returns (text, how many arrays were reworded)."""
+    s, dec, out, pos, n = str(text or ""), json.JSONDecoder(), [], 0, 0
+    i = s.find("[")
+    while i != -1:
+        obj = None
+        if not re.search(r'"\s*:\s*$', s[:i]):                                 # a value inside an object: not ours to rewrite
+            try:
+                obj, end = dec.raw_decode(s, i)
+            except ValueError:
+                obj = None
+        if isinstance(obj, list) and obj and all(isinstance(r, dict) and r and all(isinstance(v, _SCALAR) for v in r.values()) for r in obj):
+            m = _CITES.match(s[end:])
+            cite = " ".join(re.findall(r"\[Q\d+\]", m.group(0))) if m else _cite_of(obj[0], ran)
+            after = end + (m.end() if m else 0)
+            if s[after:after + 1] == ".":                                     # the sentences end with their own full stop
+                after += 1
+            lead = s[pos:i].rstrip()
+            out.append(lead + (" " if lead else "") + rows_in_words(obj, cite))
+            pos, n = after, n + 1
+            i = s.find("[", pos)
+            continue
+        i = s.find("[", i + 1)
+    out.append(s[pos:])
+    return "".join(out), n
+
+
 def _num(x, default):
     try:
         return float(x)
@@ -334,6 +379,9 @@ class ResearchExpert(BaseExpert):
         models.append(a["model"])
         j = a["json"]
         answer = str(j.get("answer") or "")
+        answer, reworded = reword_rows(answer, ran)
+        if reworded:                                                                  # the model pasted its rows as JSON: said in sentences, by code
+            self.ctx.trace.event("rows_reworded", expert=self.name, task=task.id, arrays=reworded, answer=answer[:200])
         facts = self._facts(ran, answer)
         if facts:                                                                     # a small result set rides along verbatim: the model dropped values the task asked for
             answer = (answer.rstrip(" .") + ". " if answer.strip() else "") + facts
