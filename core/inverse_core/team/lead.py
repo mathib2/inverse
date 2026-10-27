@@ -151,8 +151,9 @@ class Lead:
 
     def plan_system(self):
         """The planner's system prompt as sent: byte-stable per process, so the model server's prefix cache holds it."""
+        from .architect import GRANTABLE
         return PLAN_SYSTEM.format(experts="\n".join(f"- {n}: {r}" for n, r in self.registry.roles().items()),
-                                  equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(Tools.SPECS)) + limits.note(getattr(self.ctx, "root", "."), "lead")
+                                  equipment=", ".join(self.ctx.equipment) or "none", tools=", ".join(GRANTABLE)) + limits.note(getattr(self.ctx, "root", "."), "lead")
 
     def plan(self, goal, collaborate=False, votes=1):
         """votes > 1 samples that many plans at temperature 0.7 and keeps the most common task/expert structure
@@ -333,6 +334,9 @@ class Lead:
         rest (name, tools, lane) and refuses what it does not know. Registered for this run; the UI can keep it."""
         if not isinstance(spec, dict):
             raise ConfigError("new_experts entries must be objects")
+        from .architect import GRANTABLE
+        if any(tool not in GRANTABLE for tool in spec.get("tools", [])):
+            raise ConfigError("new experts may use only explicitly grantable tools")
         if str(spec.get("name", "")) in self.registry.configs:
             return                                                                   # already on the team: just use it
         c = self.registry.add({"name": spec.get("name"), "kind": "custom", "role": spec.get("role", ""), "tools": list(spec.get("tools") or []),
@@ -416,6 +420,9 @@ class Lead:
                     self.ctx.trace.event("task_failed", task=task.id, reason=task.feedback)
                 else:
                     task.context = "\n".join(f"[{d}] {done[d].result['answer']}" for d in task.depends_on)
+                    from .references import inherited
+                    task.references = inherited(Task(task.id, task.goal, task.expert, references=[
+                        e for d in task.depends_on for e in done[d].result.get("evidence", []) if e.get("type") == "reference"]))
                     ready.append(task)
             if len(ready) > 1 and parallel > 1:
                 workers = min(parallel, len(ready))
@@ -617,6 +624,11 @@ class Lead:
         result = {"answer": answer, "citations": {c: index[c] for c in sorted(cited & set(index))}, "unknown_citations": bad,
                   "unfinished": problems, "not_checked": sorted({n for t in ok for n in t.result["not_checked"]}),
                   "models_used": sorted({e["model"] for e in self.ctx.trace.events if e["kind"] == "llm" and e.get("model")}), "goal": plan.goal}
+        references = {e["reference"]["chunk_id"]: e["reference"] for e in index.values() if e.get("type") == "reference"}
+        if references:
+            result["answer"] += "\n\nReference sources (supporting guidance): " + "; ".join(
+                f"[{r['title']} — {r['section']}]({r['source_url']}) ({r['version']}; {r['license']})" for r in references.values())
+            result["references"] = list(references.values())
         if run_dir:                                                           # with plan.json and trace.jsonl this makes the run replayable without a model
             with open(os.path.join(run_dir, "answer.json"), "w") as f:
                 json.dump(result, f, indent=1, default=str)

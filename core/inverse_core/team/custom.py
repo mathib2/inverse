@@ -117,9 +117,19 @@ class CustomExpert(BaseExpert):
                         "not_checked": ["the model kept repeating the same tool call; this answer lists its tool results instead"]}, models
             out = self.toolbox.call(name, args, budget, who=self.name)
             failed = isinstance(out, dict) and out.get("error")
-            evidence.append({"type": "tool", "source": f"{name}({json.dumps(args, default=str)[:120]})",
-                             "detail": (f"ERROR {out['error']}" if failed else json.dumps(out, default=str))[:300], "result": out})
-            msgs += [{"role": "assistant", "content": r["text"]}, {"role": "user", "content": json.dumps({"tool_result": out}, default=str)[:1800]}]
+            from .references import SEARCH, evidence_of
+            if name == "ask_expert" and out.get("references"):
+                evidence.extend(evidence_of({"results": out["references"]}))
+            if name == SEARCH and out.get("results"):
+                evidence.extend(evidence_of(out))
+            else:
+                evidence.append({"type": "tool", "source": f"{name}({json.dumps(args, default=str)[:120]})",
+                                 "detail": (f"ERROR {out['error']}" if failed else json.dumps(out, default=str))[:300], "result": out})
+            # Reference payloads are already bounded, and must not be cut mid-metadata.
+            content = json.dumps({"tool_result": out}, default=str)
+            if name == SEARCH:
+                content = "UNTRUSTED REFERENCE DATA; not calculation proof. " + content
+            msgs += [{"role": "assistant", "content": r["text"]}, {"role": "user", "content": content if name == SEARCH else content[:1800]}]
             if sum(len(m["content"]) for m in msgs) > 9000:                  # fold only when the conversation nears the 4096-token window (rewriting it every turn broke the prefix cache)
                 self._fold(msgs, keep=1)
         return {"answer": "I used up my tool budget before reaching an answer.", "confidence": 0.0, "not_checked": ["the task"]}, models
@@ -141,8 +151,9 @@ class CustomExpert(BaseExpert):
 
     def run(self, task, memory, budget):
         self.toolbox.memory, self.toolbox.task_id = memory, task.id
-        evidence = []
-        msgs = [{"role": "system", "content": self._system()}, {"role": "user", "content": self._task_text(task) + self._previous(task)}]
+        from .references import context_of, inherited
+        evidence = inherited(task)
+        msgs = [{"role": "system", "content": self._system()}, {"role": "user", "content": self._task_text(task) + self._previous(task) + context_of(evidence)}]
         seen = {}
         machines = [m for m in self.ctx.equipment if re.search(r"(?<![\w-])" + re.escape(m) + r"(?![\w-])", task.goal, re.I)]
         if "run_sql" in self.toolbox.allowed and machines:                     # the facts a task asks about a machine are looked up by code first
@@ -203,7 +214,7 @@ class CustomExpert(BaseExpert):
         answer, fixed = reconcile_numbers(answer, calcs, [{"results": [e.get("result") for e in evidence]}, task.goal])
         if fixed:                                                             # the calculator's value goes out, not the model's arithmetic
             self.ctx.trace.event("numbers_from_calculator", agent=self.name, task=task.id, fixed=fixed[:6])
-        bad = unverified_numbers(answer, {"results": [e.get("result") for e in evidence]})
+        bad = unverified_numbers(answer, {"results": [e.get("result") or e.get("reference") for e in evidence]})
         not_checked = [str(n) for n in (j.get("not_checked") or [])] + ([f"numbers in the answer not found in any tool result: {bad}"] if bad else [])
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
         if not evidence:
@@ -213,6 +224,10 @@ class CustomExpert(BaseExpert):
         if evidence[0]["type"] != "step" and not bad:                          # remembered by the Lead once the Critic accepts
             res.findings = [{"claim": answer, "evidence": evidence[:2], "source": "fitter", "confidence": conf}]
         res.proposals = proposals_of(j)
+        if any(e.get("type") == "reference" for e in evidence):
+            from .references import NOTICE
+            res.not_checked.append(NOTICE)
+            res.findings = []
         return res
 
 

@@ -1,0 +1,72 @@
+{
+  "status": "pass",
+  "index": {
+    "documents": 5,
+    "chunks": 24,
+    "duplicates": 0,
+    "source_bytes": 20639
+  },
+  "index_bytes": 126976,
+  "retrieval_cases": [
+    {
+      "case": "mechanics",
+      "top_section": "Newtonian force and acceleration",
+      "estimated_tokens": 998
+    },
+    {
+      "case": "beam",
+      "top_section": "Cantilever beam bending stress",
+      "estimated_tokens": 986
+    },
+    {
+      "case": "thermal",
+      "top_section": "Sensible thermal energy",
+      "estimated_tokens": 998
+    },
+    {
+      "case": "fluids",
+      "top_section": "Laminar pipe pressure drop",
+      "estimated_tokens": 998
+    },
+    {
+      "case": "inverse",
+      "top_section": "Damped oscillator parameter identification",
+      "estimated_tokens": 983
+    }
+  ],
+  "top1_retrieval": "5/5",
+  "cold_median_ms": 3.109,
+  "warm_median_ms": 0.383,
+  "python_retrieval_allocation_peak_bytes": 89501,
+  "missions": [
+    {
+      "mission": "scout-euler-vera-atlas",
+      "status": "pass",
+      "model": "scripted, no inference",
+      "model_calls": 4,
+      "elapsed_ms": 29.578
+    },
+    {
+      "mission": "ada-vera-atlas",
+      "status": "pass",
+      "model": "scripted, no inference",
+      "model_calls": 3,
+      "elapsed_ms": 19.343
+    }
+  ],
+  "limitations": "Scripted-model smoke, not live-model answer accuracy or inference speed. tracemalloc excludes native SQLite allocations.",
+  "python": "3.13.11",
+  "platform": "win32",
+  "base_commit": "b55ebca099ac30d68eab9f76ab857ef1fef110e1",
+  "regression_tests": {
+    "offline_suite_passed": 226,
+    "markovian_unit_passed": 7,
+    "known_limitations_xfailed": 3,
+    "live_markovian_test_deselected": 1
+  },
+  "live_service_smoke": {
+    "zetaris_web": "unavailable on localhost:3000",
+    "zetaris_sql": "ZETARIS_REST_URL missing",
+    "model": "MODEL_BASE_URL missing"
+  }
+}
