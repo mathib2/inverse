@@ -273,3 +273,18 @@ def test_a_number_the_writer_adds_sends_the_answer_back_to_code(tmp_path):
     ctx2, lead2 = crew(tmp_path / "ok", lambda m, msgs: "P-104 weighs 9.81 N from its 1.0 kg mass [T3.E1] [T1.E1]; its records are dated 2026-09-02 and 2026-10-05 [T2.E1].")
     out = lead2.compose(plan)
     assert not events(ctx2, "compose_numbers_refused") and out["answer"].startswith("P-104 weighs 9.81 N")
+
+
+def test_an_answer_whose_writer_cites_nothing_carries_its_sources(tmp_path):
+    ctx, lead = crew(tmp_path, lambda m, msgs: "P-104 weighs 9.81 N from a mass of 1.0 kg; its records are dated 2026-09-02 and 2026-10-05.")
+
+    def mk(i, expert, answer, detail):
+        t = Task(f"T{i}", "g", expert)
+        t.status = "done"
+        t.result = {"answer": answer, "confidence": 0.9, "assumptions": [], "not_checked": [], "evidence": [{"type": "sql", "source": "q", "detail": detail}]}
+        return t
+    long = " Rows: record_id = M-002, date = 2026-10-05; record_id = M-001, date = 2026-09-02." * 12
+    out = lead.compose(Plan("P-104 review", [mk(1, "research", "Mass 1.0 kg.", "mass_kg = 1.0"), mk(2, "research", "Two records." + long, "2 rows" + long),
+                                          mk(3, "solver", "Weight 9.81 N.", "calc 1.0 * 9.81 = 9.81")]))
+    assert "Sources: T1 (research) [T1.E1]; T2 (research) [T2.E1]; T3 (solver) [T3.E1]" in out["answer"]
+    assert set(out["citations"]) == {"T1.E1", "T2.E1", "T3.E1"}

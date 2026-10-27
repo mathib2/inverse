@@ -217,3 +217,14 @@ def test_an_absence_the_evidence_contradicts_keeps_the_objection_even_with_a_pre
     assert C.contradicted("the call has no timeout", "requests.get(u, timeout=none)") is None              # None is still no timeout
     kept, dropped = C.check_problems([{"quote": "the moon is made of cheese", "why": "x"}], answer, evidence)
     assert not kept and dropped[0]["check"] == "the quote is not in the answer"                          # a loose match is not any match
+
+
+def test_a_number_counts_only_as_a_tool_value_rounded_to_its_own_precision():
+    """122.55 N once passed for 12.5 kg x 9.81 m/s^2 = 122.625 N under a 1 % tolerance, and code overruled Vera's objection."""
+    from inverse_core.team.verify import rounds_to, unverified_numbers
+    assert [t for t in ("122.6", "122.63", "122.62", "123", "122.625", "122.55", "122.7") if rounds_to(t, 122.625)] == ["122.6", "122.63", "122.62", "123", "122.625"]
+    assert unverified_numbers("its weight is 122.55 N", ["= 122.625"]) == ["122.55"] and unverified_numbers("about 122.6 N", ["= 122.625"]) == []
+    assert unverified_numbers("40% of the rows", [0.4]) == [] and unverified_numbers("9.8 N", ["9.81"]) == []
+    evidence = [{"type": "calc", "source": "step 1: 12.5 * 9.81", "detail": "= 122.625"}]
+    kept, _ = C.check_problems([{"quote": "its weight is 122.55 N", "why": "the calculator says 122.625"}], "Its weight is 122.55 N.", evidence)
+    assert kept and "122.55" in kept[0]["check"]                                                   # the objection stands

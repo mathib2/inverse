@@ -26,12 +26,14 @@ NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
 
 
 def found(item, text):
-    """A number within 1 % of some number in the text, or a case-insensitive substring."""
+    """A number in the text that is the expected value rounded to the precision the text writes it with (122.6 or 122.63 for
+    122.625, never 122.55: a 1 % tolerance once passed 122.55), or a case-insensitive substring."""
+    from inverse_core.team.verify import rounds_to
     try:
         want = float(item)
     except ValueError:
         return str(item).lower() in str(text).lower()
-    return any(abs(float(tok) - want) <= 0.01 * max(abs(want), 1e-9) for tok in NUMBER.findall(str(text)))
+    return any(rounds_to(tok.lstrip("-"), abs(want)) for tok in NUMBER.findall(str(text)))
 
 
 def run_case(case, collaborate, parallel, reset):

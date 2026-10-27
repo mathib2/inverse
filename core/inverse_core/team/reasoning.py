@@ -11,7 +11,7 @@ from datetime import date
 
 from .expert import PROPOSE_TAIL, BaseExpert, ExpertResult, proposals_of, require_evidence
 from .llmcall import ask
-from .verify import unverified_numbers
+from .verify import reconcile_numbers, unverified_numbers
 
 STEPS_MAX_TOKENS = 450                                                        # reply cap: at most five short steps
 
@@ -171,6 +171,11 @@ class ReasoningExpert(BaseExpert):
             if ev2:
                 ev, bad = ev2, bad2
             answer = str(j.get("answer") or "").strip()
+        values = [float(e["detail"][2:].split()[0]) for e in ev if e.get("type") == "calc" and str(e.get("detail", "")).startswith("= ")
+                  and re.fullmatch(r"-?[\d.]+(?:e[-+]?\d+)?", str(e["detail"][2:].split()[0]))]
+        answer, fixed = reconcile_numbers(answer, values, [ev, str(task.context or ""), task.goal])
+        if fixed:                                                            # the model wrote its own arithmetic beside the calculator's: the calculator's goes out
+            self.ctx.trace.event("numbers_from_calculator", agent=self.name, task=task.id, fixed=fixed[:6])
         conf = max(0.0, _num(j.get("confidence"), 0.5) - (0.3 if bad else 0.0))
         not_checked = [f"unresolved: {b}" for b in bad] + ["steps without arithmetic are the model's reasoning, not machine-verified"]
         res = require_evidence(ExpertResult(answer, ev, conf, [str(a) for a in (j.get("assumptions") or [])], not_checked, models))

@@ -1,8 +1,8 @@
-# Checkable goals for scripts/measure/bench.py. Every expected item must appear in the final answer: a number within 1 %, any other
-# text as a case-insensitive substring. The answers come from the synthetic data (data/README.md) and from arithmetic.
+# Checkable goals for scripts/measure/bench.py. Every expected item must appear in the final answer: a number as the expected value
+# rounded to the precision the answer writes it with (122.6 or 122.63 for 122.625, never 122.55), any other text as a case-insensitive substring. The answers come from the synthetic data (data/README.md) and from arithmetic.
 - name: arithmetic
   goal: "What is 12.5 kg times 9.81 m/s^2? Give the result in newtons and show the steps."
-  expect: ["122.6"]
+  expect: ["122.625"]
   expert: reasoning
 - name: registry
   goal: "Which machines are in the equipment registry, and which of them has no baseline dataset?"
