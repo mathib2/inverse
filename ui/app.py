@@ -14,18 +14,16 @@ from dotenv import load_dotenv
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
-from inverse_core.clients.meterless import MeterlessClient  # noqa: E402
-from inverse_core.clients.zetaris import ZetarisClient  # noqa: E402
-from inverse_core.ledger import SidecarLedger  # noqa: E402
-
-import auth  # noqa: E402
-import parts  # noqa: E402
-import plain  # noqa: E402
+import auth
+import parts
+from inverse_core.clients.meterless import MeterlessClient
+from inverse_core.clients.zetaris import ZetarisClient
+from inverse_core.ledger import SidecarLedger
 
 st.set_page_config(page_title="INVERSE · a crew of local AI agents", page_icon="⚙️", layout="wide", initial_sidebar_state="auto")
 parts.css()                                                                   # the theme first, so the sign-in page has it too
 auth.require()                                                                # with UI_PASSWORD_HASH in .env, a sign-in page comes first
-from inverse_core.clients.sidecars import hmem_url  # noqa: E402
+from inverse_core.clients.sidecars import hmem_url
 
 SIDECAR = hmem_url()                                                          # this checkout's own sidecar (SIDECAR_URL in .env)
 ledger, llm = SidecarLedger(SIDECAR), MeterlessClient()
@@ -81,7 +79,7 @@ def confirm_reset():
 
 h = health()
 ai_online = h["ai"]["status"] == "online"
-import advanced_ui  # noqa: E402
+import advanced_ui
 
 with st.sidebar:
     st.markdown("<div class='inv-brand'>INVERSE</div><div class='inv-tagline'>a crew of local AI agents</div>", unsafe_allow_html=True)
@@ -124,6 +122,6 @@ if mode == "Advanced":
     advanced_ui.render(ledger, ai_online, SIDECAR, h)
     st.stop()
 
-import chat_ui  # noqa: E402
+import chat_ui
 
 chat_ui.render(ledger, ai_online, SIDECAR, h)

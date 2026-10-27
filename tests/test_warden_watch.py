@@ -5,7 +5,7 @@ import subprocess
 import time
 
 from inverse_core.clients.zetaris import SAMPLE_VIEWS
-from inverse_core.team.watch import data_goal, review_files, Watcher
+from inverse_core.team.watch import Watcher, data_goal, review_files
 
 
 class FakeTeam:

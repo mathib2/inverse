@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 
-
 SCHEMA = """Tables (Zetaris, read-only; always the obs. prefix; text values in single quotes; no semicolon):
 obs.equipment_table(equipment_id text like 'P-104' or 'T-200', name text, mass_kg number, baseline_dataset text: a dataset id or the text 'none', current_dataset text)
 obs.sensors_table(sensor_id text like 'P104-DISP-1': a sensor named in the task is selected by sensor_id, equipment_id text, quantity text: 'x' is displacement and 'v' is velocity, unit text, sigma number = the noise level, sampling_hz number = the sampling rate)
@@ -15,7 +14,7 @@ Examples of the dialect: SELECT COUNT(*) AS n FROM obs.p104_baseline_samples | S
 ALLOWED_TABLES = {"equipment_table", "sensors_table", "maintenance_table", "p104_baseline_samples", "p104_current_samples", "trap_current_samples"}
 
 FORBIDDEN = re.compile(r"\b(insert|update|delete|drop|create|alter|truncate|merge|grant|cache|call|exec)\b|;|--|/\*"
-                       r"|\b(reflect|java_method|input_file_name|transform|current_user|exec_java)\s*\(", re.I)   # Spark built-ins that reach the JVM
+                       r"|\b(reflect|java_method|input_file_name|transform|current_user|exec_java)\s*\(", re.IGNORECASE)   # Spark built-ins that reach the JVM
 
 class UnsafeSQL(ValueError):
     pass

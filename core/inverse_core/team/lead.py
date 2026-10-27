@@ -11,18 +11,17 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from ..budget import BudgetExceeded
-from .bus import Bus
-from .critic import Critic
-from .vulnerability import scope_check
-from .crew import roster
-from .expert import ExpertBudget, ExpertResult, Task
-from .llmcall import BadReply, ask
 from . import limits
+from .bus import Bus
+from .crew import roster
+from .critic import Critic
+from .expert import ExpertResult, Task
+from .llmcall import BadReply, ask
 from .plan import PLACEHOLDER, Plan, PlanError
-from .verify import claim_numbers, unverified_numbers
 from .registry import ConfigError
 from .tools import CODE_TOOLS, Tools
-
+from .verify import claim_numbers, unverified_numbers
+from .vulnerability import scope_check
 
 PLAN_SYSTEM = """You are the lead of a team of experts. Decompose the user's goal into at most 5 tasks and assign each to ONE expert.
 Delegate by what each task needs. Use depends_on when a task needs another task's result. Do not use an expert you did not list or define.
@@ -52,16 +51,16 @@ def _norm(s):
     return re.sub(r"\W+", " ", s.lower()).strip()
 
 
-CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|vulnerab\w*|exploit\w*)\b", re.I)
+CODE_WORDS = re.compile(r"\b(code|repositor(y|ies)|repo|security|weakness(es)?|vulnerab\w*|exploit\w*)\b", re.IGNORECASE)
 PLANNED_PREFIX = re.compile(r"^Using the accepted results from the earlier tasks, answer this in plain words:\s*")   # a lesson keeps what the task was about
-DAY_WORDS = re.compile(r"\b(?:how\s+many|number\s+of)\s+(?:days|weeks)\b|\bdays?\s+(?:passed|elapsed|between|apart)\b", re.I)   # a date difference: Euler's days_between
+DAY_WORDS = re.compile(r"\b(?:how\s+many|number\s+of)\s+(?:days|weeks)\b|\bdays?\s+(?:passed|elapsed|between|apart)\b", re.IGNORECASE)   # a date difference: Euler's days_between
 CALC_WORDS = re.compile(r"\b(compute|calculate|derive|deriv\w+|multipl\w+|times|divide\w*|convert\w*|weight|weigh\w*|force|torque|energy|frequency|damping|ratio|percent\w*|average|mean|formula|equation"
                         r"|(?:how\s+many|number\s+of)\s+(?:days|weeks)|days?\s+(?:passed|elapsed|between|apart)"
-                        r"|why|whether|should|needs?|compare\w*|explain|assess\w*|diagnos\w+|recommend\w*|judge)\b", re.I)   # a computation or a judgement: Euler after Scout
-DATA_WORDS = re.compile(r"\b(registry|maintenance|sensors?|samples?|datasets?|records?|tables?|rows|stored|specification\w*|history|sql|quer\w+)\b", re.I)
-LACK_WORDS = re.compile(r"\b(we have no|there is no|no (?:converter|expert|agent|tool|one) (?:for|that|who)|nobody (?:can|knows)|the crew (?:lacks|cannot)|none of (?:you|the agents) can)\b", re.I)
+                        r"|why|whether|should|needs?|compare\w*|explain|assess\w*|diagnos\w+|recommend\w*|judge)\b", re.IGNORECASE)   # a computation or a judgement: Euler after Scout
+DATA_WORDS = re.compile(r"\b(registry|maintenance|sensors?|samples?|datasets?|records?|tables?|rows|stored|specification\w*|history|sql|quer\w+)\b", re.IGNORECASE)
+LACK_WORDS = re.compile(r"\b(we have no|there is no|no (?:converter|expert|agent|tool|one) (?:for|that|who)|nobody (?:can|knows)|the crew (?:lacks|cannot)|none of (?:you|the agents) can)\b", re.IGNORECASE)
 PATH_WORD = re.compile(r"[\w./-]+/[\w./-]+")                                 # a repository path named in a goal
-LOOKUP_WORDS = re.compile(r"^\W*(how many|how much|list|what is|what are|what was|which|when|show|name|give me)\b", re.I)   # a plain lookup: Scout alone
+LOOKUP_WORDS = re.compile(r"^\W*(how many|how much|list|what is|what are|what was|which|when|show|name|give me)\b", re.IGNORECASE)   # a plain lookup: Scout alone
 GIVEN = re.compile(r"\b([A-Za-z]+)\s+(?:is|=|equals)\s+(-?\d+(?:\.\d+)?)\s*([A-Za-z][\w/^]{0,7})?")   # "gravity is 1.62 m/s^2" -> gravity = 1.62 m/s^2
 
 
@@ -73,7 +72,7 @@ def given_values(goal):
     return "; ".join(dict.fromkeys(out))
 
 
-SUMMARY_WORDS = re.compile(r"\b(summari[sz]e|digest|what (do|does) (we|the crew|the team) know|found so far|ruled out|still unchecked)\b", re.I)
+SUMMARY_WORDS = re.compile(r"\b(summari[sz]e|digest|what (do|does) (we|the crew|the team) know|found so far|ruled out|still unchecked)\b", re.IGNORECASE)
 
 
 def rule_plan(goal, names, equipment):
@@ -86,7 +85,7 @@ def rule_plan(goal, names, equipment):
         if expert in names:
             tasks.append(Task(f"T{len(tasks) + 1}", text, expert, list(deps)))
 
-    machines = [e for e in equipment if re.search(rf"(?<![\w-]){re.escape(e)}(?![\w-])", goal, re.I)][:2]
+    machines = [e for e in equipment if re.search(rf"(?<![\w-]){re.escape(e)}(?![\w-])", goal, re.IGNORECASE)][:2]
     if CODE_WORDS.search(goal) and not machines:
         add("vulnerability", goal)
     elif machines:
@@ -104,7 +103,7 @@ def rule_plan(goal, names, equipment):
 
 
 ABOUT_US = re.compile(r"\bwhat (?:can|could) (?:you|the crew|this crew|inverse) do\b|\bwhat are you(?:r)? (?:capable of|able to do|good at|capabilities|skills|abilities)\b"
-                      r"|\bwho are you\b|\bintroduce yourself\b|\bhow can you help\b|\bwhat can i ask\b|^\s*help\s*[?.!]*\s*$", re.I)
+                      r"|\bwho are you\b|\bintroduce yourself\b|\bhow can you help\b|\bwhat can i ask\b|^\s*help\s*[?.!]*\s*$", re.IGNORECASE)
 
 
 def about_us(goal, configs):
@@ -127,7 +126,7 @@ def simple_goal(goal, equipment=()):
     g = str(goal or "").strip()
     if not g or len(g) > 300 or LACK_WORDS.search(g) or " then " in g.lower() or ";" in g:
         return None
-    machines = [m for m in equipment if re.search(rf"(?<![\w-]){re.escape(m)}(?![\w-])", g, re.I)]
+    machines = [m for m in equipment if re.search(rf"(?<![\w-]){re.escape(m)}(?![\w-])", g, re.IGNORECASE)]
     if CODE_WORDS.search(g) and PATH_WORD.search(g) and not machines:
         return "a review of a named path"
     if SUMMARY_WORDS.search(g):

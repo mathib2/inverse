@@ -47,7 +47,7 @@ def unverified_numbers(text, evidence):
     """Numbers in `text` that are no number of `evidence` rounded to the precision they are written with (or, next to a % sign,
     its percentage). IDs, dates and labels do not count."""
     known = _numbers(evidence)
-    pct = bool(re.search(r"%|\bper ?cent", str(text or ""), re.I))        # 0.4 in the evidence covers "40 percent"; 9.81 never covers 981.0
+    pct = bool(re.search(r"%|\bper ?cent", str(text or ""), re.IGNORECASE))        # 0.4 in the evidence covers "40 percent"; 9.81 never covers 981.0
     bad = []
     for tok in claim_numbers(text):
         if not any(rounds_to(tok, k) or (pct and rounds_to(tok, abs(k) * 100)) for k in known):

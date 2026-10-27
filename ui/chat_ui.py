@@ -19,7 +19,8 @@ from inverse_core.clients.world import WorldClient
 from inverse_core.clients.zetaris import ZetarisClient
 from inverse_core.team import limits
 from inverse_core.team.build import build
-from inverse_core.team.crew import CREW, name as crew_name, rename, roster
+from inverse_core.team.crew import CREW, rename, roster
+from inverse_core.team.crew import name as crew_name
 from inverse_core.team.lanes import Lanes
 from inverse_core.team.registry import load_configs
 

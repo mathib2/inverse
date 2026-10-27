@@ -9,8 +9,8 @@ from __future__ import annotations
 import json
 import re
 
-from .llmcall import BadReply, ask
 from . import limits
+from .llmcall import BadReply, ask
 from .verify import claim_numbers, unverified_numbers
 
 SYSTEM = ("You are an adversarial reviewer. You get a task, an expert's answer and its evidence. Try to break the answer: "
@@ -30,7 +30,7 @@ WORDS = {"accept": {"accept", "accepted", "approve", "approved", "ok", "okay", "
 STOP = set("the a an and or of to in on for is are was were be been with by at from as that this it its not no than then into "
            "has have had does did done will would can could should about into over under each there their these those".split())
 MAX_PROBLEMS = 3
-HEDGE = re.compile(r"\b(not (available|provided|specified|given|found|present|included)|cannot be (computed|determined|found)|no (data|value|information|rows)|unavailable|unknown)\b", re.I)
+HEDGE = re.compile(r"\b(not (available|provided|specified|given|found|present|included)|cannot be (computed|determined|found)|no (data|value|information|rows)|unavailable|unknown)\b", re.IGNORECASE)
 MAX_TOKENS = 500                                                             # three quoted problems and a sentence fit; a reply that rambles is cut, then re-asked
 
 

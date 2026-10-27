@@ -18,14 +18,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
 
-from inverse_core.clients.world import WorldClient  # noqa: E402
-from inverse_core.clients.zetaris import ZetarisClient  # noqa: E402
-from inverse_core.ledger import SidecarLedger  # noqa: E402
-from inverse_core.team.build import build  # noqa: E402
-from inverse_core.team.expert import ExpertBudget, Task  # noqa: E402
+from inverse_core.clients.world import WorldClient
+from inverse_core.clients.zetaris import ZetarisClient
+from inverse_core.ledger import SidecarLedger
+from inverse_core.team.build import build
+from inverse_core.team.expert import ExpertBudget, Task
 
 NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
-HEDGE = re.compile(r"\b(not (available|provided|specified|found)|cannot|unknown|no data)\b", re.I)
+HEDGE = re.compile(r"\b(not (available|provided|specified|found)|cannot|unknown|no data)\b", re.IGNORECASE)
 
 
 def has(item, text):

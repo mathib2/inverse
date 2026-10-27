@@ -11,7 +11,7 @@ import sys
 from dotenv import load_dotenv
 
 load_dotenv(".env")
-from inverse_core.team.council import Council  # noqa: E402
+from inverse_core.team.council import Council
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # scripts/<group>/<this file> -> the checkout
 

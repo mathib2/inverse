@@ -1,7 +1,7 @@
 """The synthetic data the obs-service serves: deterministic, self-contained, physically sensible (free decay loses energy)."""
-from inverse_core import datasets as D
-
 import numpy as np
+
+from inverse_core import datasets as D
 
 
 def test_datasets_are_deterministic_and_shaped_for_the_service():

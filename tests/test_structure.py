@@ -12,7 +12,6 @@ from inverse_core.team.registry import KINDS
 
 from fakes import crew
 
-
 FIELDS = ["name", "callsign", "kind", "role", "system_prompt_file", "tools", "model_lane", "budget", "enabled"]
 
 

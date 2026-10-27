@@ -115,8 +115,9 @@ def test_ada_totals_two_dataset_counts_by_code(tmp_path):
 
 
 def test_the_calculator_hint_uses_the_goals_own_numbers_never_an_id(tmp_path):
-    from inverse_core.team.verify import claim_numbers
     import re as _re
+
+    from inverse_core.team.verify import claim_numbers
     strip = lambda g: claim_numbers(_re.sub(r"\^\s*\d+", "", g))
     assert strip("Using the registry mass of P-104, compute its weight in newtons with g = 9.81 m/s^2.") == ["9.81"]        # P-104 and ^2 are not numbers to multiply
     assert strip("What does a 12.5 kg mass weigh on the Moon, where gravity is 1.62 m/s^2?")[:2] == ["12.5", "1.62"]

@@ -1,0 +1,15 @@
+# Lint rules the code already passes, so this cannot go red on the team: import order, unused imports, stale noqa
+# comments, regex flag aliases, and the syntax and undefined-name checks. Nothing here reflows code: the long lines
+# are on purpose.
+line-length = 200
+extend-exclude = ["services", "data"]
+# Where the project's own modules live, so they are sorted apart from third-party imports: inverse_core in core/, the
+# page's modules in ui/, the command-line tools in scripts/ and scripts/admin/ (the tests import set_password from there).
+src = ["core", "ui", "scripts", "scripts/admin"]
+
+[lint]
+select = ["I001", "F401", "RUF100", "FURB167", "E9", "F63", "F7", "F82"]
+
+[lint.isort]
+# fakes.py is the tests' shared helper; it keeps its own block after the project imports, as the tests already have it.
+known-local-folder = ["fakes"]

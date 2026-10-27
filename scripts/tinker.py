@@ -25,21 +25,20 @@ os.environ.setdefault("INVERSE_ROOT", ROOT)
 sys.path.insert(0, os.path.join(ROOT, "core"))
 load_dotenv(os.path.join(ROOT, ".env"))
 
-from inverse_core import chat, notify  # noqa: E402
-from inverse_core import injection_guard as guard  # noqa: E402
-from inverse_core.budget import Budget  # noqa: E402
-from inverse_core.ledger import SidecarLedger  # noqa: E402
-from inverse_core.team.council import Council  # noqa: E402
-from inverse_core.team import critic as C  # noqa: E402
-from inverse_core.team.custom import CustomExpert  # noqa: E402
+from inverse_core import chat, notify
+from inverse_core import injection_guard as guard
+from inverse_core.budget import Budget
+from inverse_core.ledger import SidecarLedger
+from inverse_core.team import critic as C
+from inverse_core.team import gate
+from inverse_core.team.council import Council
+from inverse_core.team.custom import CustomExpert
+from inverse_core.team.expert import ExpertBudget, Task
+from inverse_core.team.lanes import Lanes
+from inverse_core.team.llmcall import Ctx, ask
+from inverse_core.team.memory import TeamMemory
 from inverse_core.team.vulnerability import VulnerabilityExpert
-from inverse_core.team.llmcall import ask  # noqa: E402
-from inverse_core.team.expert import ExpertBudget, Task  # noqa: E402
-from inverse_core.team import gate  # noqa: E402
-from inverse_core.team.lanes import Lanes  # noqa: E402
-from inverse_core.team.llmcall import Ctx  # noqa: E402
-from inverse_core.team.memory import TeamMemory  # noqa: E402
-from inverse_core.trace import Trace  # noqa: E402
+from inverse_core.trace import Trace
 
 LIVE = os.path.expanduser(os.environ.get("INVERSE_LIVE", "~/inverse-live"))
 BASE = os.environ.get("TINKER_BRANCH", "m4-sindyc")
@@ -104,7 +103,7 @@ def save_state(state):
 
 def backlog(report_text, probes):
     """The numbered 'must improve' items of the agent report, plus every probe that failed last time."""
-    items = [re.sub(r"\s+", " ", m).strip() for m in re.findall(r"^\d+\.\s+\*\*(.+?)\*\*", report_text or "", re.M)]
+    items = [re.sub(r"\s+", " ", m).strip() for m in re.findall(r"^\d+\.\s+\*\*(.+?)\*\*", report_text or "", re.MULTILINE)]
     for agent, a in (probes or {}).items():
         for p in a.get("probes", []):
             if not p.get("pass"):
@@ -160,7 +159,7 @@ def changed_lines(files):
     for f in files:
         rc, diff = sh(["git", "diff", "-U0", "--", f])
         lines = set()
-        for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", diff or "", re.M):
+        for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", diff or "", re.MULTILINE):
             start, n = int(m.group(1)), int(m.group(2) or 1)
             lines.update(range(start, start + n))
         if not lines and not (diff or "").strip():

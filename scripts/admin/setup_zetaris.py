@@ -1,8 +1,10 @@
 """Create the Zetaris objects for INVERSE: runs data/zetaris/*.sql one statement at a time. Idempotent:
 statements that fail because the object already exists are reported as SKIP.
 Usage: PYTHONPATH=core .venv/bin/python scripts/admin/setup_zetaris.py"""
-import glob, os
+import glob
+
 from dotenv import load_dotenv
+
 load_dotenv(".env")
 from inverse_core.clients.zetaris import ZetarisClient
 

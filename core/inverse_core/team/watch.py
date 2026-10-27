@@ -10,15 +10,14 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import threading
 import time
-
-from .. import chat, digest
-import subprocess
 import traceback
 
 import requests
 
+from .. import chat, digest
 from ..clients.zetaris import SAMPLE_VIEWS
 
 KEEP_RUNS = 50
