@@ -1,16 +1,17 @@
 """Real FTS5 ingestion/retrieval and agent paths, with scripted model replies only."""
 import hashlib
 import json
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
 import pytest
 
+from inverse_core.budget import BudgetExceeded
 from inverse_core.knowledge import KnowledgeError, Limits, chunks, rebuild, search, token_estimate
 from inverse_core.team.expert import ExpertBudget, Task
+from inverse_core.team.references import NOTICE, SEARCH, evidence_of
 from inverse_core.team.tools import Tools
-from inverse_core.team.references import SEARCH, NOTICE, evidence_of
-from inverse_core.budget import BudgetExceeded
+
 from fakes import crew, events
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -170,8 +171,8 @@ def test_scout_reference_path_no_model_and_sql_still_runs(index, tmp_path):
 
 
 def test_ada_vera_atlas_smoke_preserves_source_and_never_promotes_reference_to_memory(index, tmp_path):
-    from inverse_core.team.plan import Plan
     from inverse_core.team.critic import verified_by_code
+    from inverse_core.team.plan import Plan
     seen = []
     def script(model, messages):
         seen.append(messages)

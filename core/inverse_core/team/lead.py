@@ -19,7 +19,7 @@ from .expert import ExpertResult, Task
 from .llmcall import BadReply, ask
 from .plan import PLACEHOLDER, Plan, PlanError
 from .registry import ConfigError
-from .tools import CODE_TOOLS, Tools
+from .tools import CODE_TOOLS
 from .verify import claim_numbers, unverified_numbers
 from .vulnerability import scope_check
 
