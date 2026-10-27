@@ -119,7 +119,7 @@ def records_in_words(text):
         records, end = json.JSONDecoder(parse_float=str, parse_int=str).raw_decode(text, m.start())
         if not (records and all(isinstance(r, dict) for r in records)):
             return None
-        rows = [_pairs(", ".join(f"{k} = {fold(v)}" for k, v in r.items() if fold(v))) for r in records]
+        rows = [_pairs(", ".join(f"{k} = {fold('none' if v is None or v is False else v)}" for k, v in r.items())) for r in records]   # a null or false field is "none", as a row writes it
         return text[:m.start()], "; ".join(_row_words(p) for p in rows if p), text[end:]
     except ValueError:                                                        # the array never closes: a limit cut it
         pass

@@ -185,6 +185,17 @@ def test_a_refuted_claim_is_cut_only_where_the_leads_cap_cut_the_answer():
     assert len(rows) < 200 < len("research: " + rows) and refuted_sentence("research: " + rows).endswith("the machine C-300 has the baseline dataset c300-baseline-2026 and more; it was refuted.")   # an uncited last row that nothing cut
 
 
+def test_a_pasted_record_with_a_null_field_says_the_field_is_missing():
+    """A JSON null (or false) in a pasted record is said as a row's "none" is, "has no baseline dataset", whether the array is whole or cut by a limit."""
+    from inverse_core.team.summary import finding_sentence
+    record = 'research: [{"equipment_id": "T-200", "baseline_dataset": null, "mass_kg": 2.0}]'
+    assert finding_sentence(record) == "Scout found that the machine T-200 has no baseline dataset and the mass 2.0 kg."
+    assert finding_sentence(record[:-1] + ", {") == "Scout found that the machine T-200 has no baseline dataset and the mass 2.0 kg (cut off)."   # the same record cut by a limit says the same
+    assert finding_sentence(record.replace("null", "false")) == finding_sentence(record)
+    assert finding_sentence("research: Rows: equipment_id = T-200, baseline_dataset = none, mass_kg = 2.0 [Q1]") == "Scout found that the machine T-200 has no baseline dataset and the mass 2.0 kg [Q1]."
+    assert finding_sentence('research: [{"equipment_id": "T-200", "name": "", "mass_kg": 2.0}]') == "Scout found that the machine T-200 has the mass 2.0 kg."   # an empty string is still left out, as before
+
+
 def test_custom_expert_uses_tools_then_answers_and_flags_numbers_no_tool_produced(tmp_path):
     replies = iter([json.dumps({"tool": "run_sql", "args": {"sql": "SELECT mass_kg FROM obs.equipment_table WHERE equipment_id = 'P-104'"}}),
                     json.dumps({"tool": "calc", "args": {"expr": "12.5 * 9.81"}}),
