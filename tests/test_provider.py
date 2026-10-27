@@ -19,13 +19,13 @@ def test_provider_defaults_to_nightshift_and_follows_env(monkeypatch):
 
 
 def test_lanes_default_to_the_local_model_on_a_local_provider(monkeypatch):
-    for n in ("FAST", "DEEP", "CRITIC"):
+    for n in ("FAST", "DEEP", "PLAN", "CRITIC"):
         monkeypatch.delenv("LANE_" + n, raising=False)
     monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
     assert Lanes(factory=lambda m: m).mapping == DEFAULTS
     monkeypatch.setenv("MODEL_PROVIDER", "ollama")
     monkeypatch.setenv("NEMOTRON_MODEL", "nemotron-mini:latest")
-    assert Lanes(factory=lambda m: m).mapping == {"fast": "nemotron-mini:latest", "deep": "nemotron-mini:latest", "critic": "nemotron-mini:latest"}
+    assert Lanes(factory=lambda m: m).mapping == {n: "nemotron-mini:latest" for n in ("fast", "deep", "plan", "critic")}
     monkeypatch.setenv("LANE_CRITIC", "qwen2.5:3b-instruct")           # a second local model keeps the Critic independent
     assert Lanes(factory=lambda m: m).mapping["critic"] == "qwen2.5:3b-instruct"
 
@@ -142,3 +142,56 @@ def test_health_reports_the_fallback_with_the_primary_status_kept(monkeypatch):
     monkeypatch.setattr(M.requests, "get", get)
     h = M.MeterlessClient(base_url="http://ns/v1", api_key="k", model="local-runtime/nemotron-mini").health()
     assert h["status"] == "online" and h["fallback"] and h["route_available"] and h["primary"]["status"] == "offline"
+
+
+def test_the_planner_and_vera_default_to_the_largest_nemotron_and_an_old_env_plans_where_it_did(monkeypatch):
+    for n in ("FAST", "DEEP", "PLAN", "CRITIC"):
+        monkeypatch.delenv("LANE_" + n, raising=False)
+    monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
+    m = Lanes(factory=lambda m: m).mapping
+    assert m["plan"] == m["critic"] == "nvidia/nemotron-3-ultra-550b-a55b" and m["fast"] == m["deep"] == "nvidia/nemotron-3.5-lightning-30b-a3b"
+    monkeypatch.setenv("LANE_DEEP", "local-runtime/nemotron-mini-4b-instruct-q4-k-m")               # the live .env names deep, not plan
+    assert Lanes(factory=lambda m: m).mapping["plan"] == "local-runtime/nemotron-mini-4b-instruct-q4-k-m"
+    monkeypatch.setenv("LANE_PLAN", "nvidia/nemotron-3-ultra-550b-a55b")
+    assert Lanes(factory=lambda m: m).mapping["plan"] == "nvidia/nemotron-3-ultra-550b-a55b"
+
+
+class _Reply:
+    def __init__(self, status, model="m"):
+        self.status_code, self.text, self.model = status, "{}", model
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise M.requests.HTTPError(str(self.status_code))
+
+    def json(self):
+        return {"model": self.model, "choices": [{"message": {"content": "ok from " + self.model}, "finish_reason": "stop"}], "usage": {}}
+
+
+def test_a_lane_with_its_own_endpoint_falls_back_to_the_crews_provider_without_marking_it_down(monkeypatch):
+    monkeypatch.setenv("MODEL_PROVIDER", "nightshift")
+    monkeypatch.setenv("MODEL_BASE_URL", "http://laptop/v1")
+    monkeypatch.setenv("NEMOTRON_MODEL", "local-runtime/nemotron-mini")
+    monkeypatch.setenv("LANE_PLAN", "nvidia/nemotron-3-ultra-550b-a55b")
+    monkeypatch.setenv("LANE_PLAN_URL", "http://hosted/v1")
+    monkeypatch.setenv("LANE_PLAN_KEY", "k")
+    monkeypatch.setattr(M, "_endpoint_down", {})
+    monkeypatch.setattr(M, "_primary_down", {"until": 0.0, "why": ""})
+    hosted_up, calls = [True], []
+
+    def post(url, headers=None, json=None, timeout=None):
+        calls.append((url.split("/")[2], json["model"]))
+        if url.startswith("http://hosted") and not hosted_up[0]:
+            raise M.requests.ConnectionError("tunnel down")
+        return _Reply(200, json["model"])
+    monkeypatch.setattr(M.requests, "post", post)
+    lanes = Lanes()
+    assert set(lanes.endpoints) == {"plan"} and isinstance(lanes.client("plan"), M.LaneEndpoint) and not isinstance(lanes.client("fast"), M.LaneEndpoint)
+    r = lanes.client("plan").chat([{"role": "user", "content": "x"}])
+    assert r["provider"] == "lane endpoint" and calls[-1] == ("hosted", "nvidia/nemotron-3-ultra-550b-a55b")
+    hosted_up[0] = False
+    r = lanes.client("plan").chat([{"role": "user", "content": "x"}])
+    assert calls[-1] == ("laptop", "local-runtime/nemotron-mini") and "tunnel down" in r["fallback"]   # the crew's provider with the backup model
+    assert M.primary_down() == ""                                                                       # the laptop is not marked down
+    lanes.client("plan").chat([{"role": "user", "content": "x"}])
+    assert calls[-1][0] == "laptop" and sum(1 for c in calls if c[0] == "hosted") == 2                 # held: the endpoint is not retried at once
