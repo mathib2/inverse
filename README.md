@@ -51,7 +51,7 @@ Open Agent Hackathon 2026 · Track 03 (Reasoning Architecture) · Zetaris + Mete
 | `experts/`, `prompts/` | Each expert's record and its instructions; the registry reads them. |
 | `missions.yaml` | Warden's standing missions: `data_check` every 12 hours, `code_review` every 6, `memory_digest` every 24. `missions.local.yaml` (not in git) holds the council's and people's changes and overrides it. |
 | `scripts/` | What runs all the time (`watch.py`, `tinker.py`, `public_link.py` and their control scripts), `measure/` (benchmark, probes) and `admin/` (password, alerts, council, data setup, publishing the public copy). See `scripts/README.md`. |
-| `tests/` | 214 tests in 27 files; none needs a model or the internet. The six that need live services (`test_integration.py`, the real-engine test in `test_markovian.py`) skip when Zetaris or the Meterless engines are not there, so CI runs 208. |
+| `tests/` | 214 tests in 28 files; none needs a model or the internet. The six that need live services (`test_integration.py`, the real-engine test in `test_markovian.py`) skip when Zetaris or the Meterless engines are not there, so CI runs 208. |
 | `backlog_tests/` | Where a test that defines done for one of Tinker's backlog items goes (`backlog_tests/README.md`). None is written yet, so a change merges on its own only when the agent's probe rises. |
 | `docs/` | How it works, how to run it, the submission and the records. See `docs/README.md`. |
 | `services/`, `data/` | The Meterless sidecar and the synthetic data service; the data platform's SQL in `data/zetaris/`. |
