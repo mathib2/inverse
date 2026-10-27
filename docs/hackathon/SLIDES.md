@@ -10,7 +10,7 @@
 3. **The crew**
    - Atlas plans, Vera reviews, Warden keeps watch.
    - Scout looks things up, Euler derives, Ada solves with tools, Sentinel reviews our own code, Forge builds new agents.
-   - Scout, Euler, Ada, Sentinel and Forge are a YAML file each; Atlas, Vera and Warden are fixed roles in code.
+   - Each worker has a YAML record (prompt, tools, budget); Ada, and every agent Forge builds, is configuration alone. Atlas, Vera and Warden are fixed roles in code.
 4. **A mission**
    - Plan by expertise: plain goals planned by rule, a plan review for three tasks or more, a rule fallback.
    - Work with bounded tools: read-only SQL through a guard, a calculator that also counts the days between two dates.
@@ -34,12 +34,12 @@
    - A reviewer's lesson reaches an expert only for a task like the one it came from.
    - A note planted in the data is withheld before any model sees it; every mission replays from its files.
 9. **Measured**
-   - Eight checkable goals: 8/8 in 222 s on the workstation's CPU (round 17), 8/8 in 40 s on Nightshift (round 19).
+   - Eight checkable goals, numbers graded exactly: 8/8 in 548 s on the workstation's CPU (round 14), 8/8 in 30 s on Nightshift (rounds 26 and 27).
    - Rounds 20 to 22 fell to 6/8, 6/8 and 7/8: every task was shown its expert's newest lessons, whatever the task was about.
    - An exact grader since 27 October: a number counts only as the tool's value at its written precision (the old grader passed 122.55 for 122.625). Rounds 26 and 27: 8/8 in 30 s.
    - Warden's saved P-104 maintenance review: 16 s and 13 model calls on Nightshift, every task accepted.
 10. **Product**
-   - The chat page during a mission, with the Live panel; the evidence under an answer; the Council and Warden panels.
+   - An answer with its Evidence panel (`docs/images/evidence.jpg`) and the Warden panel on a fresh page (`docs/images/warden.jpg`).
    - Screenshots: `docs/images/`.
 11. **Sponsors, and what was unique**
    - Zetaris is the only data path, and Warden starts a mission when a machine's data changes.

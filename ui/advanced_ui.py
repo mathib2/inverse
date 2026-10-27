@@ -207,7 +207,7 @@ def _results(plan, out, events, run_dir):
 
     st.markdown("### 5 · Trace")
     ev = [e for e in events if e["kind"] in TRACE_KINDS]
-    st.dataframe(pd.DataFrame([{"t (s)": e["t"], "event": e["kind"], "task": e.get("task", ""), "lane": e.get("lane", ""), "model": e.get("model", ""),
+    st.dataframe(pd.DataFrame([{"t (s)": e["t"], "event": e["kind"], "task": e.get("task", ""), "lane": e.get("lane", ""), "model": e.get("model", ""), "provider": e.get("provider", ""),
                                 "detail": str(e.get("reason") or e.get("verdict") or e.get("tool") or e.get("name") or e.get("agent") or "")[:140]} for e in ev]),
                  hide_index=True, width="stretch")
     st.caption("Models that served this run: " + ", ".join(out["models_used"]) + f" · trace file: `{os.path.relpath(run_dir, ROOT)}/trace.jsonl`")
