@@ -10,6 +10,7 @@ COLUMN_WORDS = {                                   # the schema's columns (data/
     "sigma": ("noise level", ""), "sampling_hz": ("sampling rate", " Hz"), "mass_kg": ("mass", " kg"),
     "baseline_dataset": ("baseline dataset", ""), "current_dataset": ("current dataset", ""),
     "quantity": ("quantity", ""), "unit": ("unit", ""), "name": ("name", ""), "date": ("date", ""), "note": ("note", ""),
+    "n": ("count", ""), "count": ("count", ""), "total": ("total", ""),       # the aggregates' names in the dialect's examples (SELECT COUNT(*) AS n)
 }
 ID_KINDS = {"equipment_id": "equipment", "sensor_id": "sensor", "record_id": "record", "dataset_id": "dataset"}
 NOTHING = "No task produced an accepted result."
@@ -19,7 +20,8 @@ _KEY = re.compile(r"(?:^|(?<=[,;] ))([A-Za-z_]\w*(?:\([^)]*\))?) = ")           
 _CITE = re.compile(r" \[Q\d+\]$")
 _BARE = re.compile(r"^(?P<tok>[\w.-]*\d[\w.-]*)\. (?=Rows: )")                             # the model's '100' or 'P-104' in front of the rows
 _JSON_ROWS = re.compile(r"\[\s*\{.*\}\s*\]", re.S)
-_VALUED = re.compile(r"[\w.-]*\d[\w.-]*")                                                 # every token that carries a digit: a number, an id, a date, a label
+_VALUED = re.compile(r"[\w.\-\[\]]*\d[\w.\-\[\]]*")                                       # every token that carries a digit: a number, an id, a date, a citation label with its brackets
+_NUMBER = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")                                  # a value that is a number, so a unit can follow it
 
 
 def _phrase(col):
@@ -28,6 +30,8 @@ def _phrase(col):
         return COLUMN_WORDS[col]
     if col in ID_KINDS:
         return ID_KINDS[col], ""
+    if re.fullmatch(r"n_\w+", col):                                                       # n_samples: the number of samples
+        return "number of " + col[2:].replace("_", " "), ""
     m = re.fullmatch(r"(\w+)\((.*)\)", col)
     if m:
         fn, arg = m.group(1).lower(), m.group(2).strip()
@@ -41,7 +45,7 @@ def row_in_words(row, cite=""):
     items = [(str(k), "none" if v is None else str(v)) for k, v in dict(row).items()]
     ids = [(k, v) for k, v in items if k.endswith("_id")]
     rest = [(k, v) for k, v in items if not ids or k != ids[0][0]]
-    clauses = [f"the {_phrase(k)[0]} is {v}{_phrase(k)[1] if v != 'none' else ''}" for k, v in rest]
+    clauses = [f"the {_phrase(k)[0]} is {v}{_phrase(k)[1] if _NUMBER.fullmatch(v) else ''}" for k, v in rest]   # a unit only after a number: 'none' or 'unknown' has none
     said = clauses[0] if len(clauses) == 1 else ", ".join(clauses[:-1]) + " and " + clauses[-1] if clauses else ""
     if ids and said:
         text = f"For {ids[0][1]}, {said}"
@@ -105,19 +109,23 @@ def json_rows_in_words(text):
     if not m:
         return text
     try:
-        rows = json.loads(m.group(0))
+        rows = json.loads(m.group(0), parse_int=str, parse_float=str)                     # every number as the model wrote it: 0.10 stays 0.10, 1e-6 stays 1e-6
     except ValueError:
         return text
-    flat = lambda v: v is None or (isinstance(v, (str, int, float)) and not isinstance(v, bool))
-    if not rows or not all(isinstance(r, dict) and r and all(flat(v) for v in r.values()) for r in rows):
+    if not rows or not all(isinstance(r, dict) and r and all(v is None or isinstance(v, str) for v in r.values()) for r in rows):   # a bool or a nested value: not a flat row
         return text
-    head, tail = text[:m.start()].rstrip(), text[m.end():]
-    return (head + " " if head else "") + " ".join(row_in_words(r) for r in rows) + tail
+    head, tail = text[:m.start()].rstrip(), text[m.end():].strip()
+    tail = tail[1:].lstrip() if tail.startswith(".") else tail                            # the full stop that closed the array: each sentence carries its own
+    if tail and not re.match(r"[A-Z\[(]", tail):                                          # the array sat inside a sentence that goes on ('... and more'): kept as it came
+        return text
+    return " ".join(part for part in (head, " ".join(row_in_words(r) for r in rows), tail) if part)
 
 
 def keeps_values(before, after):
-    """True when every token with a digit in `before` (a number, an id, a date, a citation label) is still in `after`."""
-    return all(tok.strip(".,;:") in after for tok in _VALUED.findall(before) if tok.strip(".,;:"))
+    """True when every token with a digit in `before` (a number, an id, a date, a citation label) is in `after` as a whole
+    token: '100' is not found in '1000', nor '[Q1]' in 'Q1'."""
+    toks = {tok.strip(".,;:") for tok in _VALUED.findall(before)} - {""}
+    return all(re.search(r"(?<![\w.-])" + re.escape(tok) + r"(?![\w-]|\.\d)", after) for tok in toks)
 
 
 def answer_in_words(answer):

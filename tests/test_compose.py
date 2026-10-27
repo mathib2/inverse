@@ -138,3 +138,28 @@ def test_a_row_is_one_sentence_in_the_schemas_words():
     assert row_in_words({"record_id": "M-001", "note": "Mount bolts torqued."}) == "For M-001, the note is Mount bolts torqued."
     assert answer_in_words(MAINTENANCE) == ("The maintenance records for P-104 are: For M-002, the date is 2026-10-05 and the note is [text withheld: matched injection pattern]. "
                                             "For M-001, the date is 2026-09-02 and the note is Routine inspection. Mount bolts torqued. Baseline vibration recorded.")
+
+
+def test_a_count_column_is_a_count_and_a_unit_follows_only_a_number():
+    """'Rows: n = 2 [Q1]' is the most common count shape in the saved evidence (SELECT COUNT(*) AS n, the dialect's own example)."""
+    assert answer_in_words("2. Rows: n = 2 [Q1]; equipment_id = P-104 [Q2]") == "The count is 2 [Q1]. Equipment P-104 [Q2]."
+    assert answer_in_words("2 sensors. Rows: n = 2 [Q1]; sensor_id = P104-DISP-1 [Q2]") == "2 sensors. The count is 2 [Q1]. Sensor P104-DISP-1 [Q2]."
+    assert row_in_words({"n_samples": 400}, "[Q1]") == "The number of samples is 400 [Q1]."
+    assert row_in_words({"count": 3}) == "The count is 3." and row_in_words({"total": 5}) == "The total is 5."
+    assert row_in_words({"sampling_hz": "unknown"}) == "The sampling rate is unknown." and row_in_words({"mass_kg": "1e-3"}) == "The mass is 1e-3 kg."
+
+
+def test_a_pasted_array_keeps_its_numbers_as_written_and_what_follows_it():
+    assert answer_in_words('Records: [{"record_id": "S-1", "sigma": 0.10, "note": "x0.10y"}]') == "Records: For S-1, the noise level is 0.10 and the note is x0.10y."
+    assert answer_in_words('Records: [{"record_id": "S-1", "sigma": 1e-6, "n": 1000}]') == "Records: For S-1, the noise level is 1e-6 and the count is 1000."   # never 1e-06 or 1000.0
+    assert answer_in_words('Records: [{"record_id": "M-1", "date": "2026-09-02"}].') == "Records: For M-1, the date is 2026-09-02."                        # no double stop
+    assert answer_in_words('Records: [{"record_id": "M-1", "date": "2026-09-02"}] [Q1]') == "Records: For M-1, the date is 2026-09-02. [Q1]"
+    assert answer_in_words('Records: [{"record_id": "M-1", "date": "2026-09-02"}]. Both are recent.') == "Records: For M-1, the date is 2026-09-02. Both are recent."
+    for kept in ('Records: [{"record_id": "M-1", "date": "2026-09-02"}] and more text.', 'Records: [{"record_id": "M-1", "done": true}]'):   # a sentence that goes on, a bool
+        assert answer_in_words(kept) == kept
+
+
+def test_keeps_values_checks_whole_tokens():
+    assert keeps_values("100 [Q1]", "The rate is 100 Hz [Q1].") and keeps_values("**T1 (research)**: 400 [T1.E1]", "400 [T1.E1]")
+    for before, after in (("100", "1000"), ("[Q1]", "Q1 here"), ("0.01", "10.01"), ("1.0", "1.05"), ("P-104", "P-1045")):
+        assert not keeps_values(before, after), (before, after)
