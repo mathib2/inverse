@@ -398,7 +398,7 @@ class ResearchExpert(BaseExpert):
         return self.prompt + "\n" + SCHEMA + '\nWrite new queries for the task in that dialect. Return ONLY JSON: {"queries":["SELECT ..."]} with at most 3 read-only SELECTs, no semicolons.'
 
     def run(self, task, memory, budget):
-        from .references import SEARCH, NOTICE, available, evidence_of, reference_task, REQUEST
+        from .references import NOTICE, REQUEST, SEARCH, available, evidence_of, reference_task
         if SEARCH in self.tools and reference_task(task.goal) and (available(self.ctx) or REQUEST.search(task.goal)):
             from .tools import Tools
             output = Tools(self.ctx, self.tools, owner=self.name).call(SEARCH, {"query": task.goal[:500]}, budget, who=self.name)
