@@ -151,7 +151,12 @@ class ReasoningExpert(BaseExpert):
         if by_code:
             return by_code
         msgs = [{"role": "system", "content": self.system()}, {"role": "user", "content": self._task_text(task)}]
-        r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
+        r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS, lenient=True)
+        if r["json"] is None:                                                # a prose answer: shown back once, in this conversation, to be put in the shape
+            self.ctx.trace.event("prose_reasked", agent=self.name, task=task.id, said=str(r["text"])[:120])
+            msgs += [{"role": "assistant", "content": r["text"]},
+                     {"role": "user", "content": "Return that answer as the JSON object described above, nothing else: every number in a calc step with the value you expect."}]
+            r = ask(self.ctx, self.lane, msgs, self.name, budget, json_reply=True, max_tokens=STEPS_MAX_TOKENS)
         models, j = [r["model"]], r["json"]
         ev, bad = self._check(j.get("steps", []), task.context)
         if bad:
